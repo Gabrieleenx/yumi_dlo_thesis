@@ -72,13 +72,20 @@ int main(int argc, char** argv){
     ros::Rate r(100);
 
     tf::TransformBroadcaster broadcaster;
-    
+
+    tf::TransformBroadcaster broadcaster2;
+
     while(n.ok()){
         //ros::spinOnce();
         broadcaster.sendTransform(
             tf::StampedTransform(
                 tf_camera_link.return_world_to_camera(),
                 ros::Time::now(),"world", "camera_link"));
+
+        broadcaster2.sendTransform(
+            tf::StampedTransform(
+                tf::Transform(tf::Quaternion(0, 0, 0.7071, 0.7071), tf::Vector3(0, -0.4, 0)),
+                ros::Time::now(),"world", "yumi_base_link"));
         r.sleep();
     }
 }
