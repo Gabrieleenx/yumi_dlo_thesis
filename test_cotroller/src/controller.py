@@ -2,7 +2,10 @@
 
 import rospy
 from sensor_msgs.msg import JointState
+from std_msgs.msg import Float64MultiArray
 
+def callback(data):
+    print(data.data)
 
 
 def main():
@@ -10,6 +13,9 @@ def main():
     # starting ROS node and subscribers
     rospy.init_node('pub_joint_pos', anonymous=True) 
     pub = rospy.Publisher('/joint_states', JointState, queue_size=5)
+
+    rospy.Subscriber("/Jacobian_R_L", Float64MultiArray, callback)
+
     rate = rospy.Rate(10) # 10hz
 
     msg = JointState()
@@ -24,7 +30,7 @@ def main():
                 'yumi_joint_4_l', 'yumi_joint_5_l', 'yumi_joint_6_l', 'gripper_r_joint', 'gripper_r_joint_m',\
                     'gripper_l_joint', 'gripper_l_joint_m']
         msg.position = [-0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,\
-             0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,\
+             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,\
                   0.0, 0.0]
         pub.publish(msg)
         rate.sleep()
