@@ -202,9 +202,9 @@ def main():
     num_points = 50
     distance = 0.4
 
-    x = cable_length*(np.arange(num_points)/num_points)-cable_length/2
-    y = np.zeros((num_points))
-    z = np.ones(num_points)*distance
+    x = np.ones(num_points)*distance
+    y = cable_length*(np.arange(num_points)/num_points)-cable_length/2
+    z = np.zeros((num_points))
 
     init_estimate = np.array([x,y,z]).T
     
