@@ -5,6 +5,7 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
 import numpy as np
 import tf
+from scipy.spatial.transform import Rotation as R_scipy
 
 class Ymui_contoller(object):
     def __init__(self):
@@ -17,9 +18,9 @@ class Ymui_contoller(object):
              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,\
                   0.0, 0.0])  
 
-        self.right_arm_V = np.array([[0],[0],[0.0],[0],[0],[0]])
+        self.right_arm_V = np.array([[0],[0],[0.0],[0.0],[0.0],[0.0]])
 
-        self.right_arm_target = np.array([[0],[0],[0.2],[3.14],[0],[0]])
+        self.right_arm_target = np.array([[0.3],[0],[0.2],[-3.14],[0],[0]])
 
         # object that listen to transformation tree. 
         self.tf_listener = tf.TransformListener()
@@ -39,29 +40,50 @@ class Ymui_contoller(object):
         jacobian_R_arm = data_R_arm.reshape((6,7))
         jacobian_L_arm = data_L_arm.reshape((6,7))
 
-        (trans, rot) = self.tf_listener.lookupTransform('/world', '/gripper_r_base', rospy.Time(0))
+        (trans, rot) = self.tf_listener.lookupTransform('/yumi_base_link', '/yumi_link_7_r', rospy.Time(0))
         self.update_vel(trans, rot)
         pinv_jac_right_arm = np.linalg.pinv(jacobian_R_arm)
 
         self.joint_pose_dT[0:7] = pinv_jac_right_arm.dot(self.right_arm_V).reshape(7)
-
-        print(trans)
+        print('vel ', self.joint_pose_dT[0:7])
+        self.joint_pose_dT[0:7] = self.joint_pose_dT[0:7].clip(-0.3,0.3)
 
         self.joint_pose[0:7] = self.joint_pose[0:7] + self.joint_pose_dT[0:7]*self.dT
 
     def update_vel(self, T_r, R_r):
-        print('R_r', R_r)
+
+        # position
         vec_T = self.right_arm_target[0:3].reshape(3) - T_r
-        print('vec_T',vec_T)
-        vec_T = normalize(vec_T)
-        (trans, rot) = self.tf_listener.lookupTransform( '/yumi_base_link','/world', rospy.Time(0))
-        tf_matrix = self.transformer_.fromTranslationRotation(translation=(0,0,0), rotation=rot)
-        vec_T_ = np.vstack((vec_T.reshape((3,1)),1))
-        vec_T = tf_matrix.dot(vec_T_)
-        #vec_T = np.array([vec_T[1], -vec_T[0], vec_T[2]]) #change of cordinate system world -> yumi_base_link 
-        new_v = vec_T[0:3]*0.02
+        norm_T = np.linalg.norm(vec_T)
+        vec_T = normalize(vec_T)        
+        new_v = vec_T.reshape((3,1))*min([0.05, norm_T])
+
+        # rotation
+        r = R_scipy.from_quat(R_r)
+        rot_C = r.as_euler('xyz', degrees=False)
+        
+        rot_x = self.right_arm_target[3,0] - rot_C[0]
+        if abs(rot_x) > np.pi:
+            rot_x = rot_x - np.sign(rot_x)*2*np.pi
+
+
+        rot_y = self.right_arm_target[4,0] - rot_C[1]
+        if abs(rot_y) > np.pi:
+            rot_y = rot_y - np.sign(rot_y)*2*np.pi
+        rot_z = self.right_arm_target[5,0] - rot_C[2]
+        if abs(rot_z) > np.pi:
+            rot_z = rot_z - np.sign(rot_z)*2*np.pi
+
+
+        vec_R = np.array([rot_x, rot_y, rot_z])
+        norm_R = np.linalg.norm(vec_R)
+        vec_R = normalize(vec_R) 
+        vec_R = vec_R.reshape((3,1))*min([0.15, norm_R])
+
+
         self.right_arm_V[0:3] = new_v
-        print('arm', self.right_arm_V[0:3])
+        self.right_arm_V[3:6] = vec_R
+
 
 def normalize(v):
     norm = np.linalg.norm(v)

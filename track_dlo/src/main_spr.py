@@ -119,7 +119,7 @@ class ObjectTracking(object):
             point_cloud = point_cloud[~np.all(point_cloud == 0, axis=1)]
             
             # get transformation matrix
-            (trans, rot) = self.tf_listener.lookupTransform('/world', '/camera_link', rospy.Time(0))
+            (trans, rot) = self.tf_listener.lookupTransform('/yumi_base_link', '/camera_link', rospy.Time(0))
             transformer_ = tf.TransformerROS(True, rospy.Duration(1.0))
             tf_matrix = transformer_.fromTranslationRotation(translation=trans, rotation=rot)
 
@@ -153,7 +153,7 @@ class ObjectTracking(object):
         cloudpoints = self.estimate
         cloud_msg = PointCloud()
         cloud_msg.header.stamp = self.stamp
-        cloud_msg.header.frame_id = "world"
+        cloud_msg.header.frame_id = "yumi_base_link"
 
         for i in range(cloudpoints.shape[0]):
             cloud_msg.points.append(Point32(cloudpoints[i, 0], cloudpoints[i, 1], cloudpoints[i, 2])) 

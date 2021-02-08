@@ -84,8 +84,8 @@ int main(int argc, char** argv){
 
         broadcaster2.sendTransform(
             tf::StampedTransform(
-                tf::Transform(tf::Quaternion(0, 0, 0.7071, 0.7071), tf::Vector3(0, -0.4, 0)),
-                ros::Time::now(),"world", "yumi_base_link"));
+                tf::Transform(tf::Quaternion(0, 0, 0.7071, -0.7071), tf::Vector3(0.4, 0, 0)),
+                ros::Time::now(), "yumi_base_link", "world"));
         r.sleep();
     }
 }
