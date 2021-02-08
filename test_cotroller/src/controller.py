@@ -19,14 +19,19 @@ class Ymui_contoller(object):
              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,\
                   0.0, 0.0])  
 
-        self.right_arm_V = np.array([[0],[0],[0.0],[0.0],[0.0],[0.0]])
-
+        self.right_arm_effector_vel = np.array([[0],[0],[0.0],[0.0],[0.0],[0.0]])
         self.right_arm_target = np.array([[0.45],[-0.3],[0.4],[-3.14],[0],[0]])
-
         self.right_gripper_target = np.array([0.0, 0.0])
 
+        self.left_arm_effector_vel = np.array([[0],[0],[0.0],[0.0],[0.0],[0.0]])
+        self.left_arm_target = np.array([[0.45],[0.3],[0.4],[-3.14],[0],[0]])
+        self.left_gripper_target = np.array([0.0, 0.0])
 
-        self.right_arm_gripp = 0.1 # meters from rigth side of cable 
+        self.gripp_pos_RL = np.array([0.1, 0.4]) # meters from rigth side of cable 
+
+        self.effector_max_vel = 0.05
+        self.effector_max_rot_vel = 0.20
+        self.effector_max_gripp_vel = 0.03
 
         # object that listen to transformation tree. 
         self.tf_listener = tf.TransformListener()
@@ -55,16 +60,19 @@ class Ymui_contoller(object):
 
         self.dlo_mtx.acquire()
 
-
         if self.recive_dlo == 1:
-            (trans, rot) = self.tf_listener.lookupTransform('/yumi_base_link', '/yumi_link_7_r', rospy.Time(0))
-            self.update_target()
-            self.update_vel(trans, rot)
-            pinv_jac_right_arm = np.linalg.pinv(jacobian_R_arm)
+            (trans_r, rot_r) = self.tf_listener.lookupTransform('/yumi_base_link', '/yumi_link_7_r', rospy.Time(0))
+            (trans_l, rot_l) = self.tf_listener.lookupTransform('/yumi_base_link', '/yumi_link_7_l', rospy.Time(0))
 
-            self.joint_pose_dT[0:7] = pinv_jac_right_arm.dot(self.right_arm_V).reshape(7)
-            print('vel ', self.joint_pose_dT[0:7])
-            self.joint_pose_dT[0:7] = self.joint_pose_dT[0:7].clip(-0.3,0.3)
+            self.update_target()
+            self.update_vel(trans_r, rot_r, trans_l, rot_l) # -------------------------
+            pinv_jac_right_arm = np.linalg.pinv(jacobian_R_arm)
+            pinv_jac_left_arm = np.linalg.pinv(jacobian_L_arm)
+            print('right speed ', self.right_arm_effector_vel, 'left speed ', self.left_arm_effector_vel)
+            self.joint_pose_dT[0:7] = pinv_jac_right_arm.dot(self.right_arm_effector_vel).reshape(7)
+            self.joint_pose_dT[7:14] = pinv_jac_left_arm.dot(self.left_arm_effector_vel).reshape(7)
+
+            self.joint_pose_dT[0:14] = self.joint_pose_dT[0:14].clip(-0.3,0.3)
 
             self.joint_pose = self.joint_pose + self.joint_pose_dT*self.dT
 
@@ -91,81 +99,110 @@ class Ymui_contoller(object):
 
     def update_target(self):
 
-        self.right_arm_gripp
         dist_r = 0
         for i in range(1, self.num_of_points):
             dist_r += self.dist_to_p[i]
-            if dist_r > self.right_arm_gripp:
+            if dist_r > self.gripp_pos_RL[0]:
                 point_r = self.data_np[i]
                 dy = self.data_np[i+1].y-self.data_np[i-1].y
                 dx = self.data_np[i+1].x-self.data_np[i-1].x 
-                rot_z = np.arctan2(dy,dx)
+                rot_z_r = np.arctan2(dy,dx)
                 break
+        dist_l = 0
+        for i in range(1, self.num_of_points):
+            dist_l += self.dist_to_p[i]
+            if dist_l > self.gripp_pos_RL[1]:
+                point_l = self.data_np[i]
+                dy = self.data_np[i+1].y-self.data_np[i-1].y
+                dx = self.data_np[i+1].x-self.data_np[i-1].x 
+                rot_z_l = np.arctan2(dy,dx)
+                break
+
         if self.state_seq == 1:
-            self.right_arm_target = np.array([[point_r.x],[point_r.y],[point_r.z+0.2],[-3.14],[0],[rot_z-np.pi/2]])
+            self.right_arm_target = np.array([[point_r.x],[point_r.y],[point_r.z+0.2],[-3.14],[0],[rot_z_r-np.pi/2]])
+            self.left_arm_target = np.array([[point_l.x],[point_l.y],[point_l.z+0.2],[-3.14],[0],[rot_z_l-np.pi/2]])
+
         elif self.state_seq == 2:
             self.right_gripper_target = np.array([0.025, 0.025])
+            self.left_gripper_target = np.array([0.025, 0.025])
+
         elif self.state_seq == 3:
-            self.right_arm_target = np.array([[point_r.x],[point_r.y],[point_r.z+0.13],[-3.14],[0],[rot_z-np.pi/2]])
+            self.right_arm_target = np.array([[point_r.x],[point_r.y],[point_r.z+0.13],[-3.14],[0],[rot_z_r-np.pi/2]])
+            self.left_arm_target = np.array([[point_l.x],[point_l.y],[point_l.z+0.13],[-3.14],[0],[rot_z_l-np.pi/2]])
+
         elif self.state_seq == 4:
             self.right_gripper_target = np.array([0.005, 0.005])
-    def update_vel(self, T_r, R_r):
+            self.left_gripper_target = np.array([0.005, 0.005])
+
+
+    def update_vel(self, T_r, R_r, T_l, R_l):
 
         # position
-        vec_T = self.right_arm_target[0:3].reshape(3) - T_r
-        norm_T = np.linalg.norm(vec_T)
-        vec_T = normalize(vec_T)        
-        new_v = vec_T.reshape((3,1))*min([0.05, norm_T])
+        d_pos_r = self.right_arm_target[0:3].reshape(3) - T_r
+        norm_pos_r = np.linalg.norm(d_pos_r)
+        d_pos_r = normalize(d_pos_r)        
+        self.right_arm_effector_vel[0:3] = d_pos_r.reshape((3,1))*min([self.effector_max_vel, norm_pos_r])
 
-       
-
+        d_pos_l = self.left_arm_target[0:3].reshape(3) - T_l
+        norm_pos_l = np.linalg.norm(d_pos_l)
+        d_pos_l = normalize(d_pos_l)        
+        self.left_arm_effector_vel[0:3] = d_pos_l.reshape((3,1))*min([self.effector_max_vel, norm_pos_l])
 
         # rotation
-        r = R_scipy.from_quat(R_r)
-        rot_C = r.as_euler('xyz', degrees=False)
-        
-        rot_x = self.right_arm_target[3,0] - rot_C[0]
-        if abs(rot_x) > np.pi:
-            rot_x = rot_x - np.sign(rot_x)*2*np.pi
+        r_r = R_scipy.from_quat(R_r)
+        r_l = R_scipy.from_quat(R_l)
 
+        rot_xyz_r = r_r.as_euler('xyz', degrees=False)
+        rot_xyz_l = r_l.as_euler('xyz', degrees=False)
 
-        rot_y = self.right_arm_target[4,0] - rot_C[1]
-        if abs(rot_y) > np.pi:
-            rot_y = rot_y - np.sign(rot_y)*2*np.pi
-        rot_z = self.right_arm_target[5,0] - rot_C[2]
-        if abs(rot_z) > np.pi:
-            rot_z = rot_z - np.sign(rot_z)*2*np.pi
+        rot_x_r = closest_ang( self.right_arm_target[3,0], rot_xyz_r[0])
+        rot_y_r = closest_ang( self.right_arm_target[4,0], rot_xyz_r[1])
+        rot_z_r = closest_ang( self.right_arm_target[5,0], rot_xyz_r[2])
 
+        rot_x_l = closest_ang( self.left_arm_target[3,0], rot_xyz_l[0])
+        rot_y_l = closest_ang( self.left_arm_target[4,0], rot_xyz_l[1])
+        rot_z_l = closest_ang( self.left_arm_target[5,0], rot_xyz_l[2])
 
-        vec_R = np.array([rot_x, rot_y, rot_z])
-        norm_R = np.linalg.norm(vec_R)
+        vec_R = np.array([rot_x_r, rot_y_r, rot_z_r])
+        norm_rot_R = np.linalg.norm(vec_R)
         vec_R = normalize(vec_R) 
-        vec_R = vec_R.reshape((3,1))*min([0.15, norm_R])
+        self.right_arm_effector_vel[3:6] = vec_R.reshape((3,1))*min([self.effector_max_rot_vel, norm_rot_R])
 
-
-        self.right_arm_V[0:3] = new_v
-        self.right_arm_V[3:6] = vec_R
+        vec_L = np.array([rot_x_l, rot_y_l, rot_z_l])
+        norm_rot_L = np.linalg.norm(vec_L)
+        vec_L = normalize(vec_L) 
+        self.left_arm_effector_vel[3:6] = vec_L.reshape((3,1))*min([self.effector_max_rot_vel, norm_rot_L])
 
         #gripper 
-        vec_G = self.right_gripper_target - self.joint_pose[14:16]
-        norm_G = np.linalg.norm(vec_G)
-        vec_G = normalize(vec_G) 
-        vec_G = vec_G*min([0.03, norm_G])
-        self.joint_pose_dT[14:16] = vec_G
+        gripp_r = self.right_gripper_target - self.joint_pose[14:16]
+        norm_gripp_r = np.linalg.norm(gripp_r)
+        gripp_r = normalize(gripp_r) 
+        self.joint_pose_dT[14:16] = gripp_r*min([self.effector_max_gripp_vel, norm_gripp_r])
+
+        gripp_l = self.left_gripper_target - self.joint_pose[16:18]
+        norm_gripp_l = np.linalg.norm(gripp_l)
+        gripp_l = normalize(gripp_l) 
+        self.joint_pose_dT[16:18] = gripp_l*min([self.effector_max_gripp_vel, norm_gripp_l])
+        
+        # update state
+        norm_sum = norm_pos_r +norm_pos_l + norm_rot_R + norm_rot_L
 
         if self.state_seq == 1:
-            if norm_T < 0.01:
+            if norm_sum < 0.02:
                 self.state_seq = 2
-        elif self.state_seq == 2 and norm_G < 0.002:
+        elif self.state_seq == 2 and norm_gripp_r+norm_gripp_l < 0.005:
             self.state_seq = 3
         elif self.state_seq == 3:
-            if norm_T < 0.01:
+            if norm_sum < 0.02:
                 self.state_seq = 4
             
                 
             
-
-
+def closest_ang(target, current_rot):
+    rot = target - current_rot
+    if abs(rot) > np.pi:
+        rot = rot - np.sign(rot)*2*np.pi
+    return rot
 
 def normalize(v):
     norm = np.linalg.norm(v)

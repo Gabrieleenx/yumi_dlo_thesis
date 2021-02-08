@@ -71,7 +71,7 @@ void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_stat
     }
 
     jac_solver_right_arm->JntToJac(q_right_arm, jacobian_right_arm);
-    jac_solver_right_arm->JntToJac(q_left_arm, jacobian_left_arm);
+    jac_solver_left_arm->JntToJac(q_left_arm, jacobian_left_arm);
 
     std_msgs::Float64MultiArray jac_msg;
     std::vector<double> data_msg(84); // 6*7*2
