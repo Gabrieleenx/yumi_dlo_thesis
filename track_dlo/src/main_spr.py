@@ -3,8 +3,9 @@
 import numpy as np
 import cv2
 import open3d as o3d
+import time
 
-import SPR_local
+import SPR_local_gpu
 import rospy
 from sensor_msgs.msg import Image, PointCloud, CameraInfo
 from geometry_msgs.msg import Point32
@@ -14,7 +15,7 @@ import message_filters
 from cv_bridge import CvBridge, CvBridgeError
 import tf
 
-spr_local = SPR_local.SPR()
+spr_local = SPR_local_gpu.SPR()
 
 class ObjectTracking(object):
     def __init__(self, SPR_opt, init_estimate):
@@ -55,6 +56,8 @@ class ObjectTracking(object):
         self.height_off = 0.003 # m offest for which all points under get filtered away
     def callback(self, depth_data, rgb_data):
         # TODO try infrared cameras 
+        time_start = time.time()
+
         try:
             color_img = self.bridge.imgmsg_to_cv2(rgb_data, rgb_data.encoding)
         except CvBridgeError as e:
@@ -148,6 +151,8 @@ class ObjectTracking(object):
             # call SPR 
             SPR_Transform = spr_local.SPR_register(self.target, self.estimate, self.SPR_opt)  # CPD warp Y to X, fliped! X_warp = SPR_Transform.Y;
             self.estimate = SPR_Transform.get('Y')
+            time_update = time.time() - time_start 
+            print('time_update ', time_update)
 
     def publish_msg(self):
         cloudpoints = self.estimate

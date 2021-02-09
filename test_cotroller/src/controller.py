@@ -68,7 +68,7 @@ class Ymui_contoller(object):
             self.update_vel(trans_r, rot_r, trans_l, rot_l) # -------------------------
             pinv_jac_right_arm = np.linalg.pinv(jacobian_R_arm)
             pinv_jac_left_arm = np.linalg.pinv(jacobian_L_arm)
-            print('right speed ', self.right_arm_effector_vel, 'left speed ', self.left_arm_effector_vel)
+            #print('right speed ', self.right_arm_effector_vel, 'left speed ', self.left_arm_effector_vel)
             self.joint_pose_dT[0:7] = pinv_jac_right_arm.dot(self.right_arm_effector_vel).reshape(7)
             self.joint_pose_dT[7:14] = pinv_jac_left_arm.dot(self.left_arm_effector_vel).reshape(7)
 
@@ -188,12 +188,12 @@ class Ymui_contoller(object):
         norm_sum = norm_pos_r +norm_pos_l + norm_rot_R + norm_rot_L
 
         if self.state_seq == 1:
-            if norm_sum < 0.02:
+            if norm_sum < 0.03:
                 self.state_seq = 2
         elif self.state_seq == 2 and norm_gripp_r+norm_gripp_l < 0.005:
             self.state_seq = 3
         elif self.state_seq == 3:
-            if norm_sum < 0.02:
+            if norm_sum < 0.03:
                 self.state_seq = 4
             
                 
@@ -220,6 +220,7 @@ def main():
     pub = rospy.Publisher('/joint_states', JointState, queue_size=5)
 
     ymui_contoller = Ymui_contoller()
+    rospy.sleep(0.5)
 
     rospy.Subscriber("/Jacobian_R_L", Float64MultiArray, ymui_contoller.callback)
     rospy.Subscriber("/spr/dlo_estimation", PointCloud, ymui_contoller.callback_dlo)
