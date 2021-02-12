@@ -19,15 +19,16 @@ class Ymui_contoller(object):
              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,\
                   0.0, 0.0])  
 
-        self.right_arm_effector_vel = np.array([[0],[0],[0.0],[0.0],[0.0],[0.0]])
-        self.right_arm_target = np.array([[0.3],[-0.2],[0.0],[-3.14],[0],[0]])
         self.right_gripper_target = np.array([0.0, 0.0])
-
-        self.left_arm_effector_vel = np.array([[0],[0],[0.0],[0.0],[0.0],[0.0]])
-        self.left_arm_target = np.array([[0.3],[0.2],[0.0],[-3.14],[0],[0]])
         self.left_gripper_target = np.array([0.0, 0.0])
 
-        self.gripp_pos_RL = np.array([0.1, 0.4]) # meters from rigth side of cable 
+        self.absolute_v = np.array([[0],[0],[0.0],[0.0],[0.0],[0.0]])
+        self.relative_v = np.array([[0],[0],[0.0],[0.0],[0.0],[0.0]])
+        
+        self.absolute_target = np.array([[0.45],[-0.3],[0.4],[-3.14],[0],[0]])
+        self.relative_target = np.array([[0],[0.3],[0],[0,[0],[0]])      
+
+        #self.gripp_pos_RL = np.array([0.1, 0.4]) # meters from rigth side of cable 
 
         self.effector_max_vel = 0.05
         self.effector_max_rot_vel = 0.20
@@ -57,26 +58,23 @@ class Ymui_contoller(object):
 
         jacobian_R_arm = data_R_arm.reshape((6,7))
         jacobian_L_arm = data_L_arm.reshape((6,7))
-        
-        # change endeffector frame 
-
-        (trans_r, rot_r) = self.tf_listener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
-        (trans_l, rot_l) = self.tf_listener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
-
-        (gripper_r_d, _) = self.tf_listener.lookupTransform('/yumi_link_7_r', '/yumi_gripp_r', rospy.Time(0))
-        (gripper_l_d, _) = self.tf_listener.lookupTransform('/yumi_link_7_l', '/yumi_gripp_l', rospy.Time(0))
-
-        jacobian_R_arm = self.change_frame_jacobian(jacobian_R_arm, gripper_r_d, rot_r)
-        jacobian_L_arm = self.change_frame_jacobian(jacobian_L_arm, gripper_l_d, rot_l)
 
         self.dlo_mtx.acquire()
 
         if self.recive_dlo == 1:
+            (trans_r, rot_r) = self.tf_listener.lookupTransform('/yumi_base_link', '/yumi_link_7_r', rospy.Time(0))
+            (trans_l, rot_l) = self.tf_listener.lookupTransform('/yumi_base_link', '/yumi_link_7_l', rospy.Time(0))
+
             #self.update_target()
-            self.update_vel(trans_r, rot_r, trans_l, rot_l) # -------------------------
-            pinv_jac_right_arm = np.linalg.pinv(jacobian_R_arm)
-            pinv_jac_left_arm = np.linalg.pinv(jacobian_L_arm)
+            #self.update_vel(trans_r, rot_r, trans_l, rot_l) # -------------------------
+            #pinv_jac_right_arm = np.linalg.pinv(jacobian_R_arm)
+            #pinv_jac_left_arm = np.linalg.pinv(jacobian_L_arm)
             #print('right speed ', self.right_arm_effector_vel, 'left speed ', self.left_arm_effector_vel)
+            
+            zero = np.zeros((6,7))
+            J_LR = np.asarray(np.bmat([[jacobian_L_arm,zero],[zero,jacobian_R_arm]]))
+
+            
             self.joint_pose_dT[0:7] = pinv_jac_right_arm.dot(self.right_arm_effector_vel).reshape(7)
             self.joint_pose_dT[7:14] = pinv_jac_left_arm.dot(self.left_arm_effector_vel).reshape(7)
 
@@ -105,19 +103,6 @@ class Ymui_contoller(object):
 
         print('dlo length ', self.dlo_len)
 
-    def change_frame_jacobian(self, jacobian, gripper_d, rot):
-
-        # change end effector for each jacobian 
-        tf_matrix = self.transformer_.fromTranslationRotation(translation=np.array([0,0,0]), rotation=rot)
-        gripper_d = np.asarray(gripper_d)
-        vel_xyz = tf_matrix[0:3,0:3].dot( gripper_d.reshape((3,1)) )
-        eye3 = np.eye(3)
-        zeros3 = np.zeros((3,3))
-        L = np.array([[0, vel_xyz[2,0], -vel_xyz[1,0]],[-vel_xyz[2,0],0,vel_xyz[0,0]],[vel_xyz[1,0],-vel_xyz[0,0],0]])
-        j_t = np.asarray(np.bmat([[eye3,L],[zeros3,eye3]]))
-
-        return j_t.dot(jacobian)
-
     def update_target(self):
 
         dist_r = 0
@@ -140,16 +125,16 @@ class Ymui_contoller(object):
                 break
 
         if self.state_seq == 1:
-            self.right_arm_target = np.array([[point_r.x],[point_r.y],[point_r.z+0.05],[-3.14],[0],[rot_z_r-np.pi/2]])
-            self.left_arm_target = np.array([[point_l.x],[point_l.y],[point_l.z+0.05],[-3.14],[0],[rot_z_l-np.pi/2]])
+            self.right_arm_target = np.array([[point_r.x],[point_r.y],[point_r.z+0.2],[-3.14],[0],[rot_z_r-np.pi/2]])
+            self.left_arm_target = np.array([[point_l.x],[point_l.y],[point_l.z+0.2],[-3.14],[0],[rot_z_l-np.pi/2]])
 
         elif self.state_seq == 2:
             self.right_gripper_target = np.array([0.025, 0.025])
             self.left_gripper_target = np.array([0.025, 0.025])
 
         elif self.state_seq == 3:
-            self.right_arm_target = np.array([[point_r.x],[point_r.y],[point_r.z-0.01],[-3.14],[0],[rot_z_r-np.pi/2]])
-            self.left_arm_target = np.array([[point_l.x],[point_l.y],[point_l.z-0.01],[-3.14],[0],[rot_z_l-np.pi/2]])
+            self.right_arm_target = np.array([[point_r.x],[point_r.y],[point_r.z+0.13],[-3.14],[0],[rot_z_r-np.pi/2]])
+            self.left_arm_target = np.array([[point_l.x],[point_l.y],[point_l.z+0.13],[-3.14],[0],[rot_z_l-np.pi/2]])
 
         elif self.state_seq == 4:
             self.right_gripper_target = np.array([0.005, 0.005])

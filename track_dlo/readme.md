@@ -53,6 +53,7 @@ https://github.com/Gabrieleenx/robot_setup_tf
 ``` 
     numpy
     scipy
+    cupy (optional)
 ```
 
 ## Usage

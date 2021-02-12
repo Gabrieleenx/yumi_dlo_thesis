@@ -74,7 +74,8 @@ int main(int argc, char** argv){
     tf::TransformBroadcaster broadcaster;
 
     tf::TransformBroadcaster broadcaster2;
-
+    tf::TransformBroadcaster broadcaster_r_gripper;
+    tf::TransformBroadcaster broadcaster_l_gripper;
     while(n.ok()){
         //ros::spinOnce();
         broadcaster.sendTransform(
@@ -86,6 +87,16 @@ int main(int argc, char** argv){
             tf::StampedTransform(
                 tf::Transform(tf::Quaternion(0, 0, 0.7071, -0.7071), tf::Vector3(0.4, 0, 0)),
                 ros::Time::now(), "yumi_base_link", "world"));
+
+        broadcaster_r_gripper.sendTransform(
+            tf::StampedTransform(
+                tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0, 0, 0.136)),
+                ros::Time::now(), "yumi_link_7_r", "yumi_gripp_r"));
+
+        broadcaster_l_gripper.sendTransform(
+            tf::StampedTransform(
+                tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0, 0, 0.136)),
+                ros::Time::now(), "yumi_link_7_l", "yumi_gripp_l"));
         r.sleep();
     }
 }
