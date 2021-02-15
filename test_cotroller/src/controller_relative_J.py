@@ -7,13 +7,14 @@ import numpy as np
 import tf
 from scipy.spatial.transform import Rotation as R_scipy
 import threading
+import time
 
 class Ymui_contoller(object):
     def __init__(self):
         self.update_rate = 20
         self.dT = 1/self.update_rate
-        self.joint_pose = np.array([-0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,\
-             0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,\
+        self.joint_pose = np.array([-0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,\
+             0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,\
                   0.0, 0.0, 0.0, 0.0])   
         self.joint_pose_dT = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,\
              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,\
@@ -22,11 +23,11 @@ class Ymui_contoller(object):
         self.right_gripper_target = np.array([0.0, 0.0])
         self.left_gripper_target = np.array([0.0, 0.0])
 
-        self.absolute_v = np.array([[0],[0],[0.0],[0.0],[0.0],[0.0]])
-        self.relative_v = np.array([[0],[0],[0.0],[0.0],[0.0],[0.0]])
+        self.absolute_v = np.array([[-0.0],[0.0],[0.0],[0.0],[-0.0],[0.0]])
+        self.relative_v = np.array([[0.00],[0.0],[0.0],[0.0],[0.0],[0.0]])
         
         self.absolute_target = np.array([[0.45],[-0.3],[0.4],[-3.14],[0],[0]])
-        self.relative_target = np.array([[0],[0.3],[0],[0,[0],[0]])      
+        self.relative_target = np.array([[0],[0.3],[0],[0],[0],[0]])      
 
         #self.gripp_pos_RL = np.array([0.1, 0.4]) # meters from rigth side of cable 
 
@@ -45,10 +46,15 @@ class Ymui_contoller(object):
         self.recive_dlo = 0
 
         # state
-        self.state_seq = 1 # 0 nothing, 1 get above cable, 2 open grippers, 3 lower down, 4 close grippers 
+        self.state_seq = 0
+
+        # time for demo
+        self.last_time = time.time()
+
 
 
     def callback(self, data):
+        self.update_vel()
         jacobian_R_arm = np.zeros((6,7))
         jacobian_L_arm = np.zeros((6,7))
 
@@ -59,31 +65,72 @@ class Ymui_contoller(object):
         jacobian_R_arm = data_R_arm.reshape((6,7))
         jacobian_L_arm = data_L_arm.reshape((6,7))
 
-        self.dlo_mtx.acquire()
+        (trans_r, rot_r) = self.tf_listener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
+        (trans_l, rot_l) = self.tf_listener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
 
-        if self.recive_dlo == 1:
-            (trans_r, rot_r) = self.tf_listener.lookupTransform('/yumi_base_link', '/yumi_link_7_r', rospy.Time(0))
-            (trans_l, rot_l) = self.tf_listener.lookupTransform('/yumi_base_link', '/yumi_link_7_l', rospy.Time(0))
+        (gripper_r_d, _) = self.tf_listener.lookupTransform('/yumi_link_7_r', '/yumi_gripp_r', rospy.Time(0))
+        (gripper_l_d, _) = self.tf_listener.lookupTransform('/yumi_link_7_l', '/yumi_gripp_l', rospy.Time(0))
 
-            #self.update_target()
-            #self.update_vel(trans_r, rot_r, trans_l, rot_l) # -------------------------
-            #pinv_jac_right_arm = np.linalg.pinv(jacobian_R_arm)
-            #pinv_jac_left_arm = np.linalg.pinv(jacobian_L_arm)
-            #print('right speed ', self.right_arm_effector_vel, 'left speed ', self.left_arm_effector_vel)
-            
-            zero = np.zeros((6,7))
-            J_LR = np.asarray(np.bmat([[jacobian_L_arm,zero],[zero,jacobian_R_arm]]))
+        jacobian_R_arm = self.change_frame_jacobian(jacobian_R_arm, gripper_r_d, rot_r)
+        jacobian_L_arm = self.change_frame_jacobian(jacobian_L_arm, gripper_l_d, rot_l)        
 
-            
-            self.joint_pose_dT[0:7] = pinv_jac_right_arm.dot(self.right_arm_effector_vel).reshape(7)
-            self.joint_pose_dT[7:14] = pinv_jac_left_arm.dot(self.left_arm_effector_vel).reshape(7)
+        J_LR = np.asarray(np.bmat([[jacobian_R_arm,np.zeros((6,7))],[np.zeros((6,7)),jacobian_L_arm]]))
+        
+        P_R = np.asarray(trans_r).reshape((3,1))
+        P_L = np.asarray(trans_l).reshape((3,1))
+        # might need other direction ... 
+        R_R = np.asarray(rot_r)
+        R_L = np.asarray(rot_l)
 
-            self.joint_pose_dT[0:14] = self.joint_pose_dT[0:14].clip(-0.3,0.3)
+        # naiv avg of quaternions 
+        #R_A = 0.5*(R_R + R_L)
+        #R_A = R_A/np.linalg.norm(R_A)
 
-            self.joint_pose = self.joint_pose + self.joint_pose_dT*self.dT
+        Q = np.array([[R_R[3], R_R[0],R_R[1],R_R[2]],[R_L[3], R_L[0],R_L[1],R_L[2]]])
+        R_A = averageQuaternions(Q)
+        #print('rot r ', rot_r, 'rot_l ', rot_l, 'R_A', R_A)
+        #R_A = np.array([[0.9607],[0],[0.277],[0]])
+        R_A = np.array([R_A[1],R_A[2],R_A[3],R_A[0]])
+        P_A = 0.5*(P_R + P_L)          
 
-        self.dlo_mtx.release()
+        tf_matrix = self.transformer_.fromTranslationRotation(translation=np.array([0,0,0]), rotation=R_A)
 
+        R_B_A = np.linalg.inv(tf_matrix[0:3,0:3])
+        #R_B_A = tf_matrix[0:3,0:3]
+        vel_xyz = P_R - P_A
+        L_R = np.array([[0, vel_xyz[2,0], -vel_xyz[1,0]],[-vel_xyz[2,0],0,vel_xyz[0,0]],[vel_xyz[1,0],-vel_xyz[0,0],0]])
+        
+        vel_xyz = P_L - P_A
+        L_L = np.array([[0, vel_xyz[2,0], -vel_xyz[1,0]],[-vel_xyz[2,0],0,vel_xyz[0,0]],[vel_xyz[1,0],-vel_xyz[0,0],0]])
+
+        R_vel_R = 0.5*R_B_A.dot(L_R)
+        R_vel_L = 0.5*R_B_A.dot(L_L)
+
+        link_rel = np.asarray(np.bmat([[R_B_A, R_vel_L-R_vel_R, -R_B_A, R_vel_L-R_vel_R],\
+                            [np.zeros((3,3)), R_B_A, np.zeros((3,3)), -R_B_A]]))
+
+        #Link_J =  np.asarray(np.bmat([[0.5*np.eye(6), 0.5*np.eye(6)],\
+        #    [-np.eye(6),np.eye(6)]]))
+
+        Link_J =  np.asarray(np.bmat([[0.5*np.eye(6), 0.5*np.eye(6)],\
+            [link_rel]]))
+        J = Link_J.dot(J_LR)
+
+        J_pinv = np.linalg.pinv(J)
+        va_vr = np.vstack((self.absolute_v, self.relative_v))
+        self.joint_pose_dT[0:14] = J_pinv.dot(va_vr).reshape(14)
+        #self.joint_pose_dT[0:7] = pinv_jac_right_arm.dot(self.right_arm_effector_vel).reshape(7)
+        #self.joint_pose_dT[7:14] = pinv_jac_left_arm.dot(self.left_arm_effector_vel).reshape(7)
+        scale_ =1.0
+        if  np.abs(self.joint_pose_dT[0:14]).max() > 0.5:
+            scale_ = np.abs(self.joint_pose_dT[0:14]).max()/0.5
+            if scale_ > 5:
+                scale_ = 5
+        self.joint_pose_dT[0:14] = self.joint_pose_dT[0:14]/scale_
+        self.joint_pose_dT[0:14] = self.joint_pose_dT[0:14].clip(-0.5,0.5)
+        self.joint_pose = self.joint_pose + self.joint_pose_dT*self.dT
+
+        
     def callback_dlo(self, data):
         self.dlo_mtx.acquire()
 
@@ -103,107 +150,83 @@ class Ymui_contoller(object):
 
         print('dlo length ', self.dlo_len)
 
-    def update_target(self):
+    def change_frame_jacobian(self, jacobian, gripper_d, rot):
 
-        dist_r = 0
-        for i in range(1, self.num_of_points):
-            dist_r += self.dist_to_p[i]
-            if dist_r > self.gripp_pos_RL[0]:
-                point_r = self.data_np[i]
-                dy = self.data_np[i+1].y-self.data_np[i-1].y
-                dx = self.data_np[i+1].x-self.data_np[i-1].x 
-                rot_z_r = np.arctan2(dy,dx)
-                break
-        dist_l = 0
-        for i in range(1, self.num_of_points):
-            dist_l += self.dist_to_p[i]
-            if dist_l > self.gripp_pos_RL[1]:
-                point_l = self.data_np[i]
-                dy = self.data_np[i+1].y-self.data_np[i-1].y
-                dx = self.data_np[i+1].x-self.data_np[i-1].x 
-                rot_z_l = np.arctan2(dy,dx)
-                break
+        # change end effector for each jacobian 
+        tf_matrix = self.transformer_.fromTranslationRotation(translation=np.array([0,0,0]), rotation=rot)
+        gripper_d = np.asarray(gripper_d)
+        vel_xyz = tf_matrix[0:3,0:3].dot( gripper_d.reshape((3,1)) )
+        eye3 = np.eye(3)
+        zeros3 = np.zeros((3,3))
+        L = np.array([[0, vel_xyz[2,0], -vel_xyz[1,0]],[-vel_xyz[2,0],0,vel_xyz[0,0]],[vel_xyz[1,0],-vel_xyz[0,0],0]])
+        j_t = np.asarray(np.bmat([[eye3,L],[zeros3,eye3]]))
+
+        return j_t.dot(jacobian)
+
+    def update_vel(self):
+
+        if time.time() - self.last_time > 3:
+            self.state_seq += 1
+            self.last_time = time.time()
 
         if self.state_seq == 1:
-            self.right_arm_target = np.array([[point_r.x],[point_r.y],[point_r.z+0.2],[-3.14],[0],[rot_z_r-np.pi/2]])
-            self.left_arm_target = np.array([[point_l.x],[point_l.y],[point_l.z+0.2],[-3.14],[0],[rot_z_l-np.pi/2]])
-
+            self.absolute_v = np.array([[-0.05],[0.0],[0.0],[0.0],[-0.0],[0.0]])
         elif self.state_seq == 2:
-            self.right_gripper_target = np.array([0.025, 0.025])
-            self.left_gripper_target = np.array([0.025, 0.025])
-
+            self.absolute_v = np.array([[0.03],[0.0],[0.0],[0.0],[-0.0],[0.0]])
         elif self.state_seq == 3:
-            self.right_arm_target = np.array([[point_r.x],[point_r.y],[point_r.z+0.13],[-3.14],[0],[rot_z_r-np.pi/2]])
-            self.left_arm_target = np.array([[point_l.x],[point_l.y],[point_l.z+0.13],[-3.14],[0],[rot_z_l-np.pi/2]])
-
+            self.absolute_v = np.array([[0.0],[0.05],[0.0],[0.0],[-0.0],[0.0]])
         elif self.state_seq == 4:
-            self.right_gripper_target = np.array([0.005, 0.005])
-            self.left_gripper_target = np.array([0.005, 0.005])
+            self.absolute_v = np.array([[0.0],[-0.05],[0.0],[0.0],[-0.0],[0.0]])
+        elif self.state_seq == 5:
+            self.absolute_v = np.array([[0.0],[-0.0],[0.05],[0.0],[-0.0],[0.0]])
+        elif self.state_seq == 6:
+            self.absolute_v = np.array([[0.0],[-0.0],[-0.05],[0.0],[-0.0],[0.0]])   
+        elif self.state_seq == 7:
+            self.absolute_v = np.array([[0.0],[0.0],[0.0],[0.15],[-0.0],[0.0]])
+        elif self.state_seq == 8:
+            self.absolute_v = np.array([[0.0],[0.0],[0.0],[-0.15],[-0.0],[0.0]])
+        elif self.state_seq == 9:
+            self.absolute_v = np.array([[0.0],[-0.0],[0.0],[0.0],[0.15],[0.0]])
+        elif self.state_seq == 10:
+            self.absolute_v = np.array([[0.0],[-0.0],[0.0],[0.0],[-0.15],[0.0]])
+        elif self.state_seq == 11:
+            self.absolute_v = np.array([[0.0],[-0.0],[-0.0],[0.0],[-0.0],[0.15]])
+        elif self.state_seq == 12:
+            self.absolute_v = np.array([[0.0],[-0.0],[-0.0],[0.0],[-0.0],[-0.15]])
+
+        elif self.state_seq == 13:
+            self.absolute_v = np.array([[0.0],[-0.0],[-0.0],[0.0],[-0.0],[-0.0]])
+
+            self.relative_v = np.array([[-0.03],[0.0],[0.0],[0.0],[-0.0],[0.0]])
+        elif self.state_seq == 14:
+            self.relative_v = np.array([[0.03],[0.0],[0.0],[0.0],[-0.0],[0.0]])
+        elif self.state_seq == 15:
+            self.relative_v = np.array([[0.0],[0.03],[0.0],[0.0],[-0.0],[0.0]])
+        elif self.state_seq == 16:
+            self.relative_v = np.array([[0.0],[-0.03],[0.0],[0.0],[-0.0],[0.0]])
+        elif self.state_seq == 17:
+            self.relative_v = np.array([[0.0],[-0.0],[0.03],[0.0],[-0.0],[0.0]])
+        elif self.state_seq == 18:
+            self.relative_v = np.array([[0.0],[-0.0],[-0.03],[0.0],[-0.0],[0.0]])   
+        elif self.state_seq == 19:
+            self.relative_v = np.array([[0.0],[0.0],[0.0],[0.15],[-0.0],[0.0]])
+        elif self.state_seq == 20:
+            self.relative_v = np.array([[0.0],[0.0],[0.0],[-0.15],[-0.0],[0.0]])
+        elif self.state_seq == 21:
+            self.relative_v = np.array([[0.0],[-0.0],[0.0],[0.0],[0.15],[0.0]])
+        elif self.state_seq == 22:
+            self.relative_v = np.array([[0.0],[-0.0],[0.0],[0.0],[-0.15],[0.0]])
+        elif self.state_seq == 23:
+            self.relative_v = np.array([[0.0],[-0.0],[-0.0],[0.0],[-0.0],[0.2]])
+        elif self.state_seq == 24:
+            self.relative_v = np.array([[0.0],[-0.0],[-0.0],[0.0],[-0.0],[-0.2]])
+
+        elif self.state_seq == 25:
+            self.relative_v = np.array([[0.0],[-0.0],[-0.0],[0.0],[-0.0],[-0.0]])
 
 
-    def update_vel(self, T_r, R_r, T_l, R_l):
 
-        # position
-        d_pos_r = self.right_arm_target[0:3].reshape(3) - T_r
-        norm_pos_r = np.linalg.norm(d_pos_r)
-        d_pos_r = normalize(d_pos_r)        
-        self.right_arm_effector_vel[0:3] = d_pos_r.reshape((3,1))*min([self.effector_max_vel, norm_pos_r])
 
-        d_pos_l = self.left_arm_target[0:3].reshape(3) - T_l
-        norm_pos_l = np.linalg.norm(d_pos_l)
-        d_pos_l = normalize(d_pos_l)        
-        self.left_arm_effector_vel[0:3] = d_pos_l.reshape((3,1))*min([self.effector_max_vel, norm_pos_l])
-
-        # rotation
-        r_r = R_scipy.from_quat(R_r)
-        r_l = R_scipy.from_quat(R_l)
-
-        rot_xyz_r = r_r.as_euler('xyz', degrees=False)
-        rot_xyz_l = r_l.as_euler('xyz', degrees=False)
-
-        rot_x_r = closest_ang( self.right_arm_target[3,0], rot_xyz_r[0])
-        rot_y_r = closest_ang( self.right_arm_target[4,0], rot_xyz_r[1])
-        rot_z_r = closest_ang( self.right_arm_target[5,0], rot_xyz_r[2])
-
-        rot_x_l = closest_ang( self.left_arm_target[3,0], rot_xyz_l[0])
-        rot_y_l = closest_ang( self.left_arm_target[4,0], rot_xyz_l[1])
-        rot_z_l = closest_ang( self.left_arm_target[5,0], rot_xyz_l[2])
-
-        vec_R = np.array([rot_x_r, rot_y_r, rot_z_r])
-        norm_rot_R = np.linalg.norm(vec_R)
-        vec_R = normalize(vec_R) 
-        self.right_arm_effector_vel[3:6] = vec_R.reshape((3,1))*min([self.effector_max_rot_vel, norm_rot_R])
-
-        vec_L = np.array([rot_x_l, rot_y_l, rot_z_l])
-        norm_rot_L = np.linalg.norm(vec_L)
-        vec_L = normalize(vec_L) 
-        self.left_arm_effector_vel[3:6] = vec_L.reshape((3,1))*min([self.effector_max_rot_vel, norm_rot_L])
-
-        #gripper 
-        gripp_r = self.right_gripper_target - self.joint_pose[14:16]
-        norm_gripp_r = np.linalg.norm(gripp_r)
-        gripp_r = normalize(gripp_r) 
-        self.joint_pose_dT[14:16] = gripp_r*min([self.effector_max_gripp_vel, norm_gripp_r])
-
-        gripp_l = self.left_gripper_target - self.joint_pose[16:18]
-        norm_gripp_l = np.linalg.norm(gripp_l)
-        gripp_l = normalize(gripp_l) 
-        self.joint_pose_dT[16:18] = gripp_l*min([self.effector_max_gripp_vel, norm_gripp_l])
-        
-        # update state
-        norm_sum = norm_pos_r +norm_pos_l + norm_rot_R + norm_rot_L
-
-        if self.state_seq == 1:
-            if norm_sum < 0.03:
-                self.state_seq = 2
-        elif self.state_seq == 2 and norm_gripp_r+norm_gripp_l < 0.005:
-            self.state_seq = 3
-        elif self.state_seq == 3:
-            if norm_sum < 0.03:
-                self.state_seq = 4
-            
-                
-            
 def closest_ang(target, current_rot):
     rot = target - current_rot
     if abs(rot) > np.pi:
@@ -216,8 +239,29 @@ def normalize(v):
        return v
     return v / norm
 
+# taken from https://github.com/christophhagen/averaging-quaternions/blob/master/averageQuaternions.py
+# Q is a Nx4 numpy matrix and contains the quaternions to average in the rows.
+# The quaternions are arranged as (w,x,y,z), with w being the scalar
+# The result will be the average quaternion of the input. Note that the signs
+# of the output quaternion can be reversed, since q and -q describe the same orientation
+def averageQuaternions(Q):
+    # Number of quaternions to average
+    M = Q.shape[0]
+    A = np.zeros(shape=(4,4))
 
+    for i in range(0,M):
+        q = Q[i,:]
+        # multiply q with its transposed version q' and add A
+        A = np.outer(q,q) + A
 
+    # scale
+    A = (1.0/M)*A
+    # compute eigenvalues and -vectors
+    eigenValues, eigenVectors = np.linalg.eig(A)
+    # Sort by largest eigenvalue
+    eigenVectors = eigenVectors[:,eigenValues.argsort()[::-1]]
+    # return the real part of the largest eigenvector (has only real part)
+    return np.real(eigenVectors[:,0])
 
 def main():
 
