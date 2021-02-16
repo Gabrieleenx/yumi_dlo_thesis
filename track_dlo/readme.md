@@ -53,6 +53,7 @@ https://github.com/Gabrieleenx/yumi_dlo_thesis/tree/master/robot_setup_tf
 ``` 
     numpy
     scipy
+    open3d
     cupy (optional)
 ```
 
