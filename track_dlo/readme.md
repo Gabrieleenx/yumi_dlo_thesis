@@ -44,9 +44,9 @@ rosdep install --from-paths src --ignore-src -y -r
 ```
 git clone -b melodic https://github.com/ros-perception/vision_opencv.git
 ```
-* setup tf tree node
+* setup tf tree node and apriltag
 ```
-https://github.com/Gabrieleenx/robot_setup_tf
+https://github.com/Gabrieleenx/yumi_dlo_thesis/tree/master/robot_setup_tf
 ```
 
 * python pakages
