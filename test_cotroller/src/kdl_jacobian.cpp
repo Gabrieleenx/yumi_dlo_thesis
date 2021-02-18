@@ -17,7 +17,6 @@ class Calc_jacobian{
     KDL::Tree yumi_tree;
     KDL::Chain yumi_right_arm;
     KDL::Chain yumi_left_arm;
-
     
     // define jacobian for each arm
     KDL::Jacobian jacobian_right_arm = KDL::Jacobian(7);
@@ -27,17 +26,14 @@ class Calc_jacobian{
     KDL::JntArray q_right_arm = KDL::JntArray(7);
     KDL::JntArray q_left_arm = KDL::JntArray(7);
 
-    //bool from_urdf = !kdl_parser::treeFromFile("/home/gabriel/catkin/src/yumi_dlo_thesis/yumi_description/urdf/yumi.urdf", yumi_tree);
     std::unique_ptr<KDL::ChainJntToJacSolver> jac_solver_right_arm;
     std::unique_ptr<KDL::ChainJntToJacSolver> jac_solver_left_arm;
-
 
     public:
     // constructor
     Calc_jacobian(ros::NodeHandle *nh );
 
     void callback(const sensor_msgs::JointState::ConstPtr& joint_state_data);
-
 
 };
 
@@ -58,7 +54,6 @@ Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh ){
     // Jacobian solver
     jac_solver_right_arm = std::make_unique<KDL::ChainJntToJacSolver>(yumi_right_arm);
     jac_solver_left_arm = std::make_unique<KDL::ChainJntToJacSolver>(yumi_left_arm);
-    //KDL::ChainJntToJacSolver jac_solver_left_arm = KDL::ChainJntToJacSolver(yumi_left_arm);
      
 }
 
@@ -102,8 +97,7 @@ void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_stat
     jac_msg.layout = msg_layout;
     jac_msg.data = data_msg;
     jacobian_pub.publish(jac_msg);
-    ros::spinOnce(); //maybe not neccecery but might decrease delay time
-
+    ros::spinOnce(); // sends msg 
 }
 
 
@@ -111,10 +105,6 @@ int main(int argc, char** argv){
     // ROS
     ros::init(argc, argv, "kdl_jacobian");
     ros::NodeHandle nh;
-
-    // for multithreading ros
-    //ros::AsyncSpinner spinner(0);
-    //spinner.start();
 
     Calc_jacobian calc_jacobian(&nh);
 
