@@ -12,8 +12,8 @@ class JointState(object):
             gripperRightVelocity=np.zeros(2),\
             gripperLeftVelocity=np.zeros(2)):
 
-        self.jointPosition = jointPosition
-        self.jointVelocity = jointVelocity
+        self.jointPosition = jointPosition # only arm not gripper
+        self.jointVelocity = jointVelocity # only arm not gripper
         self.gripperRightPosition = gripperRightPosition
         self.gripperLeftPosition = gripperLeftPosition
         self.gripperRightVelocity = gripperRightVelocity

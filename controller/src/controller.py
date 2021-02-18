@@ -10,6 +10,7 @@ import threading
 
 import HQPSolver
 import utils 
+import Task
 
 class YmuiContoller(object):
     def __init__(self):
@@ -37,22 +38,72 @@ class YmuiContoller(object):
         self.HQP = HQPSolver.HQPSolver()
 
         # Task objects 
+        # ctype 0 = equality, 1 = upper, -1 = lower
 
+        #values from https://search.abb.com/library/Download.aspx?DocumentID=3HAC052982-001&LanguageCode=en&DocumentPartId=&Action=Launch
+        jointPoistionBoundUpper = np.array([168.5, 43.5, 168.5, 80, 290, 138, 229])*np.pi/(180) # in radians 
+        jointPoistionBoundUpper = np.hstack([jointPoistionBoundUpper, jointPoistionBoundUpper]) # two arms
+        self.jointPositionBoundUpper = Task.JointPositionBoundsTask(Dof=14,\
+                     bounds=jointPoistionBoundUpper, timestep=self.dT, ctype=1)
         
+        jointPoistionBoundLower = np.array([-168.5, -143.5, -168.5, -123.5, -290, -88, -229])*np.pi/(180) # in radians 
+        jointPoistionBoundLower = np.hstack([jointPoistionBoundLower, jointPoistionBoundLower]) # two arms
+        self.jointPositionBoundUpper = Task.JointPositionBoundsTask(Dof=14,\
+                     bounds=jointPoistionBoundUpper, timestep=self.dT, ctype=-1)
+
+        velocityDownScaling = 4
+        jointVelocityBound = np.array([180, 180, 180, 180, 400, 400, 400])*np.pi/(180) / velocityDownScaling # in radians 
+        jointVelocityBound = np.hstack([jointVelocityBound, jointVelocityBound]) # two arms
+
+        self.jointVelocityBoundUpper = Task.JointVelocityBoundsTask(Dof=14,\
+                     bounds=jointVelocityBound, ctype=1)
+        self.jointVelocityBoundUpper.compute() # constant
+
+        self.jointVelocityBoundLower = Task.JointVelocityBoundsTask(Dof=14,\
+                     bounds=-jointVelocityBound, ctype=-1)
+        self.jointVelocityBoundLower.compute() # constant
+
+
     def callback(self, data):
 
         jacobianCombined = utils.CalcJacobianCombined(data=data, tfListener=self.tfListener)
         
-        # ----------------------
         # stack of tasks, in decending hierarchy
-        SoT = []
-        SoT.append()
-         
+        # ----------------------
+        SoT = [self.jointVelocityBoundUpper, self.jointVelocityBoundLower]
 
+        self.jointPositionBoundUpper.compute(jointState=self.jointState)
+        SoT.append(self.jointPositionBoundUpper)
+        self.jointPositionBoundLower.compute(jointState=self.jointState)
+        SoT.append(self.jointPositionBoundLower)
+
+        if self.controlInstructions.mode == 'individual':
+            # indvidual task compute
+            #SoT.append()
+            pass
+        elif self.controlInstructions.mode == 'combined':
+            #relative task compute
+            # SoT.append()
+            # absolute task compute 
+            # SoT.append()
+            pass
+        else:
+            print('Non valid control mode, stopping')
+            self.jointState.jointVelocity = np.zeros(14)
+            self.jointState.gripperLeftVelocity = np.zeros(2)
+            self.jointState.gripperRightVelocity = np.zeros(2)
+            return
+        # solve HQP
+        # ----------------------
+        self.jointState.jointVelocity = self.HQP.solve(SoT=SoT)
+
+        
+        # gripper control
         # ----------------------
 
-        self.jointState.jointVelocity = self.HQP.solve(SoT=SoT)
-        # -------------------------------------------------
+        
+        # temporary update 
+        # ----------------------
         pose = self.jointState.GetJointPosition + self.jointState.GetJointVelocity*self.dT
         self.jointState.UpdatePose(pose=pose)
 

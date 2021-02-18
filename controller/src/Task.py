@@ -18,13 +18,6 @@ class Task(object):
         self.constraintVector = np.array([])
         self.constraintType = None  # 0 for equality, 1 for Gx <= h, -1 for Gx >= h
 
-    def compute(self, **kwargs):
-        """
-        This method has to be called in order to generate the actual task equations for the current state of the robot.
-        Defined separately for different kinds of tasks.
-        """
-        pass
-
     def ndim(self):
         """
         Returns number of joint variables i.e. degrees of freedom in the robotic structure.
@@ -89,10 +82,25 @@ class JointPositionBoundsTask(Task):
         self.bounds = bounds
         self.constraintType = ctype
 
-    def compute(self, jointState, **kwargs):
+    def compute(self, jointState):
         if self.constraintType == 1:
             self.constraintMatrix = self.timestep * np.eye(self.ndim())
-            self.constraintVector = self.bounds - jointState.position
+            self.constraintVector = self.bounds - jointState.jointPosition
         elif self.constraintType == -1:
             self.constraintMatrix = -self.timestep * np.eye(self.ndim())
-            self.constraintVector = -self.bounds + jointState.position  
+            self.constraintVector = -self.bounds + jointState.jointPosition  
+
+
+class JointVelocityBoundsTask(Task):
+    def __init__(self, Dof, bounds, ctype):
+        super(JointVelocityBoundsTask, self).__init__(Dof)
+        self.bounds = bounds
+        self.constraintType = ctype
+
+    def compute(self):
+        if self.constraintType == 1:
+            self.constraintMatrix = np.eye(self.ndim())
+            self.constraintVector = self.bounds
+        elif self.constraintType == -1:
+            self.constraintMatrix = -np.eye(self.ndim())
+            self.constraintVector = -self.bounds
