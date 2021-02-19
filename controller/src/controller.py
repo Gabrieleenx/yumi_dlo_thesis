@@ -15,7 +15,7 @@ import Task
 class YmuiContoller(object):
     def __init__(self):
 
-        self.updateRate = 20 #Hz
+        self.updateRate = 100 #Hz
         self.dT = 1/self.updateRate
 
         self.jointState = utils.JointState()
@@ -26,9 +26,10 @@ class YmuiContoller(object):
         self.controlArmVelocity = np.zeros((14,1))
         
         trajectory = utils.Trajectory()
-        
+        trajectory1 = utils.Trajectory(positionLeft=np.array([0.4 ,0.2, 0.0]))
+
         self.controlInstructions = utils.ControlInstructions()
-        self.controlInstructions.trajectory = [trajectory]
+        self.controlInstructions.trajectory = [trajectory, trajectory1, trajectory]
 
         # object that listen to transformation tree. 
         self.tfListener = tf.TransformListener()
@@ -79,8 +80,7 @@ class YmuiContoller(object):
         SoT.append(self.jointPositionBoundLower)
 
         if self.controlInstructions.mode == 'individual':
-            # indvidual task compute
-            #SoT.append()
+            # indvidual task update 
             self.indiviualControl.compute(controlInstructions=self.controlInstructions, jacobian=jacobianCombined)
             SoT.append(self.indiviualControl)
         elif self.controlInstructions.mode == 'combined':

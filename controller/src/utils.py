@@ -33,22 +33,29 @@ class JointState(object):
         self.gripperRightPosition = pose[14:16]
         self.gripperLeftPosition = pose[16:18]
 
-
+# change jointPosition to positionLeft, positionRight, orientationLeft, orientationRight
+# quaternion as x y z w 
 class Trajectory(object):
     def __init__(self, \
-            jointPosition=np.array([[0.4],[-0.2],[0.2],[-3.14],[0],[0], [0.4],[0.2],[0.2],[-3.14],[0],[0]]),\
+            positionLeft=np.array([0.4 ,0.2, 0.2]),\
+            positionRight=np.array([0.4 ,-0.2, 0.2]),\
+            orientationLeft=np.array([-1,0,0,0]),\
+            orientationRight=np.array([-1,0,0,0]),\
             gripperLeft=np.array([0.0, 0.0]),\
             gripperRight=np.array([0.0, 0.0]),\
             absVelocity=0.05,\
             relVelocity=0.05,\
-            absRotVelocity=0.2,\
-            relRotVelocity=0.2,\
+            absRotVelocity=0.3,\
+            relRotVelocity=0.3,\
             grippVelocity=0.03,\
             maxRelForce=4,\
             maxAbsForce=4,\
             targetTreshold=0.01):
 
-        self.jointPosition = jointPosition
+        self.positionLeft = positionLeft
+        self.positionRight = positionRight
+        self.orientationLeft = orientationLeft
+        self.orientationRight = orientationRight
         self.gripperLeft = gripperLeft
         self.gripperRight = gripperRight
         self.absVelocity = absVelocity
@@ -71,22 +78,56 @@ class ControlInstructions(object):
 
     def getTargetVelocity(self):
         
-        (translationRightArm, rotationRightArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
-        (translationLeftArm, rotationLeftArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
-        rightArmTargetPosition = self.trajectory[self.trajectoryIndex].jointPosition[0:3]
-        rightPositionDiff = rightArmTargetPosition - np.asarray(translationRightArm).reshape((3,1))
-   
-        rightArmNorm = np.linalg.norm(rightPositionDiff)
-        rightPositionDiffNormalized = normalize(rightPositionDiff)        
-        effectorVelocity = self.trajectory[self.trajectoryIndex].absVelocity
-        self.effectorVelocities[0:3] = rightPositionDiffNormalized.reshape((3,))*min([effectorVelocity, rightArmNorm])
+        if self.mode == 'individual':
+            (translationRightArm, rotationRightArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
+            (translationLeftArm, rotationLeftArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
+        elif self.mode == 'combined':
+            # to be implemented
+            pass
+        else:
+            print('Control mode not valid')
+
+        # Right arm position (in realtive mode it's the absolute position)
+        self.effectorVelocities[0:3] = PositionToVelocity(np.asarray(translationRightArm),\
+             self.trajectory[self.trajectoryIndex].positionRight, self.trajectory[self.trajectoryIndex].absVelocity)
+        # Left arm position (in realtive mode it's the relative position)
+        self.effectorVelocities[6:9] = PositionToVelocity(np.asarray(translationLeftArm),\
+             self.trajectory[self.trajectoryIndex].positionLeft, self.trajectory[self.trajectoryIndex].absVelocity)
+        # Right arm orientation (in realtive mode it's the absolute orientation)
+        self.effectorVelocities[3:6]= QuaternionToRotVel(np.array(rotationRightArm), \
+            self.trajectory[self.trajectoryIndex].orientationRight, self.trajectory[self.trajectoryIndex].absRotVelocity)
+        # Left arm orientation (in realtive mode it's the relative orientation)
+        self.effectorVelocities[9:12]= QuaternionToRotVel(np.array(rotationLeftArm), \
+            self.trajectory[self.trajectoryIndex].orientationLeft, self.trajectory[self.trajectoryIndex].absRotVelocity)
+        
+        # check target point 
+        self.computeTrajectoryIntex()
+
         return self.effectorVelocities
 
     def computeTrajectoryIntex(self):
-        pass
+        if self.trajectoryIndex < len(self.trajectory)-1:
+            if np.linalg.norm(self.effectorVelocities) <= self.trajectory[self.trajectoryIndex].targetTreshold:
+                self.trajectoryIndex += 1
 
     def getNumTrajectryPoints(self):
         return len(self.trajectory)
+
+
+def PositionToVelocity(currentPositionXYZ, targetPositionXYZ, maxVelocity):
+    positionDiff = targetPositionXYZ - currentPositionXYZ
+    norm = np.linalg.norm(positionDiff)
+    positionDiffNormalized = normalize(positionDiff)        
+    return positionDiffNormalized*min([maxVelocity, norm])
+
+def QuaternionToRotVel(currentQ, targetQ, maxRotVel):
+    skewTarget = np.array([[0, -targetQ[2], targetQ[1]],\
+                            [targetQ[2],0,-targetQ[0]],\
+                                [-targetQ[1],targetQ[0],0]])
+    errorOrientation = currentQ[3]*targetQ[0:3] - targetQ[3]*currentQ[0:3] - skewTarget.dot(currentQ[0:3] )
+    norm = np.linalg.norm(errorOrientation)
+    errorOrientationNormalized = normalize(errorOrientation)        
+    return errorOrientationNormalized*min([maxRotVel, 2*norm])
 
 
 def CalcJacobianCombined(data, tfListener, transformer):
