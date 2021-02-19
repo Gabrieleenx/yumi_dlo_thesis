@@ -13,7 +13,8 @@ class HQPSolver(object):
         #self.SoT = SoT                  # List of Task objects
         self.slack_boundary = 1e-5      # Currently unused.
         self.slack_ratio = 1e5          # Between qdot and w cost
-        self.slack = []        
+        self.slack = []
+                
 
     def solve(self,  SoT=[]):
         """
@@ -24,19 +25,19 @@ class HQPSolver(object):
         self.slack = [np.zeros((task.mdim(),)) for task in SoT]        
 
         # i Loop through each task in the stack, descending in the hierachy
-        for i in range(0, len(self.SoT)):
-            n_i = self.SoT[i].ndim()
-            m_i = self.SoT[i].mdim()
+        for i in range(0, len(SoT)):
+            n_i = SoT[i].ndim()
+            m_i = SoT[i].mdim()
             
             # Set up task to solve
-            A, b, G, h = self.SoT[i].append_slack(m_i)
+            A, b, G, h = SoT[i].append_slack(m_i)
                 
             # Set up tasks over currently solved task in stack:
             if i > 0:                
                 # j Loop through all previously solved tasks:
                 for j in range(0, i):
   
-                    Aj, bj, Gj, hj = self.SoT[j].append_slack_locked(m_i, self.slack[j])
+                    Aj, bj, Gj, hj = SoT[j].append_slack_locked(m_i, self.slack[j])
                     
                     # Add previously solved tasks with optimal slack variables, s.t. task i is solved within their null-space.
                     if Aj is not None:
@@ -49,7 +50,7 @@ class HQPSolver(object):
             # Set cost matrix and solve level:
             P = np.eye(n_i + m_i)
             P[-m_i:, -m_i:] = self.slack_ratio * np.eye(m_i)
-            
+  
             x = quadprog_solve_qp(P, np.zeros((n_i + m_i, )), G, h, A, b)
             self.slack[i] = x[n_i:]
             qd = x[:n_i]

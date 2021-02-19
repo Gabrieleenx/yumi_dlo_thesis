@@ -104,3 +104,14 @@ class JointVelocityBoundsTask(Task):
         elif self.constraintType == -1:
             self.constraintMatrix = -np.eye(self.ndim())
             self.constraintVector = -self.bounds
+
+
+class IndividualControl(Task):
+    def __init__(self, Dof):
+        super(IndividualControl, self).__init__(Dof)
+        self.constraintType = 0
+
+    def compute(self, controlInstructions, jacobian):
+        effectorVelocities = controlInstructions.getTargetVelocity() # function name might change 
+        self.constraintMatrix = np.vstack([jacobian, -jacobian])
+        self.constraintVector = np.hstack([effectorVelocities, -effectorVelocities])

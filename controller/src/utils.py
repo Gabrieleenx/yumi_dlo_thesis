@@ -2,6 +2,7 @@
 
 import numpy as np
 import rospy
+import tf
 
 class JointState(object):
     def __init__(self,\
@@ -20,11 +21,11 @@ class JointState(object):
         self.gripperLeftVelocity = gripperLeftVelocity
     
     def GetJointVelocity(self):
-        return np.hstack([self.armJointVelocity, \
+        return np.hstack([self.jointVelocity, \
             self.gripperRightVelocity, self.gripperLeftVelocity])
     
     def GetJointPosition(self):
-        return np.hstack([self.armJointPosition, \
+        return np.hstack([self.jointPosition, \
             self.gripperRightPosition, self.gripperLeftPosition])
 
     def UpdatePose(self, pose):
@@ -35,13 +36,13 @@ class JointState(object):
 
 class Trajectory(object):
     def __init__(self, \
-            jointPosition=np.array([[0.3],[-0.2],[0.0],[-3.14],[0],[0], [0.3],[0.2],[0.0],[-3.14],[0],[0]]),\
+            jointPosition=np.array([[0.4],[-0.2],[0.2],[-3.14],[0],[0], [0.4],[0.2],[0.2],[-3.14],[0],[0]]),\
             gripperLeft=np.array([0.0, 0.0]),\
             gripperRight=np.array([0.0, 0.0]),\
             absVelocity=0.05,\
             relVelocity=0.05,\
             absRotVelocity=0.2,\
-            relRotVelocity=0,2,\
+            relRotVelocity=0.2,\
             grippVelocity=0.03,\
             maxRelForce=4,\
             maxAbsForce=4,\
@@ -53,7 +54,7 @@ class Trajectory(object):
         self.absVelocity = absVelocity
         self.relVelocity = relVelocity
         self.absRotVelocity = absRotVelocity
-        self.relRotVelocity = relRotVelocit
+        self.relRotVelocity = relRotVelocity
         self.grippVelocity = grippVelocity
         self.maxRelForce = maxRelForce
         self.maxAbsForce = maxAbsForce
@@ -65,9 +66,21 @@ class ControlInstructions(object):
         self.mode = 'individual'
         self.trajectory = []
         self.trajectoryIndex = 0
+        self.tfListener = tf.TransformListener()
+        self.effectorVelocities = np.zeros(12)
 
     def getTargetVelocity(self):
-        pass
+        
+        (translationRightArm, rotationRightArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
+        (translationLeftArm, rotationLeftArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
+        rightArmTargetPosition = self.trajectory[self.trajectoryIndex].jointPosition[0:3]
+        rightPositionDiff = rightArmTargetPosition - np.asarray(translationRightArm).reshape((3,1))
+   
+        rightArmNorm = np.linalg.norm(rightPositionDiff)
+        rightPositionDiffNormalized = normalize(rightPositionDiff)        
+        effectorVelocity = self.trajectory[self.trajectoryIndex].absVelocity
+        self.effectorVelocities[0:3] = rightPositionDiffNormalized.reshape((3,))*min([effectorVelocity, rightArmNorm])
+        return self.effectorVelocities
 
     def computeTrajectoryIntex(self):
         pass
@@ -76,7 +89,7 @@ class ControlInstructions(object):
         return len(self.trajectory)
 
 
-def CalcJacobianCombined(data, tfListener):
+def CalcJacobianCombined(data, tfListener, transformer):
     jacobianRightArm = np.zeros((6,7))
     jacobianLeftArm = np.zeros((6,7))
 
@@ -87,21 +100,21 @@ def CalcJacobianCombined(data, tfListener):
     
     # change endeffector frame 
 
-    (translationRightArm, rotationRightArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
-    (translationLeftArm, rotationLeftArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
+    (translationRightArm, rotationRightArm) = tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
+    (translationLeftArm, rotationLeftArm) = tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
 
-    (gripperLengthRight, _) = self.tfListener.lookupTransform('/yumi_link_7_r', '/yumi_gripp_r', rospy.Time(0))
-    (gripperLengthLeft, _) = self.tfListener.lookupTransform('/yumi_link_7_l', '/yumi_gripp_l', rospy.Time(0))
+    (gripperLengthRight, _) = tfListener.lookupTransform('/yumi_link_7_r', '/yumi_gripp_r', rospy.Time(0))
+    (gripperLengthLeft, _) = tfListener.lookupTransform('/yumi_link_7_l', '/yumi_gripp_l', rospy.Time(0))
 
-    jacobianRightArm = self.changeFrameJacobian(jacobianRightArm, gripperLengthRight, rotationRightArm)
-    jacobianLeftArm = self.changeFrameJacobian(jacobianLeftArm, gripperLengthLeft, rotationLeftArm)
+    jacobianRightArm = changeFrameJacobian(jacobianRightArm, gripperLengthRight, rotationRightArm, transformer)
+    jacobianLeftArm = changeFrameJacobian(jacobianLeftArm, gripperLengthLeft, rotationLeftArm, transformer)
     
     return np.asarray(np.bmat([[jacobianRightArm,np.zeros((6,7))],[np.zeros((6,7)),jacobianLeftArm]]))
 
 
-def changeFrameJacobian(jacobian, gripperLenght, rotation):
+def changeFrameJacobian(jacobian, gripperLenght, rotation, transformer):
     # change end effector for jacobian 
-    transformationMatrix = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=rotation)
+    transformationMatrix = transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=rotation)
     gripperLenght = np.asarray(gripperLenght)
     velocityXYZ = transformationMatrix[0:3,0:3].dot(gripperLenght.reshape((3,1)))
     eye3 = np.eye(3)

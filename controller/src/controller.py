@@ -23,12 +23,12 @@ class YmuiContoller(object):
         self.maxJointVelocity = 0.5
         self.maxScaleJointVelocity = 5
 
-        self.controlArmVelocity = mp.zeros((14,1))
+        self.controlArmVelocity = np.zeros((14,1))
         
         trajectory = utils.Trajectory()
         
         self.controlInstructions = utils.ControlInstructions()
-        self.controlInstructions.trajectory = trajectory
+        self.controlInstructions.trajectory = [trajectory]
 
         # object that listen to transformation tree. 
         self.tfListener = tf.TransformListener()
@@ -48,8 +48,8 @@ class YmuiContoller(object):
         
         jointPoistionBoundLower = np.array([-168.5, -143.5, -168.5, -123.5, -290, -88, -229])*np.pi/(180) # in radians 
         jointPoistionBoundLower = np.hstack([jointPoistionBoundLower, jointPoistionBoundLower]) # two arms
-        self.jointPositionBoundUpper = Task.JointPositionBoundsTask(Dof=14,\
-                     bounds=jointPoistionBoundUpper, timestep=self.dT, ctype=-1)
+        self.jointPositionBoundLower = Task.JointPositionBoundsTask(Dof=14,\
+                     bounds=jointPoistionBoundLower, timestep=self.dT, ctype=-1)
 
         velocityDownScaling = 4
         jointVelocityBound = np.array([180, 180, 180, 180, 400, 400, 400])*np.pi/(180) / velocityDownScaling # in radians 
@@ -63,10 +63,11 @@ class YmuiContoller(object):
                      bounds=-jointVelocityBound, ctype=-1)
         self.jointVelocityBoundLower.compute() # constant
 
+        self.indiviualControl = Task.IndividualControl(Dof=14)
 
     def callback(self, data):
 
-        jacobianCombined = utils.CalcJacobianCombined(data=data, tfListener=self.tfListener)
+        jacobianCombined = utils.CalcJacobianCombined(data=data, tfListener=self.tfListener, transformer=self.transformer)
         
         # stack of tasks, in decending hierarchy
         # ----------------------
@@ -80,12 +81,14 @@ class YmuiContoller(object):
         if self.controlInstructions.mode == 'individual':
             # indvidual task compute
             #SoT.append()
-            pass
+            self.indiviualControl.compute(controlInstructions=self.controlInstructions, jacobian=jacobianCombined)
+            SoT.append(self.indiviualControl)
         elif self.controlInstructions.mode == 'combined':
             #relative task compute
             # SoT.append()
             # absolute task compute 
             # SoT.append()
+            
             pass
         else:
             print('Non valid control mode, stopping')
@@ -96,7 +99,6 @@ class YmuiContoller(object):
         # solve HQP
         # ----------------------
         self.jointState.jointVelocity = self.HQP.solve(SoT=SoT)
-
         
         # gripper control
         # ----------------------
@@ -104,7 +106,8 @@ class YmuiContoller(object):
         
         # temporary update 
         # ----------------------
-        pose = self.jointState.GetJointPosition + self.jointState.GetJointVelocity*self.dT
+        pose = self.jointState.GetJointPosition() + self.jointState.GetJointVelocity()*self.dT
+
         self.jointState.UpdatePose(pose=pose)
 
 
@@ -120,7 +123,7 @@ def main():
     rospy.sleep(0.5)
 
     rospy.Subscriber("/Jacobian_R_L", Float64MultiArray, ymuiContoller.callback)
-    rospy.Subscriber("/spr/dlo_estimation", PointCloud, ymuiContoller.callback_dlo)
+    #rospy.Subscriber("/spr/dlo_estimation", PointCloud, ymuiContoller.callback_dlo)
     
     rate = rospy.Rate(ymuiContoller.updateRate) 
 
@@ -135,7 +138,7 @@ def main():
             'yumi_joint_6_r', 'yumi_joint_1_l', 'yumi_joint_2_l', 'yumi_joint_7_l', 'yumi_joint_3_l', \
                 'yumi_joint_4_l', 'yumi_joint_5_l', 'yumi_joint_6_l', 'gripper_r_joint', 'gripper_r_joint_m',\
                     'gripper_l_joint', 'gripper_l_joint_m']
-        msg.position = ymuiContoller.jointPose.tolist()
+        msg.position = ymuiContoller.jointState.GetJointPosition().tolist()
         pub.publish(msg)
         rate.sleep()
         seq += 1
