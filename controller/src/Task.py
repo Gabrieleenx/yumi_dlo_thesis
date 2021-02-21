@@ -112,6 +112,29 @@ class IndividualControl(Task):
         self.constraintType = 0
 
     def compute(self, controlInstructions, jacobian):
-        effectorVelocities = controlInstructions.getTargetVelocity() # function name might change 
+        effectorVelocities = controlInstructions.getIndividualTargetVelocity() # function name might change 
         self.constraintMatrix = np.vstack([jacobian, -jacobian])
         self.constraintVector = np.hstack([effectorVelocities, -effectorVelocities])
+
+
+class RelativeControl(Task):
+    def __init__(self, Dof):
+        super(RelativeControl, self).__init__(DOf)
+        self.constraintType = 0
+    
+    def compute(self, controlInstructions, jacobian):
+        pass
+
+class AbsoluteControl(Task):
+    def __init__(self, Dof):
+        super(AbsoluteControl, self).__init__(DOf)
+        self.constraintType = 0
+    
+    def compute(self, controlInstructions, jacobian):
+        velocities = controlInstructions.getAbsoluteTargetVelocity()
+        linkJ = np.hstack([0.5*np.eye(6), 0.5*np.eye(6)])
+        absoluteJacobian = linkJ.dot(jacobian)
+        self.constraintMatrix = np.vstack([absoluteJacobian, -absoluteJacobian])
+        self.constraintVector = np.hstack([velocities, -velocities])
+
+

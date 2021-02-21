@@ -74,41 +74,57 @@ class ControlInstructions(object):
         self.trajectory = []
         self.trajectoryIndex = 0
         self.tfListener = tf.TransformListener()
-        self.effectorVelocities = np.zeros(12)
+        self.velocities = np.zeros(12)
 
-    def getTargetVelocity(self):
+    def getIndividualTargetVelocity(self):
         
-        if self.mode == 'individual':
-            (translationRightArm, rotationRightArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
-            (translationLeftArm, rotationLeftArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
-        elif self.mode == 'combined':
-            # to be implemented
-            pass
-        else:
-            print('Control mode not valid')
+        (translationRightArm, rotationRightArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
+        (translationLeftArm, rotationLeftArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
 
-        # Right arm position (in realtive mode it's the absolute position)
-        self.effectorVelocities[0:3] = PositionToVelocity(np.asarray(translationRightArm),\
+        # Right arm position 
+        self.velocities[0:3] = PositionToVelocity(np.asarray(translationRightArm),\
              self.trajectory[self.trajectoryIndex].positionRight, self.trajectory[self.trajectoryIndex].absVelocity)
-        # Left arm position (in realtive mode it's the relative position)
-        self.effectorVelocities[6:9] = PositionToVelocity(np.asarray(translationLeftArm),\
+        # Left arm position 
+        self.velocities[6:9] = PositionToVelocity(np.asarray(translationLeftArm),\
              self.trajectory[self.trajectoryIndex].positionLeft, self.trajectory[self.trajectoryIndex].absVelocity)
-        # Right arm orientation (in realtive mode it's the absolute orientation)
-        self.effectorVelocities[3:6]= QuaternionToRotVel(np.array(rotationRightArm), \
+        # Right arm orientation 
+        self.velocities[3:6]= QuaternionToRotVel(np.array(rotationRightArm), \
             self.trajectory[self.trajectoryIndex].orientationRight, self.trajectory[self.trajectoryIndex].absRotVelocity)
-        # Left arm orientation (in realtive mode it's the relative orientation)
-        self.effectorVelocities[9:12]= QuaternionToRotVel(np.array(rotationLeftArm), \
+        # Left arm orientation 
+        self.velocities[9:12]= QuaternionToRotVel(np.array(rotationLeftArm), \
             self.trajectory[self.trajectoryIndex].orientationLeft, self.trajectory[self.trajectoryIndex].absRotVelocity)
-        
         # check target point 
         self.computeTrajectoryIntex()
 
-        return self.effectorVelocities
+        return self.velocities
+
+    def getAbsoluteTargetVelocity(self):
+        (translationRightArm, rotationRightArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
+        (translationLeftArm, rotationLeftArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
+
+        absolutePosition = 0.5*(np.asarray(translationRightArm) + np.asarray(translationLeftArm))
+        avgQ = np.vstack([np.asarray(rotationRightArm), np.asarray(rotationLeftArm)])
+        absoluteOrientation = averageQuaternions(avgQ) 
+
+        self.velocities[0:3] = PositionToVelocity(absolutePosition,\
+             self.trajectory[self.trajectoryIndex].positionRight, self.trajectory[self.trajectoryIndex].absVelocity)
+
+        self.velocities[3:6]= QuaternionToRotVel(absoluteOrientation, \
+            self.trajectory[self.trajectoryIndex].orientationRight, self.trajectory[self.trajectoryIndex].absRotVelocity)
+
+        return self.velocities[0:6]
+
+    def getRelativeTargetVelocity(self):
+        #TODO
+        return self.velocities[6:12]
 
     def computeTrajectoryIntex(self):
         if self.trajectoryIndex < len(self.trajectory)-1:
-            if np.linalg.norm(self.effectorVelocities) <= self.trajectory[self.trajectoryIndex].targetTreshold:
+            if np.linalg.norm(self.velocities) <= self.trajectory[self.trajectoryIndex].targetTreshold:
                 self.trajectoryIndex += 1
+    
+    def resetVelocity(self):
+        self.velocities = np.zeros(12)
 
     def getNumTrajectryPoints(self):
         return len(self.trajectory)
@@ -180,21 +196,21 @@ def normalize(v):
     return v / norm
 
 
-# taken from https://github.com/christophhagen/averaging-quaternions/blob/master/averageQuaternions.py
+# taken (Modified) from https://github.com/christophhagen/averaging-quaternions/blob/master/averageQuaternions.py
 # Q is a Nx4 numpy matrix and contains the quaternions to average in the rows.
 # The quaternions are arranged as (w,x,y,z), with w being the scalar
 # The result will be the average quaternion of the input. Note that the signs
 # of the output quaternion can be reversed, since q and -q describe the same orientation
 def averageQuaternions(Q):
+    # from (x,y,z,w) to (w,x,y,z)
+    Q = np.roll(Q,1,axis=1)
     # Number of quaternions to average
     M = Q.shape[0]
     A = np.zeros(shape=(4,4))
-
     for i in range(0,M):
         q = Q[i,:]
         # multiply q with its transposed version q' and add A
         A = np.outer(q,q) + A
-
     # scale
     A = (1.0/M)*A
     # compute eigenvalues and -vectors
@@ -202,4 +218,7 @@ def averageQuaternions(Q):
     # Sort by largest eigenvalue
     eigenVectors = eigenVectors[:,eigenValues.argsort()[::-1]]
     # return the real part of the largest eigenvector (has only real part)
-    return np.real(eigenVectors[:,0])
+    avgQ = np.real(eigenVectors[:,0])
+    # from (w,x,y,z) to (x,y,z,w) 
+    avgQ = np.roll(avgQ,-1)
+    return avgQ
