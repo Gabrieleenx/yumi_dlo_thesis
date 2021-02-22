@@ -39,14 +39,14 @@ class Trajectory(object):
     def __init__(self, \
             positionLeft=np.array([0.4 ,0.2, 0.2]),\
             positionRight=np.array([0.4 ,-0.2, 0.2]),\
-            orientationLeft=np.array([-1,0,0,0]),\
-            orientationRight=np.array([-1,0,0,0]),\
+            orientationLeft=np.array([1,0,0,0]),\
+            orientationRight=np.array([1,0,0,0]),\
             gripperLeft=np.array([0.0, 0.0]),\
             gripperRight=np.array([0.0, 0.0]),\
             absVelocity=0.05,\
             relVelocity=0.05,\
-            absRotVelocity=0.3,\
-            relRotVelocity=0.3,\
+            absRotVelocity=0.2,\
+            relRotVelocity=0.1,\
             grippVelocity=0.03,\
             maxRelForce=4,\
             maxAbsForce=4,\
@@ -75,25 +75,21 @@ class ControlInstructions(object):
         self.trajectoryIndex = 0
         self.tfListener = tf.TransformListener()
         self.velocities = np.zeros(12)
+        self.transformer = tf.TransformerROS(True, rospy.Duration(4.0))
+
 
     def getIndividualTargetVelocity(self):
-        
-        (translationRightArm, rotationRightArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
-        (translationLeftArm, rotationLeftArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
 
-        # Right arm position 
-        self.velocities[0:3] = PositionToVelocity(np.asarray(translationRightArm),\
+        self.updateTransform()
+
+        self.velocities[0:3] = PositionToVelocity(self.translationRightArm,\
              self.trajectory[self.trajectoryIndex].positionRight, self.trajectory[self.trajectoryIndex].absVelocity)
-        # Left arm position 
-        self.velocities[6:9] = PositionToVelocity(np.asarray(translationLeftArm),\
+        self.velocities[6:9] = PositionToVelocity(self.translationLeftArm,\
              self.trajectory[self.trajectoryIndex].positionLeft, self.trajectory[self.trajectoryIndex].absVelocity)
-        # Right arm orientation 
-        self.velocities[3:6]= QuaternionToRotVel(np.array(rotationRightArm), \
+        self.velocities[3:6]= QuaternionToRotVel(self.rotationRightArm, \
             self.trajectory[self.trajectoryIndex].orientationRight, self.trajectory[self.trajectoryIndex].absRotVelocity)
-        # Left arm orientation 
-        self.velocities[9:12]= QuaternionToRotVel(np.array(rotationLeftArm), \
+        self.velocities[9:12]= QuaternionToRotVel(self.rotationLeftArm, \
             self.trajectory[self.trajectoryIndex].orientationLeft, self.trajectory[self.trajectoryIndex].absRotVelocity)
-        # check target point 
         self.computeTrajectoryIntex()
 
         return self.velocities
@@ -102,27 +98,52 @@ class ControlInstructions(object):
         (translationRightArm, rotationRightArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
         (translationLeftArm, rotationLeftArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
 
-        absolutePosition = 0.5*(np.asarray(translationRightArm) + np.asarray(translationLeftArm))
-        avgQ = np.vstack([np.asarray(rotationRightArm), np.asarray(rotationLeftArm)])
+        absolutePosition = 0.5*(self.translationRightArm + self.translationLeftArm)
+        avgQ = np.vstack([self.rotationRightArm, self.rotationLeftArm])
         absoluteOrientation = averageQuaternions(avgQ) 
 
         self.velocities[0:3] = PositionToVelocity(absolutePosition,\
-             self.trajectory[self.trajectoryIndex].positionRight, self.trajectory[self.trajectoryIndex].absVelocity)
+            self.trajectory[self.trajectoryIndex].positionRight, self.trajectory[self.trajectoryIndex].absVelocity)
 
         self.velocities[3:6]= QuaternionToRotVel(absoluteOrientation, \
             self.trajectory[self.trajectoryIndex].orientationRight, self.trajectory[self.trajectoryIndex].absRotVelocity)
-
         return self.velocities[0:6]
 
     def getRelativeTargetVelocity(self):
-        #TODO
-        return self.velocities[6:12]
+
+        avgQ = np.vstack([self.rotationRightArm, self.rotationLeftArm])
+        absoluteOrientation = averageQuaternions(avgQ)  
+        (translationRelativeLeftFrame, rotationRelative) = self.tfListener.lookupTransform('/yumi_gripp_l', '/yumi_gripp_r', rospy.Time(0))
+
+        transformation1 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=absoluteOrientation)
+        transformationInv1 = np.linalg.inv(transformation1)
+        transformation2 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=self.rotationLeftArm)
+
+        leftToAbsoluteFrameRot = transformationInv1.dot(transformation2)
+        homogeneousLeftRelative = np.hstack([np.asarray(translationRelativeLeftFrame),1])
+        homogeneousAbsouluteRelative = leftToAbsoluteFrameRot.dot(homogeneousLeftRelative)
+
+        self.velocities[6:9] = PositionToVelocity(homogeneousAbsouluteRelative[0:3],\
+            self.trajectory[self.trajectoryIndex].positionLeft, self.trajectory[self.trajectoryIndex].relVelocity)
+
+        self.velocities[9:12]= QuaternionToRotVel(np.asarray(rotationRelative), \
+            self.trajectory[self.trajectoryIndex].orientationLeft, self.trajectory[self.trajectoryIndex].relRotVelocity)
+
+        return self.velocities[6:12], self.translationRightArm, self.translationLeftArm, absoluteOrientation
 
     def computeTrajectoryIntex(self):
         if self.trajectoryIndex < len(self.trajectory)-1:
             if np.linalg.norm(self.velocities) <= self.trajectory[self.trajectoryIndex].targetTreshold:
                 self.trajectoryIndex += 1
     
+    def updateTransform(self):
+        (translationRightArm, rotationRightArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
+        (translationLeftArm, rotationLeftArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
+        self.translationRightArm = np.asarray(translationRightArm)
+        self.rotationRightArm = np.asarray(rotationRightArm)
+        self.translationLeftArm = np.asarray(translationLeftArm)
+        self.rotationLeftArm = np.asarray(rotationLeftArm)
+
     def resetVelocity(self):
         self.velocities = np.zeros(12)
 
@@ -137,13 +158,20 @@ def PositionToVelocity(currentPositionXYZ, targetPositionXYZ, maxVelocity):
     return positionDiffNormalized*min([maxVelocity, norm])
 
 def QuaternionToRotVel(currentQ, targetQ, maxRotVel):
+
+    if currentQ.dot(targetQ) < 0:
+        currentQ = -currentQ
+
     skewTarget = np.array([[0, -targetQ[2], targetQ[1]],\
                             [targetQ[2],0,-targetQ[0]],\
                                 [-targetQ[1],targetQ[0],0]])
+
     errorOrientation = currentQ[3]*targetQ[0:3] - targetQ[3]*currentQ[0:3] - skewTarget.dot(currentQ[0:3] )
     norm = np.linalg.norm(errorOrientation)
-    errorOrientationNormalized = normalize(errorOrientation)        
-    return errorOrientationNormalized*min([maxRotVel, 2*norm])
+
+    errorOrientationNormalized = normalize(errorOrientation)     
+    errorOrientationNormalized*min([maxRotVel, 2*norm])   
+    return errorOrientationNormalized*min([maxRotVel, 4*norm])
 
 
 def CalcJacobianCombined(data, tfListener, transformer):
@@ -203,6 +231,9 @@ def normalize(v):
 # of the output quaternion can be reversed, since q and -q describe the same orientation
 def averageQuaternions(Q):
     # from (x,y,z,w) to (w,x,y,z)
+    if Q[0].dot(Q[1]) < 0:
+        Q[0] = -Q[0]
+
     Q = np.roll(Q,1,axis=1)
     # Number of quaternions to average
     M = Q.shape[0]
@@ -221,4 +252,6 @@ def averageQuaternions(Q):
     avgQ = np.real(eigenVectors[:,0])
     # from (w,x,y,z) to (x,y,z,w) 
     avgQ = np.roll(avgQ,-1)
+
     return avgQ
+

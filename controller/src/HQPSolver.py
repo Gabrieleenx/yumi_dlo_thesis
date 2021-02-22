@@ -50,7 +50,6 @@ class HQPSolver(object):
             # Set cost matrix and solve level:
             P = np.eye(n_i + m_i)
             P[-m_i:, -m_i:] = self.slack_ratio * np.eye(m_i)
-  
             x = quadprog_solve_qp(P, np.zeros((n_i + m_i, )), G, h, A, b)
             self.slack[i] = x[n_i:]
             qd = x[:n_i]

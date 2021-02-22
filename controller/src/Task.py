@@ -119,22 +119,41 @@ class IndividualControl(Task):
 
 class RelativeControl(Task):
     def __init__(self, Dof):
-        super(RelativeControl, self).__init__(DOf)
+        super(RelativeControl, self).__init__(Dof)
         self.constraintType = 0
     
-    def compute(self, controlInstructions, jacobian):
-        pass
+    def compute(self, controlInstructions, jacobian, transformer):
+        velocities, tfRightArm, tfLeftArm, absoluteOrientation = controlInstructions.getRelativeTargetVelocity()
+
+        tfMatrix = transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=absoluteOrientation)
+
+        rotaionMatrix = np.linalg.inv(tfMatrix[0:3,0:3])
+
+        diffXYZ = tfRightArm - tfLeftArm
+        skewMatrixDiff = np.array([[0,-diffXYZ[2],diffXYZ[1]],\
+                                    [diffXYZ[2],0,-diffXYZ[0]],\
+                                    [-diffXYZ[1],diffXYZ[0],0]])
+
+        rotationSkew = 0.5*rotaionMatrix.dot(skewMatrixDiff)
+        linkJ  = np.asarray(np.bmat([[rotaionMatrix, rotationSkew, -rotaionMatrix, rotationSkew],\
+                            [np.zeros((3,3)), rotaionMatrix, np.zeros((3,3)), -rotaionMatrix]]))
+        
+        relativeJacobian = linkJ.dot(jacobian)
+        self.constraintMatrix = np.vstack([relativeJacobian])
+        self.constraintVector = np.hstack([velocities])
+
 
 class AbsoluteControl(Task):
     def __init__(self, Dof):
-        super(AbsoluteControl, self).__init__(DOf)
+        super(AbsoluteControl, self).__init__(Dof)
         self.constraintType = 0
     
     def compute(self, controlInstructions, jacobian):
         velocities = controlInstructions.getAbsoluteTargetVelocity()
+
         linkJ = np.hstack([0.5*np.eye(6), 0.5*np.eye(6)])
         absoluteJacobian = linkJ.dot(jacobian)
-        self.constraintMatrix = np.vstack([absoluteJacobian, -absoluteJacobian])
-        self.constraintVector = np.hstack([velocities, -velocities])
+        self.constraintMatrix = np.vstack([absoluteJacobian])
+        self.constraintVector = np.hstack([velocities])
 
 

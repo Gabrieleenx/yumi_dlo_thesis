@@ -24,12 +24,23 @@ class YmuiContoller(object):
         self.maxScaleJointVelocity = 5
 
         self.controlArmVelocity = np.zeros((14,1))
-        
-        trajectory = utils.Trajectory()
-        trajectory1 = utils.Trajectory(positionLeft=np.array([0.4 ,0.2, 0.0]))
 
+        # Trajectory, temporary for testing 
+        rotabstest1 = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 160*np.pi/180, 'rzyx')
+        rotabstest2 = tf.transformations.quaternion_from_euler(-0*np.pi/180, 0, 200*np.pi/180, 'rzyx')
+        rotabstest3 = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 160*np.pi/180, 'rzyx')
+
+        localrottest = tf.transformations.quaternion_from_euler(80*np.pi/180, 0, 0*np.pi/180, 'rzyx')
+
+        trajectory = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=np.array([0,0,0,1]))
+        trajectory1 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=np.array([0,0,0,1]), orientationRight=rotabstest1)
+        trajectory2 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=np.array([0,0,0,1]), orientationRight=rotabstest2)
+        trajectory3 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=np.array([0,0,0,1]), orientationRight=rotabstest3)
+        trajectory4 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=localrottest)
+       
         self.controlInstructions = utils.ControlInstructions()
-        self.controlInstructions.trajectory = [trajectory, trajectory1, trajectory]
+        self.controlInstructions.mode = 'combined'
+        self.controlInstructions.trajectory = [trajectory, trajectory1, trajectory, trajectory2, trajectory, trajectory3, trajectory, trajectory4, trajectory]
 
         # object that listen to transformation tree. 
         self.tfListener = tf.TransformListener()
@@ -66,6 +77,10 @@ class YmuiContoller(object):
 
         self.indiviualControl = Task.IndividualControl(Dof=14)
 
+        self.absoluteControl = Task.AbsoluteControl(Dof=14)
+
+        self.relativeControl = Task.RelativeControl(Dof=14)
+
     def callback(self, data):
 
         jacobianCombined = utils.CalcJacobianCombined(data=data, tfListener=self.tfListener, transformer=self.transformer)
@@ -73,7 +88,7 @@ class YmuiContoller(object):
         # stack of tasks, in decending hierarchy
         # ----------------------
         SoT = [self.jointVelocityBoundUpper, self.jointVelocityBoundLower]
-
+        #SoT = []
         self.jointPositionBoundUpper.compute(jointState=self.jointState)
         SoT.append(self.jointPositionBoundUpper)
         self.jointPositionBoundLower.compute(jointState=self.jointState)
@@ -84,12 +99,17 @@ class YmuiContoller(object):
             self.indiviualControl.compute(controlInstructions=self.controlInstructions, jacobian=jacobianCombined)
             SoT.append(self.indiviualControl)
         elif self.controlInstructions.mode == 'combined':
-            #relative task compute
-            # SoT.append()
-            # absolute task compute 
-            # SoT.append()
-            
-            pass
+            self.controlInstructions.updateTransform()
+            self.relativeControl.compute(controlInstructions=self.controlInstructions,\
+                                        jacobian=jacobianCombined,\
+                                        transformer=self.transformer)
+            SoT.append(self.relativeControl) 
+
+            self.absoluteControl.compute(controlInstructions=self.controlInstructions,\
+                                        jacobian=jacobianCombined)
+            SoT.append(self.absoluteControl) 
+            self.controlInstructions.computeTrajectoryIntex()
+
         else:
             print('Non valid control mode, stopping')
             self.jointState.jointVelocity = np.zeros(14)
