@@ -7,7 +7,7 @@
 #include <iostream> 
 #include <sensor_msgs/JointState.h>
 #include <std_msgs/Float64MultiArray.h>
-
+#include <controller/Jacobian_msg.h>
 
 class Calc_jacobian{
     private:
@@ -41,8 +41,9 @@ class Calc_jacobian{
 
 Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh ){
     joint_state_sub = nh->subscribe("/joint_states", 2, &Calc_jacobian::callback, this);
-    jacobian_pub = nh->advertise<std_msgs::Float64MultiArray>("/Jacobian_R_L", 2);
-
+    //jacobian_pub = nh->advertise<std_msgs::Float64MultiArray>("/Jacobian_R_L", 2);
+    jacobian_pub = nh->advertise<controller::Jacobian_msg>("/Jacobian_R_L", 2);
+    
     // get tree from urdf file for entire yumi
     if (!kdl_parser::treeFromFile("/home/gabriel/catkin/src/yumi_dlo_thesis/yumi_description/urdf/yumi.urdf", yumi_tree)){
         ROS_ERROR("Failed to construct kdl tree");
@@ -68,7 +69,8 @@ void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_stat
     jac_solver_right_arm->JntToJac(q_right_arm, jacobian_right_arm);
     jac_solver_left_arm->JntToJac(q_left_arm, jacobian_left_arm);
 
-    std_msgs::Float64MultiArray jac_msg;
+    controller::Jacobian_msg jac_msg;
+    std_msgs::Float64MultiArray jac;
     std::vector<double> data_msg(84); // 6*7*2
 
     for (int i = 0; i < 6; i++){
@@ -94,8 +96,11 @@ void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_stat
     msg_layout.dim = msg_dim;
     msg_layout.data_offset = 0;
 
-    jac_msg.layout = msg_layout;
-    jac_msg.data = data_msg;
+    jac.layout = msg_layout;
+    jac.data = data_msg;
+
+    jac_msg.jacobian.push_back(jac);
+
     jacobian_pub.publish(jac_msg);
     ros::spinOnce(); // sends msg 
 }

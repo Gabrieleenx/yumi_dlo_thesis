@@ -46,7 +46,7 @@ class Trajectory(object):
             absVelocity=0.05,\
             relVelocity=0.05,\
             absRotVelocity=0.2,\
-            relRotVelocity=0.1,\
+            relRotVelocity=0.3,\
             grippVelocity=0.03,\
             maxRelForce=4,\
             maxAbsForce=4,\
@@ -171,7 +171,7 @@ def QuaternionToRotVel(currentQ, targetQ, maxRotVel):
 
     errorOrientationNormalized = normalize(errorOrientation)     
     errorOrientationNormalized*min([maxRotVel, 2*norm])   
-    return errorOrientationNormalized*min([maxRotVel, 4*norm])
+    return errorOrientationNormalized*min([maxRotVel, 8*norm])
 
 
 def CalcJacobianCombined(data, tfListener, transformer):
@@ -226,7 +226,7 @@ def normalize(v):
 
 # taken (Modified) from https://github.com/christophhagen/averaging-quaternions/blob/master/averageQuaternions.py
 # Q is a Nx4 numpy matrix and contains the quaternions to average in the rows.
-# The quaternions are arranged as (w,x,y,z), with w being the scalar
+# The quaternions are arranged as (x,y,z,w), with w being the scalar
 # The result will be the average quaternion of the input. Note that the signs
 # of the output quaternion can be reversed, since q and -q describe the same orientation
 def averageQuaternions(Q):

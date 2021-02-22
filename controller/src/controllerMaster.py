@@ -3,6 +3,7 @@
 import rospy
 from sensor_msgs.msg import JointState, PointCloud
 from std_msgs.msg import Float64MultiArray
+from controller.msg import Jacobian_msg
 import numpy as np
 import tf
 from scipy.spatial.transform import Rotation as R_scipy
@@ -11,6 +12,7 @@ import threading
 import HQPSolver
 import utils 
 import Task
+
 
 class YmuiContoller(object):
     def __init__(self):
@@ -83,7 +85,7 @@ class YmuiContoller(object):
 
     def callback(self, data):
 
-        jacobianCombined = utils.CalcJacobianCombined(data=data, tfListener=self.tfListener, transformer=self.transformer)
+        jacobianCombined = utils.CalcJacobianCombined(data=data.jacobian[0], tfListener=self.tfListener, transformer=self.transformer)
         
         # stack of tasks, in decending hierarchy
         # ----------------------
@@ -98,6 +100,7 @@ class YmuiContoller(object):
             # indvidual task update 
             self.indiviualControl.compute(controlInstructions=self.controlInstructions, jacobian=jacobianCombined)
             SoT.append(self.indiviualControl)
+
         elif self.controlInstructions.mode == 'combined':
             self.controlInstructions.updateTransform()
             self.relativeControl.compute(controlInstructions=self.controlInstructions,\
@@ -142,7 +145,7 @@ def main():
     ymuiContoller = YmuiContoller()
     rospy.sleep(0.5)
 
-    rospy.Subscriber("/Jacobian_R_L", Float64MultiArray, ymuiContoller.callback)
+    rospy.Subscriber("/Jacobian_R_L", Jacobian_msg, ymuiContoller.callback)
     #rospy.Subscriber("/spr/dlo_estimation", PointCloud, ymuiContoller.callback_dlo)
     
     rate = rospy.Rate(ymuiContoller.updateRate) 
