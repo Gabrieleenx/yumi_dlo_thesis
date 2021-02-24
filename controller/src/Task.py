@@ -190,14 +190,11 @@ class ElbowCollision(Task):
 
             self.constraintVector = np.array([(boundPoint - translationRightElbow[1])])
 
-            #print('right', self.constraintVector)
-
         elif self.arm == 'left':
             boundPoint = translationRightElbow[1] - difference*factor
             jacobianNew = np.zeros((1, self.Dof))
 
-            jacobianNew[0, 0:4] = jacobian[1,0:4]
-            self.constraintMatrix = -self.timestep*10 * jacobianNew
+            jacobianNew[0, 7:11] = jacobian[1,0:4]
+            self.constraintMatrix = -self.timestep * jacobianNew
             self.constraintVector = -np.array([(boundPoint - translationLeftElbow[1])])
 
-            #print('left ', self.constraintVector)

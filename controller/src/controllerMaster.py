@@ -9,6 +9,8 @@ import tf
 from scipy.spatial.transform import Rotation as R_scipy
 import threading
 
+import message_filters
+
 import HQPSolver
 import utils 
 import Task
@@ -88,7 +90,7 @@ class YmuiContoller(object):
     def callback(self, data):
 
         jacobianCombined = utils.CalcJacobianCombined(data=data.jacobian[0], tfListener=self.tfListener, transformer=self.transformer)
-        
+
         # stack of tasks, in decending hierarchy
         # ----------------------
         SoT = [self.jointVelocityBoundUpper, self.jointVelocityBoundLower]
@@ -103,13 +105,12 @@ class YmuiContoller(object):
 
         dataNP = np.asarray(data.jacobian[1].data)
 
-        acobianRightElbow = dataNP[0::2].reshape((6,4))
+        jacobianRightElbow = dataNP[0::2].reshape((6,4))
         jacobianLeftElbow = dataNP[1::2].reshape((6,4))
-
         self.selfCollisionRightElbow.compute(jacobian=jacobianRightElbow)
         self.selfCollisionLeftElbow.compute(jacobian=jacobianLeftElbow)
-        #SoT.append(self.selfCollisionRightElbow)
-        #SoT.append(self.selfCollisionLeftElbow)
+        SoT.append(self.selfCollisionRightElbow)
+        SoT.append(self.selfCollisionLeftElbow)
 
 
         if self.controlInstructions.mode == 'individual':
@@ -166,7 +167,7 @@ def main():
 
     rospy.Subscriber("/Jacobian_R_L", Jacobian_msg, ymuiContoller.callback)
     #rospy.Subscriber("/spr/dlo_estimation", PointCloud, ymuiContoller.callback_dlo)
-    
+
     rate = rospy.Rate(ymuiContoller.updateRate) 
 
     msg = JointState()
