@@ -16,7 +16,7 @@ import Task
 class YmuiContoller(object):
     def __init__(self):
 
-        self.updateRate = 100 #Hz
+        self.updateRate = 50 #Hz
         self.dT = 1/self.updateRate
 
         self.jointState = utils.JointState()
@@ -82,6 +82,9 @@ class YmuiContoller(object):
 
         self.relativeControl = Task.RelativeControl(Dof=14)
 
+        self.selfCollisionRightElbow = Task.ElbowCollision(Dof=14, arm='right', minDistance=0.2, timestep=self.dT)
+        self.selfCollisionLeftElbow = Task.ElbowCollision(Dof=14, arm='left', minDistance=0.2, timestep=self.dT)
+
     def callback(self, data):
 
         jacobianCombined = utils.CalcJacobianCombined(data=data.jacobian[0], tfListener=self.tfListener, transformer=self.transformer)
@@ -94,6 +97,20 @@ class YmuiContoller(object):
         SoT.append(self.jointPositionBoundUpper)
         self.jointPositionBoundLower.compute(jointState=self.jointState)
         SoT.append(self.jointPositionBoundLower)
+
+        jacobianRightElbow = np.zeros((6,4))
+        jacobianLeftElbow = np.zeros((6,4))
+
+        dataNP = np.asarray(data.jacobian[1].data)
+
+        acobianRightElbow = dataNP[0::2].reshape((6,4))
+        jacobianLeftElbow = dataNP[1::2].reshape((6,4))
+
+        self.selfCollisionRightElbow.compute(jacobian=jacobianRightElbow)
+        self.selfCollisionLeftElbow.compute(jacobian=jacobianLeftElbow)
+        #SoT.append(self.selfCollisionRightElbow)
+        #SoT.append(self.selfCollisionLeftElbow)
+
 
         if self.controlInstructions.mode == 'individual':
             # indvidual task update 
@@ -118,6 +135,9 @@ class YmuiContoller(object):
             self.jointState.gripperLeftVelocity = np.zeros(2)
             self.jointState.gripperRightVelocity = np.zeros(2)
             return
+
+
+
         # solve HQP
         # ----------------------
         self.jointState.jointVelocity = self.HQP.solve(SoT=SoT)

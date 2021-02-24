@@ -157,3 +157,47 @@ class AbsoluteControl(Task):
         self.constraintVector = np.hstack([velocities])
 
 
+class ElbowCollision(Task):
+    def __init__(self, Dof, arm, minDistance, timestep):
+        super(ElbowCollision, self).__init__(Dof)
+        self.arm = arm
+        if arm == 'right':
+            self.constraintType = 1
+        else:            
+            self.constraintType = -1
+        self.timestep = timestep
+
+        self.tfListener = tf.TransformListener()
+        self.minDistance = minDistance
+
+    def compute(self, jacobian):
+        (translationRightElbow, _) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_link_4_r', rospy.Time(0))
+        (translationLeftElbow, _) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_link_4_l', rospy.Time(0))
+
+        translationRightElbow = np.asarray(translationRightElbow)
+        translationLeftElbow = np.asarray(translationLeftElbow)
+
+        difference = translationRightElbow[1] - translationLeftElbow[1] 
+        distance = np.linalg.norm(difference)
+        factor = self.minDistance/abs(difference)
+
+        if self.arm == 'right':
+            boundPoint = translationLeftElbow[1] + difference*factor
+            jacobianNew = np.zeros((1, self.Dof))
+
+            jacobianNew[0, 0:4] = jacobian[1,0:4]
+            self.constraintMatrix = self.timestep*10 * jacobianNew
+
+            self.constraintVector = np.array([(boundPoint - translationRightElbow[1])])
+
+            #print('right', self.constraintVector)
+
+        elif self.arm == 'left':
+            boundPoint = translationRightElbow[1] - difference*factor
+            jacobianNew = np.zeros((1, self.Dof))
+
+            jacobianNew[0, 0:4] = jacobian[1,0:4]
+            self.constraintMatrix = -self.timestep*10 * jacobianNew
+            self.constraintVector = -np.array([(boundPoint - translationLeftElbow[1])])
+
+            #print('left ', self.constraintVector)

@@ -1,4 +1,4 @@
-## Controller for thesis work with YuMi 
+## Controller for thesis work with YuMi (readme not up to date!)
 
 ## Maintainer 
 * Gabriel Arslan Waltersson

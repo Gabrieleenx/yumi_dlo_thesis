@@ -139,7 +139,7 @@ void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_stat
     jac_solver_right_arm->JntToJac(q_right_elbow, jacobian_right_elbow);
     jac_solver_left_arm->JntToJac(q_left_elbow, jacobian_left_elbow);
 
-    jacobian_data(4, jacobian_right_arm, jacobian_left_arm, &jac);
+    jacobian_data(4, jacobian_right_elbow, jacobian_left_elbow, &jac);
 
     jac_msg.jacobian.push_back(jac);
 
