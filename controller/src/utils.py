@@ -73,14 +73,11 @@ class ControlInstructions(object):
         self.mode = 'individual'
         self.trajectory = []
         self.trajectoryIndex = 0
-        self.tfListener = tf.TransformListener()
         self.velocities = np.zeros(12)
-        self.transformer = tf.TransformerROS(True, rospy.Duration(4.0))
-
+        self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
+        self.tfListener = tf.TransformListener()
 
     def getIndividualTargetVelocity(self):
-
-        self.updateTransform()
 
         self.velocities[0:3] = PositionToVelocity(self.translationRightArm,\
              self.trajectory[self.trajectoryIndex].positionRight, self.trajectory[self.trajectoryIndex].absVelocity)
@@ -95,8 +92,6 @@ class ControlInstructions(object):
         return self.velocities
 
     def getAbsoluteTargetVelocity(self):
-        (translationRightArm, rotationRightArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
-        (translationLeftArm, rotationLeftArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
 
         absolutePosition = 0.5*(self.translationRightArm + self.translationLeftArm)
         avgQ = np.vstack([self.rotationRightArm, self.rotationLeftArm])
@@ -113,20 +108,21 @@ class ControlInstructions(object):
 
         avgQ = np.vstack([self.rotationRightArm, self.rotationLeftArm])
         absoluteOrientation = averageQuaternions(avgQ)  
-        (translationRelativeLeftFrame, rotationRelative) = self.tfListener.lookupTransform('/yumi_gripp_l', '/yumi_gripp_r', rospy.Time(0))
+
+        #(translationRelativeLeftFrame, rotationRelative) = self.tfListener.lookupTransform('/yumi_gripp_l', '/yumi_gripp_r', rospy.Time(0))
 
         transformation1 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=absoluteOrientation)
         transformationInv1 = np.linalg.inv(transformation1)
         transformation2 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=self.rotationLeftArm)
 
         leftToAbsoluteFrameRot = transformationInv1.dot(transformation2)
-        homogeneousLeftRelative = np.hstack([np.asarray(translationRelativeLeftFrame),1])
+        homogeneousLeftRelative = np.hstack([self.translationRelativeLeftRight,1])
         homogeneousAbsouluteRelative = leftToAbsoluteFrameRot.dot(homogeneousLeftRelative)
 
         self.velocities[6:9] = PositionToVelocity(homogeneousAbsouluteRelative[0:3],\
             self.trajectory[self.trajectoryIndex].positionLeft, self.trajectory[self.trajectoryIndex].relVelocity)
 
-        self.velocities[9:12]= QuaternionToRotVel(np.asarray(rotationRelative), \
+        self.velocities[9:12]= QuaternionToRotVel(self.rotationRelative, \
             self.trajectory[self.trajectoryIndex].orientationLeft, self.trajectory[self.trajectoryIndex].relRotVelocity)
 
         return self.velocities[6:12], self.translationRightArm, self.translationLeftArm, absoluteOrientation
@@ -136,13 +132,22 @@ class ControlInstructions(object):
             if np.linalg.norm(self.velocities) <= self.trajectory[self.trajectoryIndex].targetTreshold:
                 self.trajectoryIndex += 1
     
-    def updateTransform(self):
-        (translationRightArm, rotationRightArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
-        (translationLeftArm, rotationLeftArm) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
-        self.translationRightArm = np.asarray(translationRightArm)
-        self.rotationRightArm = np.asarray(rotationRightArm)
-        self.translationLeftArm = np.asarray(translationLeftArm)
-        self.rotationLeftArm = np.asarray(rotationLeftArm)
+    def updateTransform(self, yumiGrippPoseR, yumiGrippPoseL):
+
+        self.translationRightArm = yumiGrippPoseR.getPosition()
+        self.translationLeftArm = yumiGrippPoseL.getPosition()
+        self.rotationRightArm = yumiGrippPoseR.getQuaternion()
+        self.rotationLeftArm = yumiGrippPoseL.getQuaternion()
+
+        tfMatrixRight = self.transformer.fromTranslationRotation(translation=self.translationRightArm, rotation=self.rotationRightArm)
+        tfMatrixLeft = self.transformer.fromTranslationRotation(translation=self.translationLeftArm, rotation=self.rotationLeftArm)
+        rotMatrixRight = tfMatrixRight[0:3,0:3]
+        rotMatrixLeft = tfMatrixLeft[0:3,0:3]
+        tfMatrixLeftInv = np.linalg.inv(tfMatrixLeft)
+        self.translationRelativeLeftRight = tfMatrixLeftInv.dot(np.hstack([self.translationRightArm, 1]))[0:3]
+        rotLeftRight = tfMatrixLeftInv.dot(tfMatrixRight)
+        self.rotationRelative = tf.transformations.quaternion_from_matrix(rotLeftRight)
+
 
     def resetVelocity(self):
         self.velocities = np.zeros(12)
@@ -174,7 +179,7 @@ def QuaternionToRotVel(currentQ, targetQ, maxRotVel):
     return errorOrientationNormalized*min([maxRotVel, 8*norm])
 
 
-def CalcJacobianCombined(data, tfListener, transformer):
+def CalcJacobianCombined(data, gripperLengthRight, gripperLengthLeft, transformer, yumiGrippPoseR, yumiGrippPoseL):
     jacobianRightArm = np.zeros((6,7))
     jacobianLeftArm = np.zeros((6,7))
 
@@ -184,12 +189,10 @@ def CalcJacobianCombined(data, tfListener, transformer):
     jacobianLeftArm = dataNP[1::2].reshape((6,7))
     
     # change endeffector frame 
-
-    (translationRightArm, rotationRightArm) = tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
-    (translationLeftArm, rotationLeftArm) = tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
-
-    (gripperLengthRight, _) = tfListener.lookupTransform('/yumi_link_7_r', '/yumi_gripp_r', rospy.Time(0))
-    (gripperLengthLeft, _) = tfListener.lookupTransform('/yumi_link_7_l', '/yumi_gripp_l', rospy.Time(0))
+    translationRightArm = yumiGrippPoseR.getPosition()
+    translationLeftArm = yumiGrippPoseL.getPosition()
+    rotationRightArm = yumiGrippPoseR.getQuaternion()
+    rotationLeftArm = yumiGrippPoseL.getQuaternion()
 
     jacobianRightArm = changeFrameJacobian(jacobianRightArm, gripperLengthRight, rotationRightArm, transformer)
     jacobianLeftArm = changeFrameJacobian(jacobianLeftArm, gripperLengthLeft, rotationLeftArm, transformer)
@@ -254,4 +257,30 @@ def averageQuaternions(Q):
     avgQ = np.roll(avgQ,-1)
 
     return avgQ
+
+class FramePose(object):
+    def __init__(self):
+        self.tempPosition = np.zeros(3)
+        self.position = np.zeros(4)
+        self.quaternion = np.zeros(4)
+
+    def getQuaternion(self):
+        return self.quaternion
+
+    def getPosition(self):
+        return self.position[0:3]
+
+    def update(self, pose, transfromer, gripperLength):
+        self.tempPosition[0] = pose.position.x
+        self.tempPosition[1] = pose.position.y
+        self.tempPosition[2] = pose.position.z
+
+        self.quaternion[0] = pose.orientation.x
+        self.quaternion[1] = pose.orientation.y
+        self.quaternion[2] = pose.orientation.z
+        self.quaternion[3] = pose.orientation.w
+
+        tfMatrix = transfromer.fromTranslationRotation(translation=self.tempPosition, rotation=self.quaternion)
+        self.position = tfMatrix.dot(np.hstack([gripperLength, 1]))
+
 

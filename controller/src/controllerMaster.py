@@ -40,14 +40,25 @@ class YmuiContoller(object):
         trajectory2 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=np.array([0,0,0,1]), orientationRight=rotabstest2)
         trajectory3 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=np.array([0,0,0,1]), orientationRight=rotabstest3)
         trajectory4 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=localrottest)
-       
+        #trajectory = utils.Trajectory(positionRight=np.array([0.4 ,-0.05, 0.2]), positionLeft=np.array([0.4 ,0.05, 0.2]))
+
         self.controlInstructions = utils.ControlInstructions()
         self.controlInstructions.mode = 'combined'
         self.controlInstructions.trajectory = [trajectory, trajectory1, trajectory, trajectory2, trajectory, trajectory3, trajectory, trajectory4, trajectory]
+        #self.controlInstructions.mode = 'individual'
+        #self.controlInstructions.trajectory = [trajectory]
 
-        # object that listen to transformation tree. 
-        self.tfListener = tf.TransformListener()
-        self.transformer = tf.TransformerROS(True, rospy.Duration(4.0))
+        # Forward kinematics and transformers 
+        # for critical updates
+        self.yumiGrippPoseR = utils.FramePose()
+        self.yumiGrippPoseL = utils.FramePose()
+        self.yumiElbowPoseR = utils.FramePose()
+        self.yumiElbowPoseL = utils.FramePose()
+
+
+        self.tfListener = tf.TransformListener() # for non critical updates, no guarantee for synch
+        self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
+
 
         # solver 
         self.HQP = HQPSolver.HQPSolver()
@@ -87,19 +98,41 @@ class YmuiContoller(object):
         self.selfCollisionRightElbow = Task.ElbowCollision(Dof=14, arm='right', minDistance=0.2, timestep=self.dT)
         self.selfCollisionLeftElbow = Task.ElbowCollision(Dof=14, arm='left', minDistance=0.2, timestep=self.dT)
 
+
     def callback(self, data):
 
-        jacobianCombined = utils.CalcJacobianCombined(data=data.jacobian[0], tfListener=self.tfListener, transformer=self.transformer)
+        #(gripperLengthRight, _) = self.tfListener.lookupTransform('/yumi_link_7_r', '/yumi_gripp_r', rospy.Time(0))
+        #(gripperLengthLeft, _) = self.tfListener.lookupTransform('/yumi_link_7_l', '/yumi_gripp_l', rospy.Time(0))
+
+        gripperLengthRight = np.array([0,0,0.135])
+
+        gripperLengthLeft = np.array([0,0,0.135])
+        self.gripperLengthRight = np.asarray(gripperLengthRight)
+        self.gripperLengthLeft = np.asarray(gripperLengthLeft)
+
+        jacobianCombined = utils.CalcJacobianCombined(data=data.jacobian[0], \
+                                                    gripperLengthRight=gripperLengthRight,\
+                                                    gripperLengthLeft=gripperLengthLeft,\
+                                                    transformer=self.transformer,\
+                                                    yumiGrippPoseR=self.yumiGrippPoseR,\
+                                                    yumiGrippPoseL=self.yumiGrippPoseL)
+        self.yumiGrippPoseR.update(data.forwardKinematics[0], self.transformer, self.gripperLengthRight)
+        self.yumiGrippPoseL.update(data.forwardKinematics[1], self.transformer, self.gripperLengthLeft)
+        self.yumiElbowPoseR.update(data.forwardKinematics[2],  self.transformer, np.zeros(3))
+        self.yumiElbowPoseL.update(data.forwardKinematics[3], self.transformer, np.zeros(3))
 
         # stack of tasks, in decending hierarchy
         # ----------------------
+        # velocity bound
         SoT = [self.jointVelocityBoundUpper, self.jointVelocityBoundLower]
-        #SoT = []
+
+        #position bound
         self.jointPositionBoundUpper.compute(jointState=self.jointState)
         SoT.append(self.jointPositionBoundUpper)
         self.jointPositionBoundLower.compute(jointState=self.jointState)
         SoT.append(self.jointPositionBoundLower)
 
+        # Self collision elbow
         jacobianRightElbow = np.zeros((6,4))
         jacobianLeftElbow = np.zeros((6,4))
 
@@ -107,11 +140,18 @@ class YmuiContoller(object):
 
         jacobianRightElbow = dataNP[0::2].reshape((6,4))
         jacobianLeftElbow = dataNP[1::2].reshape((6,4))
-        self.selfCollisionRightElbow.compute(jacobian=jacobianRightElbow)
-        self.selfCollisionLeftElbow.compute(jacobian=jacobianLeftElbow)
+        self.selfCollisionRightElbow.compute(jacobian=jacobianRightElbow,\
+                                            yumiElbowPoseR=self.yumiElbowPoseR,\
+                                            yumiElbowPoseL=self.yumiElbowPoseL)
+        self.selfCollisionLeftElbow.compute(jacobian=jacobianLeftElbow,\
+                                            yumiElbowPoseR=self.yumiElbowPoseR,\
+                                            yumiElbowPoseL=self.yumiElbowPoseL)
         SoT.append(self.selfCollisionRightElbow)
         SoT.append(self.selfCollisionLeftElbow)
 
+        # trajcetory Control 
+        self.controlInstructions.updateTransform(yumiGrippPoseR=self.yumiGrippPoseR,\
+                                                 yumiGrippPoseL=self.yumiGrippPoseL)
 
         if self.controlInstructions.mode == 'individual':
             # indvidual task update 
@@ -119,7 +159,6 @@ class YmuiContoller(object):
             SoT.append(self.indiviualControl)
 
         elif self.controlInstructions.mode == 'combined':
-            self.controlInstructions.updateTransform()
             self.relativeControl.compute(controlInstructions=self.controlInstructions,\
                                         jacobian=jacobianCombined,\
                                         transformer=self.transformer)
@@ -136,7 +175,6 @@ class YmuiContoller(object):
             self.jointState.gripperLeftVelocity = np.zeros(2)
             self.jointState.gripperRightVelocity = np.zeros(2)
             return
-
 
 
         # solve HQP
@@ -160,7 +198,7 @@ def main():
 
     # starting ROS node and subscribers
     rospy.init_node('pub_joint_pos', anonymous=True) 
-    pub = rospy.Publisher('/joint_states', JointState, queue_size=5)
+    pub = rospy.Publisher('/joint_states', JointState, queue_size=1)
 
     ymuiContoller = YmuiContoller()
     rospy.sleep(0.5)

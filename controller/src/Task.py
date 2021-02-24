@@ -113,8 +113,8 @@ class IndividualControl(Task):
 
     def compute(self, controlInstructions, jacobian):
         effectorVelocities = controlInstructions.getIndividualTargetVelocity() # function name might change 
-        self.constraintMatrix = np.vstack([jacobian, -jacobian])
-        self.constraintVector = np.hstack([effectorVelocities, -effectorVelocities])
+        self.constraintMatrix = jacobian
+        self.constraintVector = effectorVelocities
 
 
 class RelativeControl(Task):
@@ -167,26 +167,25 @@ class ElbowCollision(Task):
             self.constraintType = -1
         self.timestep = timestep
 
-        self.tfListener = tf.TransformListener()
         self.minDistance = minDistance
 
-    def compute(self, jacobian):
-        (translationRightElbow, _) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_link_4_r', rospy.Time(0))
-        (translationLeftElbow, _) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_link_4_l', rospy.Time(0))
-
-        translationRightElbow = np.asarray(translationRightElbow)
-        translationLeftElbow = np.asarray(translationLeftElbow)
+    def compute(self, jacobian, yumiElbowPoseR, yumiElbowPoseL):
+       
+        translationRightElbow = yumiElbowPoseR.getPosition()
+        translationLeftElbow = yumiElbowPoseL.getPosition()
 
         difference = translationRightElbow[1] - translationLeftElbow[1] 
         distance = np.linalg.norm(difference)
         factor = self.minDistance/abs(difference)
+
+        self.saftyMargin = 4
 
         if self.arm == 'right':
             boundPoint = translationLeftElbow[1] + difference*factor
             jacobianNew = np.zeros((1, self.Dof))
 
             jacobianNew[0, 0:4] = jacobian[1,0:4]
-            self.constraintMatrix = self.timestep*10 * jacobianNew
+            self.constraintMatrix = self.timestep*self.saftyMargin * jacobianNew
 
             self.constraintVector = np.array([(boundPoint - translationRightElbow[1])])
 
@@ -195,6 +194,6 @@ class ElbowCollision(Task):
             jacobianNew = np.zeros((1, self.Dof))
 
             jacobianNew[0, 7:11] = jacobian[1,0:4]
-            self.constraintMatrix = -self.timestep * jacobianNew
+            self.constraintMatrix = -self.timestep*self.saftyMargin * jacobianNew
             self.constraintVector = -np.array([(boundPoint - translationLeftElbow[1])])
 
