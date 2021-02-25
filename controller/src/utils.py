@@ -75,7 +75,10 @@ class ControlInstructions(object):
         self.trajectoryIndex = 0
         self.velocities = np.zeros(12)
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
-        self.tfListener = tf.TransformListener()
+        self.ifForceControl = 0
+        self.maxRelativeNorm = 2
+        self.targetRelativeNorm = 0.2 # Initial target norm, if 0 collision could happen 
+        #self.oldNorm = None
 
     def getIndividualTargetVelocity(self):
 
@@ -105,11 +108,17 @@ class ControlInstructions(object):
         return self.velocities[0:6]
 
     def getRelativeTargetVelocity(self):
+        relativePosNorm = np.linalg.norm(self.translationRelativeLeftRight)
+        print('distance', relativePosNorm)
+        force = 0
+        if relativePosNorm > 0.2 and self.trajectoryIndex>0:
+            self.ifForceControl = 1
+            force = (relativePosNorm-0.2)*200
+            print('force' , force)
+        self.updateForceControl(force=force, maxForce=4, deltaT=0.01, K=0.01)
 
         avgQ = np.vstack([self.rotationRightArm, self.rotationLeftArm])
         absoluteOrientation = averageQuaternions(avgQ)  
-
-        #(translationRelativeLeftFrame, rotationRelative) = self.tfListener.lookupTransform('/yumi_gripp_l', '/yumi_gripp_r', rospy.Time(0))
 
         transformation1 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=absoluteOrientation)
         transformationInv1 = np.linalg.pinv(transformation1)
@@ -119,8 +128,17 @@ class ControlInstructions(object):
         homogeneousLeftRelative = np.hstack([self.translationRelativeLeftRight,1])
         homogeneousAbsouluteRelative = leftToAbsoluteFrameRot.dot(homogeneousLeftRelative)
 
+        relativePos = self.trajectory[self.trajectoryIndex].positionLeft
+        print('relativePosOriginal', relativePos)
+        if self.ifForceControl == 1:    
+            relativePosNorm = np.linalg.norm(relativePos)
+            if relativePosNorm > self.maxRelativeNorm: 
+                relativePosNormalized = normalize(relativePos)
+                relativePos = relativePosNormalized * self.maxRelativeNorm
+        print('relativePosAfter', relativePos)
+
         self.velocities[6:9] = PositionToVelocity(homogeneousAbsouluteRelative[0:3],\
-            self.trajectory[self.trajectoryIndex].positionLeft, self.trajectory[self.trajectoryIndex].relVelocity)
+            relativePos, self.trajectory[self.trajectoryIndex].relVelocity)
 
         self.velocities[9:12]= QuaternionToRotVel(self.rotationRelative, \
             self.trajectory[self.trajectoryIndex].orientationLeft, self.trajectory[self.trajectoryIndex].relRotVelocity)
@@ -132,6 +150,22 @@ class ControlInstructions(object):
             if np.linalg.norm(self.velocities) <= self.trajectory[self.trajectoryIndex].targetTreshold:
                 self.trajectoryIndex += 1
     
+    def updateForceControl(self, force, maxForce, deltaT, K):
+
+        forceDifferance = maxForce - force
+        relativePosNorm = np.linalg.norm(self.trajectory[self.trajectoryIndex].positionLeft)
+        if forceDifferance < 0 and self.maxRelativeNorm > relativePosNorm:
+            self.maxRelativeNorm = relativePosNorm
+        elif force == 0:
+            self.maxRelativeNorm = relativePosNorm + 0.01
+
+        forceDifferance = np.clip(forceDifferance, -10, 10) # for safty ... 
+
+        self.maxRelativeNorm = self.maxRelativeNorm  + deltaT * K * forceDifferance
+        self.maxRelativeNorm = np.clip(self.maxRelativeNorm, 0.05, 2)
+        print('maxNorm', self.maxRelativeNorm, ' diff ', deltaT * K * forceDifferance)
+
+
     def updateTransform(self, yumiGrippPoseR, yumiGrippPoseL):
 
         self.translationRightArm = yumiGrippPoseR.getPosition()

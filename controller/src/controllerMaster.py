@@ -35,9 +35,9 @@ class YmuiContoller(object):
 
         localrottest = tf.transformations.quaternion_from_euler(80*np.pi/180, 0, 0*np.pi/180, 'rzyx')
 
-        trajectory = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=np.array([0,0,0,1]))
-        trajectory1 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=np.array([0,0,0,1]), orientationRight=rotabstest1)
-        trajectory2 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=np.array([0,0,0,1]), orientationRight=rotabstest2)
+        trajectory = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.3, 0.0]), orientationLeft=np.array([0,0,0,1]))
+        trajectory1 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.3, 0.0]), orientationLeft=np.array([0,0,0,1]), orientationRight=rotabstest1)
+        trajectory2 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.3, 0.0]), orientationLeft=np.array([0,0,0,1]), orientationRight=rotabstest2)
         trajectory3 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=np.array([0,0,0,1]), orientationRight=rotabstest3)
         trajectory4 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=localrottest)
         #trajectory = utils.Trajectory(positionRight=np.array([0.4 ,-0.05, 0.2]), positionLeft=np.array([0.4 ,0.05, 0.2]))
@@ -157,6 +157,7 @@ class YmuiContoller(object):
             SoT.append(self.indiviualControl)
 
         elif self.controlInstructions.mode == 'combined':
+
             self.relativeControl.compute(controlInstructions=self.controlInstructions,\
                                         jacobian=jacobianCombined,\
                                         transformer=self.transformer)
