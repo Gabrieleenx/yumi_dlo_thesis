@@ -112,7 +112,7 @@ class ControlInstructions(object):
         #(translationRelativeLeftFrame, rotationRelative) = self.tfListener.lookupTransform('/yumi_gripp_l', '/yumi_gripp_r', rospy.Time(0))
 
         transformation1 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=absoluteOrientation)
-        transformationInv1 = np.linalg.inv(transformation1)
+        transformationInv1 = np.linalg.pinv(transformation1)
         transformation2 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=self.rotationLeftArm)
 
         leftToAbsoluteFrameRot = transformationInv1.dot(transformation2)
@@ -143,7 +143,8 @@ class ControlInstructions(object):
         tfMatrixLeft = self.transformer.fromTranslationRotation(translation=self.translationLeftArm, rotation=self.rotationLeftArm)
         rotMatrixRight = tfMatrixRight[0:3,0:3]
         rotMatrixLeft = tfMatrixLeft[0:3,0:3]
-        tfMatrixLeftInv = np.linalg.inv(tfMatrixLeft)
+        tfMatrixLeftInv = np.linalg.pinv(tfMatrixLeft)
+
         self.translationRelativeLeftRight = tfMatrixLeftInv.dot(np.hstack([self.translationRightArm, 1]))[0:3]
         rotLeftRight = tfMatrixLeftInv.dot(tfMatrixRight)
         self.rotationRelative = tf.transformations.quaternion_from_matrix(rotLeftRight)

@@ -126,7 +126,7 @@ class Calc_jacobian{
 Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh ){
     joint_state_sub = nh->subscribe("/joint_states", 2, &Calc_jacobian::callback, this);
     //jacobian_pub = nh->advertise<std_msgs::Float64MultiArray>("/Jacobian_R_L", 2);
-    jacobian_pub = nh->advertise<controller::Jacobian_msg>("/Jacobian_R_L", 2);
+    jacobian_pub = nh->advertise<controller::Jacobian_msg>("/Jacobian_R_L", 1);
     
     // get tree from urdf file for entire yumi
     if (!kdl_parser::treeFromFile("/home/gabriel/catkin/src/yumi_dlo_thesis/yumi_description/urdf/yumi.urdf", yumi_tree)){

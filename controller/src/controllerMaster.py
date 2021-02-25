@@ -10,7 +10,7 @@ from scipy.spatial.transform import Rotation as R_scipy
 import threading
 
 import message_filters
-
+import time
 import HQPSolver
 import utils 
 import Task
@@ -18,7 +18,7 @@ import Task
 class YmuiContoller(object):
     def __init__(self):
 
-        self.updateRate = 50 #Hz
+        self.updateRate = 100 #Hz
         self.dT = 1/self.updateRate
 
         self.jointState = utils.JointState()
@@ -95,18 +95,16 @@ class YmuiContoller(object):
 
         self.relativeControl = Task.RelativeControl(Dof=14)
 
-        self.selfCollisionRightElbow = Task.ElbowCollision(Dof=14, arm='right', minDistance=0.2, timestep=self.dT)
-        self.selfCollisionLeftElbow = Task.ElbowCollision(Dof=14, arm='left', minDistance=0.2, timestep=self.dT)
+        self.selfCollisionRightElbow = Task.ElbowCollision(Dof=14, arm='right', minDistance=0.3, timestep=self.dT)
+        self.selfCollisionLeftElbow = Task.ElbowCollision(Dof=14, arm='left', minDistance=0.3, timestep=self.dT)
 
+        self.lock = threading.Lock()
 
     def callback(self, data):
+        time_start = time.time()
+        (gripperLengthRight, _) = self.tfListener.lookupTransform('/yumi_link_7_r', '/yumi_gripp_r', rospy.Time(0))
+        (gripperLengthLeft, _) = self.tfListener.lookupTransform('/yumi_link_7_l', '/yumi_gripp_l', rospy.Time(0))
 
-        #(gripperLengthRight, _) = self.tfListener.lookupTransform('/yumi_link_7_r', '/yumi_gripp_r', rospy.Time(0))
-        #(gripperLengthLeft, _) = self.tfListener.lookupTransform('/yumi_link_7_l', '/yumi_gripp_l', rospy.Time(0))
-
-        gripperLengthRight = np.array([0,0,0.135])
-
-        gripperLengthLeft = np.array([0,0,0.135])
         self.gripperLengthRight = np.asarray(gripperLengthRight)
         self.gripperLengthLeft = np.asarray(gripperLengthLeft)
 
@@ -148,11 +146,11 @@ class YmuiContoller(object):
                                             yumiElbowPoseL=self.yumiElbowPoseL)
         SoT.append(self.selfCollisionRightElbow)
         SoT.append(self.selfCollisionLeftElbow)
-
+        
         # trajcetory Control 
         self.controlInstructions.updateTransform(yumiGrippPoseR=self.yumiGrippPoseR,\
                                                  yumiGrippPoseL=self.yumiGrippPoseL)
-
+        
         if self.controlInstructions.mode == 'individual':
             # indvidual task update 
             self.indiviualControl.compute(controlInstructions=self.controlInstructions, jacobian=jacobianCombined)
@@ -175,12 +173,11 @@ class YmuiContoller(object):
             self.jointState.gripperLeftVelocity = np.zeros(2)
             self.jointState.gripperRightVelocity = np.zeros(2)
             return
-
+        
 
         # solve HQP
         # ----------------------
         self.jointState.jointVelocity = self.HQP.solve(SoT=SoT)
-        
         # gripper control
         # ----------------------
 
@@ -188,8 +185,11 @@ class YmuiContoller(object):
         # temporary update 
         # ----------------------
         pose = self.jointState.GetJointPosition() + self.jointState.GetJointVelocity()*self.dT
-
+        self.lock.acquire()
         self.jointState.UpdatePose(pose=pose)
+        self.lock.release()
+        print('Hz', 1/(time.time() - time_start))
+
 
 
 
@@ -198,12 +198,12 @@ def main():
 
     # starting ROS node and subscribers
     rospy.init_node('pub_joint_pos', anonymous=True) 
-    pub = rospy.Publisher('/joint_states', JointState, queue_size=1)
+    pub = rospy.Publisher('/joint_states', JointState, queue_size=5)
 
     ymuiContoller = YmuiContoller()
     rospy.sleep(0.5)
 
-    rospy.Subscriber("/Jacobian_R_L", Jacobian_msg, ymuiContoller.callback)
+    rospy.Subscriber("/Jacobian_R_L", Jacobian_msg, ymuiContoller.callback, queue_size=1)
     #rospy.Subscriber("/spr/dlo_estimation", PointCloud, ymuiContoller.callback_dlo)
 
     rate = rospy.Rate(ymuiContoller.updateRate) 
@@ -219,7 +219,9 @@ def main():
             'yumi_joint_6_r', 'yumi_joint_1_l', 'yumi_joint_2_l', 'yumi_joint_7_l', 'yumi_joint_3_l', \
                 'yumi_joint_4_l', 'yumi_joint_5_l', 'yumi_joint_6_l', 'gripper_r_joint', 'gripper_r_joint_m',\
                     'gripper_l_joint', 'gripper_l_joint_m']
+        ymuiContoller.lock.acquire()
         msg.position = ymuiContoller.jointState.GetJointPosition().tolist()
+        ymuiContoller.lock.release()
         pub.publish(msg)
         rate.sleep()
         seq += 1

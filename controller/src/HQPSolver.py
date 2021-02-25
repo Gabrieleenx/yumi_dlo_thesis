@@ -6,7 +6,7 @@ import numpy as np
 #from Task import *
 #from utils import *
 import quadprog
-
+from cvxopt import matrix as cvxopt_matrix
 
 class HQPSolver(object):
     def __init__(self):
@@ -55,6 +55,7 @@ class HQPSolver(object):
             qd = x[:n_i]
             
         # After solving the last task, return optimal joint velocities as control input.
+        
         return qd
 
 
@@ -72,12 +73,17 @@ def quadprog_solve_qp(P, q=None, G=None, h=None, A=None, b=None):
         qp_C = -np.vstack([A, G]).T
         qp_b = -np.hstack([b, h])
         meq = A.shape[0]
+
+
     elif A is not None and G is None:       # Only equality constraint (x = a reformed as -a <= x <= a)
         qp_C = -A.T
         qp_b = -b
         meq = A.shape[0]
+
+
     else:                                   # Only ineqality constraint
         qp_C = -G.T
         qp_b = -h
         meq = 0
+
     return quadprog.solve_qp(qp_G, qp_a, qp_C, qp_b, meq)[0]

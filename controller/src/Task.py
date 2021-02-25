@@ -127,7 +127,7 @@ class RelativeControl(Task):
 
         tfMatrix = transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=absoluteOrientation)
 
-        rotaionMatrix = np.linalg.inv(tfMatrix[0:3,0:3])
+        rotaionMatrix = np.linalg.pinv(tfMatrix[0:3,0:3])
 
         diffXYZ = tfRightArm - tfLeftArm
         skewMatrixDiff = np.array([[0,-diffXYZ[2],diffXYZ[1]],\
