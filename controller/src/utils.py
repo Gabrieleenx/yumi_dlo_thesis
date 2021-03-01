@@ -33,81 +33,237 @@ class JointState(object):
         self.gripperRightPosition = pose[14:16]
         self.gripperLeftPosition = pose[16:18]
 
-# change jointPosition to positionLeft, positionRight, orientationLeft, orientationRight
-# quaternion as x y z w 
-class Trajectory(object):
-    def __init__(self, \
+
+class TrajcetoryPoint(object):
+    def __init__(self,\
             positionLeft=np.array([0.4 ,0.2, 0.2]),\
             positionRight=np.array([0.4 ,-0.2, 0.2]),\
             orientationLeft=np.array([1,0,0,0]),\
             orientationRight=np.array([1,0,0,0]),\
             gripperLeft=np.array([0.0, 0.0]),\
             gripperRight=np.array([0.0, 0.0]),\
-            absVelocity=0.05,\
-            relVelocity=0.05,\
-            absRotVelocity=0.2,\
-            relRotVelocity=0.3,\
-            grippVelocity=0.03,\
-            maxRelForce=4,\
-            maxAbsForce=4,\
-            targetTreshold=0.01):
-
+            pointTime=2.0):
         self.positionLeft = positionLeft
         self.positionRight = positionRight
         self.orientationLeft = orientationLeft
         self.orientationRight = orientationRight
         self.gripperLeft = gripperLeft
         self.gripperRight = gripperRight
-        self.absVelocity = absVelocity
-        self.relVelocity = relVelocity
-        self.absRotVelocity = absRotVelocity
-        self.relRotVelocity = relRotVelocity
-        self.grippVelocity = grippVelocity
-        self.maxRelForce = maxRelForce
-        self.maxAbsForce = maxAbsForce
-        self.targetTreshold = targetTreshold
+        self.pointTime = pointTime
+
+class Trajectory(object):
+    def __init__(self, deltaTime):
+        self.trajectory = [] # first element should be initial position for when trajectory is updated (pointTime = 0). 
+        self.trajectoryTime = 0
+        self.deltaTime = deltaTime
+        self.index = 1
+        self.numberOfPoints = 0
+        self.positionVelocitiesLeft = []
+        self.positionVelocitiesRight = []
+        self.roationMatrixLeft = []
+        self.roationMatrixRight = []
+        
+        self.targetVelocity = np.zeros(12)
+        self.targetPosition = np.zeros(6)
+        self.targetOrientation = np.zeros(8)
+    
+        self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
+
+    def getTarget(self):
+        if self.trajectory[self.index].pointTime < self.trajectoryTime:
+            if self.index < self.numberOfPoints - 1:
+                self.trajectoryTime = 0
+                self.index += 1 
+            else: # for last point 
+                self.trajectoryTime = self.trajectory[self.index].pointTime
+                self.index = self.numberOfPoints - 1
+
+        # position
+        q, dq = self.calcPosVel(qi=self.trajectory[self.index-1].positionRight,\
+                                    dqi=self.positionVelocitiesRight[self.index-1],\
+                                    qf=self.trajectory[self.index].positionRight,\
+                                    dqf=self.positionVelocitiesRight[self.index],\
+                                    tf=self.trajectory[self.index].pointTime,\
+                                    t=self.trajectoryTime)
+        self.targetPosition[0:3] = q
+        self.targetVelocity[0:3] = dq
+
+        q, dq = self.calcPosVel(qi=self.trajectory[self.index-1].positionLeft,\
+                                    dqi=self.positionVelocitiesLeft[self.index-1],\
+                                    qf=self.trajectory[self.index].positionLeft,\
+                                    dqf=self.positionVelocitiesLeft[self.index],\
+                                    tf=self.trajectory[self.index].pointTime,\
+                                    t=self.trajectoryTime)
+        self.targetPosition[3:6] = q
+        self.targetVelocity[6:9] = dq
+
+        # oritentaion 
+        quat, we = self.calcOrientation(Ri=self.roationMatrixRight[self.index-1],\
+                                Rf=self.roationMatrixRight[self.index])
+        self.targetOrientation[0:4] = quat
+        self.targetVelocity[3:6] = we
+
+        quat, we = self.calcOrientation(Ri=self.roationMatrixLeft[self.index-1],\
+                                Rf=self.roationMatrixLeft[self.index])
+        self.targetOrientation[4:8] = quat
+        self.targetVelocity[9:12] = we
+
+        # update time (maybe move up?)
+        self.trajectoryTime += self.deltaTime
+
+        return self.targetPosition, self.targetOrientation, self.targetVelocity
+
+    def calcPosVel(self, qi, dqi, qf, dqf, tf, t):
+        num = np.shape(qi)[0]
+        q = np.zeros(num)
+        dq = np.zeros(num)
+        for k in range(num):
+            a0 = qi[k]
+            a1 = dqi[k]
+            a2 = 3 * (qf[k] - (dq[k]*tf)/3 - a1*tf*(2/3) - a0)/(tf*tf)
+            a3 = (dqf[k] - (2*a2*tf + a1))/(3*tf*tf)
+            q[k] = a3*t**3 + a2*t**2  + a1*t + a0
+            dq[k] = 3*a3*t**2 + 2*a2*t + a1
+        return q, dq
+
+    def calcOrientation(self, Ri, Rf):
+        R_i_f = np.transpose(Ri).dot(Rf)
+        inCos = (R_i_f[0,0] + R_i_f[1,1] + R_i_f[2,2] - 1) / 2
+        inCos = np.clip(inCos,-1,1)
+        vf = np.arccos(inCos)
+        if abs(vf) < 0.001:
+            rotMatrix = np.eye(4)
+            rotMatrix[0:3,0:3] = Ri 
+            quat = tf.transformations.quaternion_from_matrix(rotMatrix)
+            return quat, np.zeros(3)
+
+        r = 1/(2*np.sin(vf))*np.array([[R_i_f[2,1] - R_i_f[1,2]],\
+                                    [R_i_f[0,2] - R_i_f[2,0]],\
+                                    [R_i_f[1,0] - R_i_f[0,1]]])
+
+        v, dv = self.calcPosVel(qi=np.array([0]),\
+                                    dqi=np.array([0]),\
+                                    qf=np.array([vf]),\
+                                    dqf=np.array([0]),\
+                                    tf=self.trajectory[self.index].pointTime,\
+                                    t=self.trajectoryTime)
+        w_I = dv*r
+        R_I = self.calcR_I(v, r)
+        Re = Ri.dot(R_I)
+        we = Ri.dot(w_I)
+        rotMatrix = np.eye(4)
+        rotMatrix[0:3,0:3] = Re 
+        quat = tf.transformations.quaternion_from_matrix(rotMatrix)
+        return quat, we.reshape((3,))
+
+    def updatePoints(self, trajcetoryList, velLeftInit, velRightInit):
+        self.positionVelocitiesLeft = [velLeftInit]
+        self.positionVelocitiesRight = [velRightInit]
+        self.roationMatrixLeft = []
+        self.roationMatrixRight = []
+   
+        self.index = 1
+        self.trajectoryTime = 0
+        self.trajectory = trajcetoryList
+        self.numberOfPoints = len(self.trajectory)
+
+        for i in range(0,self.numberOfPoints):
+            tfMatrixRight = self.transformer.fromTranslationRotation(translation=np.zeros(3), rotation=trajcetoryList[i].orientationRight)
+            tfMatrixLeft = self.transformer.fromTranslationRotation(translation=np.zeros(3), rotation=trajcetoryList[i].orientationLeft)
+            self.roationMatrixLeft.append(tfMatrixLeft[0:3,0:3])
+            self.roationMatrixRight.append(tfMatrixRight[0:3,0:3])
+
+        for i in range(1,self.numberOfPoints-1):
+
+            vel = self.calcPointVel(trajcetoryList[i-1].positionRight, trajcetoryList[i].positionRight, trajcetoryList[i+1].positionRight)
+            self.positionVelocitiesRight.append(vel)
+
+            vel = self.calcPointVel(trajcetoryList[i-1].positionLeft, trajcetoryList[i].positionLeft, trajcetoryList[i+1].positionLeft)
+            self.positionVelocitiesLeft.append(vel)
+
+        self.positionVelocitiesRight.append(np.zeros(3))
+        self.positionVelocitiesLeft.append(np.zeros(3))
+
+    def calcPointVel(self, v1, v2, v3):
+        vel = np.zeros(3)
+        vk = v2 - v1
+        vkk = v3 - v2
+        for i in range(3):
+            if np.sign(vk[i]) == np.sign(vkk[i]):
+                vel[i] = 0.5*(vk[i] + vkk[i])
+            else:
+                vel[i] = 0
+        return vel
+
+    def calcR_I(self, v, r):
+        cv = np.cos(v)[0]
+        sv = np.sin(v)[0]
+        rx = r[0,0]
+        ry = r[1,0]
+        rz = r[2,0]
+    
+        R_I = np.array([[(rx**2 * (1-cv)+cv), (rx*ry*(1-cv)- rz*sv), (rx*rz*(1-cv)+ry*sv)],\
+                 [(rx*ry*(1-cv)+rz*sv),(ry**2 * (1-cv) + cv),(ry*rz*(1-cv)-rx*sv)],\
+                  [(rx*rz*(1-cv)-ry*sv),(ry*rz*(1-cv)+rx*sv),(rz**2 * (1-cv)+cv)]])
+        return R_I
 
 
 class ControlInstructions(object):
-    def __init__(self):
+    def __init__(self, deltaTime):
         self.mode = 'individual'
-        self.trajectory = []
-        self.trajectoryIndex = 0
+        self.trajectory = Trajectory(deltaTime)
         self.velocities = np.zeros(12)
+        self.errorVelocities = np.zeros(12)
+
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
         self.ifForceControl = 0
-        self.maxRelativeNorm = 2
+
+        self.maxRelativeNorm = 2 #max distans init value  
         self.targetRelativeNorm = 0.2 # Initial target norm, if 0 collision could happen 
-        #self.oldNorm = None
 
-    def getIndividualTargetVelocity(self):
 
-        self.velocities[0:3] = PositionToVelocity(self.translationRightArm,\
-             self.trajectory[self.trajectoryIndex].positionRight, self.trajectory[self.trajectoryIndex].absVelocity)
-        self.velocities[6:9] = PositionToVelocity(self.translationLeftArm,\
-             self.trajectory[self.trajectoryIndex].positionLeft, self.trajectory[self.trajectoryIndex].absVelocity)
-        self.velocities[3:6]= QuaternionToRotVel(self.rotationRightArm, \
-            self.trajectory[self.trajectoryIndex].orientationRight, self.trajectory[self.trajectoryIndex].absRotVelocity)
-        self.velocities[9:12]= QuaternionToRotVel(self.rotationLeftArm, \
-            self.trajectory[self.trajectoryIndex].orientationLeft, self.trajectory[self.trajectoryIndex].absRotVelocity)
-        self.computeTrajectoryIntex()
+    def getIndividualTargetVelocity(self, k):
 
+        if len(self.trajectory.trajectory) < 2: 
+            return np.zeros(12)
+
+        self.errorVelocities[0:3] = PositionToVelocity(self.translationRightArm,\
+            self.targetPosition[0:3], 0.1)
+
+        self.errorVelocities[6:9] = PositionToVelocity(self.translationLeftArm,\
+            self.targetPosition[3:6], 0.1)
+
+        self.errorVelocities[3:6]= QuaternionToRotVel(self.rotationRightArm, \
+            self.targetOrientation[0:4], 0.2)
+        self.errorVelocities[9:12]= QuaternionToRotVel(self.rotationLeftArm, \
+            self.targetOrientation[4:8], 0.2)
+
+        self.velocities = self.targetVelocity + k*self.errorVelocities
         return self.velocities
 
-    def getAbsoluteTargetVelocity(self):
+    def getAbsoluteTargetVelocity(self, k):
+
+        if len(self.trajectory.trajectory) < 2: 
+            return np.zeros(12)
 
         absolutePosition = 0.5*(self.translationRightArm + self.translationLeftArm)
         avgQ = np.vstack([self.rotationRightArm, self.rotationLeftArm])
         absoluteOrientation = averageQuaternions(avgQ) 
 
-        self.velocities[0:3] = PositionToVelocity(absolutePosition,\
-            self.trajectory[self.trajectoryIndex].positionRight, self.trajectory[self.trajectoryIndex].absVelocity)
+        self.errorVelocities[0:3] = PositionToVelocity(absolutePosition,\
+            self.targetPosition[0:3], 0.1)
+        self.errorVelocities[3:6]= QuaternionToRotVel(absoluteOrientation, \
+            self.targetOrientation[0:4], 0.2)
 
-        self.velocities[3:6]= QuaternionToRotVel(absoluteOrientation, \
-            self.trajectory[self.trajectoryIndex].orientationRight, self.trajectory[self.trajectoryIndex].absRotVelocity)
+        self.velocities[0:6] = self.targetVelocity[0:6] + k*self.errorVelocities[0:6]
+
         return self.velocities[0:6]
 
-    def getRelativeTargetVelocity(self):
+    def getRelativeTargetVelocity(self, k):
+        if len(self.trajectory.trajectory) < 2: 
+            return np.zeros(12)
+
+        '''
         relativePosNorm = np.linalg.norm(self.translationRelativeLeftRight)
         print('distance', relativePosNorm)
         force = 0
@@ -116,19 +272,10 @@ class ControlInstructions(object):
             force = (relativePosNorm-0.2)*200
             print('force' , force)
         self.updateForceControl(force=force, maxForce=4, deltaT=0.01, K=0.01)
+        '''
 
-        avgQ = np.vstack([self.rotationRightArm, self.rotationLeftArm])
-        absoluteOrientation = averageQuaternions(avgQ)  
-
-        transformation1 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=absoluteOrientation)
-        transformationInv1 = np.linalg.pinv(transformation1)
-        transformation2 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=self.rotationLeftArm)
-
-        leftToAbsoluteFrameRot = transformationInv1.dot(transformation2)
-        homogeneousLeftRelative = np.hstack([self.translationRelativeLeftRight,1])
-        homogeneousAbsouluteRelative = leftToAbsoluteFrameRot.dot(homogeneousLeftRelative)
-
-        relativePos = self.trajectory[self.trajectoryIndex].positionLeft
+        relativePos = self.targetPosition[3:6]
+        '''
         print('relativePosOriginal', relativePos)
         if self.ifForceControl == 1:    
             relativePosNorm = np.linalg.norm(relativePos)
@@ -136,22 +283,24 @@ class ControlInstructions(object):
                 relativePosNormalized = normalize(relativePos)
                 relativePos = relativePosNormalized * self.maxRelativeNorm
         print('relativePosAfter', relativePos)
+        '''
+        self.errorVelocities[6:9] = PositionToVelocity(self.realativPosition ,\
+            relativePos, 0.1)
 
-        self.velocities[6:9] = PositionToVelocity(homogeneousAbsouluteRelative[0:3],\
-            relativePos, self.trajectory[self.trajectoryIndex].relVelocity)
+        self.errorVelocities[9:12]= QuaternionToRotVel(self.rotationRelative, \
+            self.targetOrientation[4:8], 0.2)
 
-        self.velocities[9:12]= QuaternionToRotVel(self.rotationRelative, \
-            self.trajectory[self.trajectoryIndex].orientationLeft, self.trajectory[self.trajectoryIndex].relRotVelocity)
+        self.velocities[6:12] = self.targetVelocity[6:12]  + k*self.errorVelocities[6:12]
 
-        return self.velocities[6:12], self.translationRightArm, self.translationLeftArm, absoluteOrientation
+        return self.velocities[6:12], self.translationRightArm, self.translationLeftArm, self.absoluteOrientation
 
-    def computeTrajectoryIntex(self):
-        if self.trajectoryIndex < len(self.trajectory)-1:
-            if np.linalg.norm(self.velocities) <= self.trajectory[self.trajectoryIndex].targetTreshold:
-                self.trajectoryIndex += 1
-    
+    def updateTarget(self):
+        if len(self.trajectory.trajectory) < 2: 
+            return
+        self.targetPosition, self.targetOrientation, self.targetVelocity = self.trajectory.getTarget()
+
     def updateForceControl(self, force, maxForce, deltaT, K):
-
+        #TODO fix problems...
         forceDifferance = maxForce - force
         relativePosNorm = np.linalg.norm(self.trajectory[self.trajectoryIndex].positionLeft)
         if forceDifferance < 0 and self.maxRelativeNorm > relativePosNorm:
@@ -175,21 +324,25 @@ class ControlInstructions(object):
 
         tfMatrixRight = self.transformer.fromTranslationRotation(translation=self.translationRightArm, rotation=self.rotationRightArm)
         tfMatrixLeft = self.transformer.fromTranslationRotation(translation=self.translationLeftArm, rotation=self.rotationLeftArm)
-        rotMatrixRight = tfMatrixRight[0:3,0:3]
-        rotMatrixLeft = tfMatrixLeft[0:3,0:3]
         tfMatrixLeftInv = np.linalg.pinv(tfMatrixLeft)
 
         self.translationRelativeLeftRight = tfMatrixLeftInv.dot(np.hstack([self.translationRightArm, 1]))[0:3]
         rotLeftRight = tfMatrixLeftInv.dot(tfMatrixRight)
         self.rotationRelative = tf.transformations.quaternion_from_matrix(rotLeftRight)
 
+        avgQ = np.vstack([self.rotationRightArm, self.rotationLeftArm])
+        self.absoluteOrientation = averageQuaternions(avgQ)  
+        self.absolutePosition = 0.5*(self.translationRightArm + self.translationLeftArm)
 
-    def resetVelocity(self):
-        self.velocities = np.zeros(12)
+        transformation1 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=self.absoluteOrientation)
+        transformationInv1 = np.linalg.pinv(transformation1)
+        transformation2 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=self.rotationLeftArm)
 
-    def getNumTrajectryPoints(self):
-        return len(self.trajectory)
-
+        leftToAbsoluteFrameRot = transformationInv1.dot(transformation2)
+        homogeneousLeftRelative = np.hstack([self.translationRelativeLeftRight,1])
+        self.homogeneousAbsouluteRelative = leftToAbsoluteFrameRot.dot(homogeneousLeftRelative)
+        self.realativPosition = self.homogeneousAbsouluteRelative[0:3]
+        
 
 def PositionToVelocity(currentPositionXYZ, targetPositionXYZ, maxVelocity):
     positionDiff = targetPositionXYZ - currentPositionXYZ
@@ -210,8 +363,8 @@ def QuaternionToRotVel(currentQ, targetQ, maxRotVel):
     norm = np.linalg.norm(errorOrientation)
 
     errorOrientationNormalized = normalize(errorOrientation)     
-    errorOrientationNormalized*min([maxRotVel, 2*norm])   
-    return errorOrientationNormalized*min([maxRotVel, 8*norm])
+    errorOrientationNormalized*min([maxRotVel, norm])   
+    return errorOrientationNormalized*min([maxRotVel, norm])
 
 
 def CalcJacobianCombined(data, gripperLengthRight, gripperLengthLeft, transformer, yumiGrippPoseR, yumiGrippPoseL):

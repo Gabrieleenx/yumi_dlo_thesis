@@ -28,25 +28,9 @@ class YmuiContoller(object):
 
         self.controlArmVelocity = np.zeros((14,1))
 
-        # Trajectory, temporary for testing 
-        rotabstest1 = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 160*np.pi/180, 'rzyx')
-        rotabstest2 = tf.transformations.quaternion_from_euler(-0*np.pi/180, 0, 200*np.pi/180, 'rzyx')
-        rotabstest3 = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 160*np.pi/180, 'rzyx')
+        # Trajectory
+        self.controlInstructions = utils.ControlInstructions(self.dT)
 
-        localrottest = tf.transformations.quaternion_from_euler(80*np.pi/180, 0, 0*np.pi/180, 'rzyx')
-
-        trajectory = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.3, 0.0]), orientationLeft=np.array([0,0,0,1]))
-        trajectory1 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.3, 0.0]), orientationLeft=np.array([0,0,0,1]), orientationRight=rotabstest1)
-        trajectory2 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.3, 0.0]), orientationLeft=np.array([0,0,0,1]), orientationRight=rotabstest2)
-        trajectory3 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=np.array([0,0,0,1]), orientationRight=rotabstest3)
-        trajectory4 = utils.Trajectory(positionRight=np.array([0.4 ,0, 0.2]), positionLeft=np.array([0 ,0.2, 0.0]), orientationLeft=localrottest)
-        #trajectory = utils.Trajectory(positionRight=np.array([0.4 ,-0.05, 0.2]), positionLeft=np.array([0.4 ,0.05, 0.2]))
-
-        self.controlInstructions = utils.ControlInstructions()
-        self.controlInstructions.mode = 'combined'
-        self.controlInstructions.trajectory = [trajectory, trajectory1, trajectory, trajectory2, trajectory, trajectory3, trajectory, trajectory4, trajectory]
-        #self.controlInstructions.mode = 'individual'
-        #self.controlInstructions.trajectory = [trajectory]
 
         # Forward kinematics and transformers 
         # for critical updates
@@ -54,11 +38,10 @@ class YmuiContoller(object):
         self.yumiGrippPoseL = utils.FramePose()
         self.yumiElbowPoseR = utils.FramePose()
         self.yumiElbowPoseL = utils.FramePose()
-
+        self.yumiElbowPoseL = utils.FramePose()
 
         self.tfListener = tf.TransformListener() # for non critical updates, no guarantee for synch
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
-
 
         # solver 
         self.HQP = HQPSolver.HQPSolver()
@@ -100,6 +83,8 @@ class YmuiContoller(object):
 
         self.lock = threading.Lock()
 
+        self.firstTime = 0 # temp for testing 
+
     def callback(self, data):
         time_start = time.time()
         (gripperLengthRight, _) = self.tfListener.lookupTransform('/yumi_link_7_r', '/yumi_gripp_r', rospy.Time(0))
@@ -118,7 +103,7 @@ class YmuiContoller(object):
         self.yumiGrippPoseL.update(data.forwardKinematics[1], self.transformer, self.gripperLengthLeft)
         self.yumiElbowPoseR.update(data.forwardKinematics[2],  self.transformer, np.zeros(3))
         self.yumiElbowPoseL.update(data.forwardKinematics[3], self.transformer, np.zeros(3))
-
+        
         # stack of tasks, in decending hierarchy
         # ----------------------
         # velocity bound
@@ -151,6 +136,8 @@ class YmuiContoller(object):
         self.controlInstructions.updateTransform(yumiGrippPoseR=self.yumiGrippPoseR,\
                                                  yumiGrippPoseL=self.yumiGrippPoseL)
         
+        self.controlInstructions.updateTarget()
+
         if self.controlInstructions.mode == 'individual':
             # indvidual task update 
             self.indiviualControl.compute(controlInstructions=self.controlInstructions, jacobian=jacobianCombined)
@@ -166,7 +153,6 @@ class YmuiContoller(object):
             self.absoluteControl.compute(controlInstructions=self.controlInstructions,\
                                         jacobian=jacobianCombined)
             SoT.append(self.absoluteControl) 
-            self.controlInstructions.computeTrajectoryIntex()
 
         else:
             print('Non valid control mode, stopping')
@@ -190,9 +176,30 @@ class YmuiContoller(object):
         self.jointState.UpdatePose(pose=pose)
         self.lock.release()
         print('Hz', 1/(time.time() - time_start))
+        self.firstTime += 1
+        if self.firstTime == 100:
+            self.callbackTrajectory()
+
+    def callbackTrajectory(self):
 
 
+        rotabstest1 = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 180*np.pi/180, 'rzyx')
+        rotabstest2 = tf.transformations.quaternion_from_euler(-0*np.pi/180, 0, 200*np.pi/180, 'rzyx')        
+        
+        
+        positionRight = self.controlInstructions.absolutePosition
+        positionLeft  = self.controlInstructions.realativPosition 
+        orientationRight = self.controlInstructions.absoluteOrientation
+        orientationLeft = self.controlInstructions.rotationRelative
+        trajectory = utils.TrajcetoryPoint(positionRight=positionRight, positionLeft=positionLeft,orientationRight=orientationRight, orientationLeft=orientationLeft)
+        trajectory1 = utils.TrajcetoryPoint(positionRight=np.array([0.3, 0, 0.2]), positionLeft=np.array([0.0, 0.3, 0]), orientationRight=rotabstest1, orientationLeft=np.array([0,0,0,1]))
+        trajectory2 = utils.TrajcetoryPoint(positionRight=np.array([0.3, -0.0, 0.2]), positionLeft=np.array([0.3, 0, 0.0]),orientationRight=np.array([1,0,0,0]), orientationLeft=np.array([0,0,0,1]))
 
+        self.controlInstructions.mode = 'combined'
+
+        testTraj = [trajectory, trajectory1, trajectory]
+
+        self.controlInstructions.trajectory.updatePoints(testTraj, np.zeros(3), np.zeros(3))
 
 
 def main():

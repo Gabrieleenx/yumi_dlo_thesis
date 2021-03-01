@@ -112,7 +112,7 @@ class IndividualControl(Task):
         self.constraintType = 0
 
     def compute(self, controlInstructions, jacobian):
-        effectorVelocities = controlInstructions.getIndividualTargetVelocity() # function name might change 
+        effectorVelocities = controlInstructions.getIndividualTargetVelocity(k=1) # function name might change 
         self.constraintMatrix = jacobian
         self.constraintVector = effectorVelocities
 
@@ -123,7 +123,7 @@ class RelativeControl(Task):
         self.constraintType = 0
     
     def compute(self, controlInstructions, jacobian, transformer):
-        velocities, tfRightArm, tfLeftArm, absoluteOrientation = controlInstructions.getRelativeTargetVelocity()
+        velocities, tfRightArm, tfLeftArm, absoluteOrientation = controlInstructions.getRelativeTargetVelocity(k=1)
 
         tfMatrix = transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=absoluteOrientation)
 
@@ -149,7 +149,7 @@ class AbsoluteControl(Task):
         self.constraintType = 0
     
     def compute(self, controlInstructions, jacobian):
-        velocities = controlInstructions.getAbsoluteTargetVelocity()
+        velocities = controlInstructions.getAbsoluteTargetVelocity(k=1)
 
         linkJ = np.hstack([0.5*np.eye(6), 0.5*np.eye(6)])
         absoluteJacobian = linkJ.dot(jacobian)
