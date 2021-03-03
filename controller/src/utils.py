@@ -246,13 +246,9 @@ class ControlInstructions(object):
         if len(self.trajectory.trajectory) < 2: 
             return np.zeros(12)
 
-        absolutePosition = 0.5*(self.translationRightArm + self.translationLeftArm)
-        avgQ = np.vstack([self.rotationRightArm, self.rotationLeftArm])
-        absoluteOrientation = averageQuaternions(avgQ) 
-
-        self.errorVelocities[0:3] = PositionToVelocity(absolutePosition,\
+        self.errorVelocities[0:3] = PositionToVelocity(self.absolutePosition,\
             self.targetPosition[0:3], 0.1)
-        self.errorVelocities[3:6]= QuaternionToRotVel(absoluteOrientation, \
+        self.errorVelocities[3:6]= QuaternionToRotVel(self.absoluteOrientation, \
             self.targetOrientation[0:4], 0.2)
 
         self.velocities[0:6] = self.targetVelocity[0:6] + k*self.errorVelocities[0:6]

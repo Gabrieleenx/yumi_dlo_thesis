@@ -3,7 +3,7 @@
 import rospy
 from sensor_msgs.msg import JointState, PointCloud
 from std_msgs.msg import Float64MultiArray
-from controller.msg import Jacobian_msg
+from controller.msg import Jacobian_msg, Trajectory_msg
 import numpy as np
 import tf
 from scipy.spatial.transform import Rotation as R_scipy
@@ -82,8 +82,6 @@ class YmuiContoller(object):
         self.selfCollisionLeftElbow = Task.ElbowCollision(Dof=14, arm='left', minDistance=0.3, timestep=self.dT)
 
         self.lock = threading.Lock()
-
-        self.firstTime = 0 # temp for testing 
 
     def callback(self, data):
         time_start = time.time()
@@ -175,44 +173,63 @@ class YmuiContoller(object):
         self.lock.acquire()
         self.jointState.UpdatePose(pose=pose)
         self.lock.release()
-        print('Hz', 1/(time.time() - time_start))
-        self.firstTime += 1
-        if self.firstTime == 100:
-            self.callbackTrajectory()
+        #print('Hz', 1/(time.time() - time_start))
 
-    def callbackTrajectory(self):
+    def callbackTrajectory(self, data):
+        # set mode
+        self.controlInstructions.mode = data.mode
+        # current point as first point 
+        #TODO add grippers
+        if data.mode == 'combined':
+            positionRight = self.controlInstructions.absolutePosition
+            positionLeft  = self.controlInstructions.realativPosition 
+            orientationRight = self.controlInstructions.absoluteOrientation
+            orientationLeft = self.controlInstructions.rotationRelative
+        elif data.mode == 'individual':
+            positionRight = self.controlInstructions.translationRightArm
+            positionLeft  = self.controlInstructions.translationLeftArm 
+            orientationRight = self.controlInstructions.rotationRightArm
+            orientationLeft = self.controlInstructions.rotationLeftArm
+        else:
+            print('Error, mode not matching combined or individual')
+            return
 
-
-        rotabstest1 = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 180*np.pi/180, 'rzyx')
-        rotabstest2 = tf.transformations.quaternion_from_euler(-0*np.pi/180, 0, 200*np.pi/180, 'rzyx')        
+        currentPoint = utils.TrajcetoryPoint(positionRight=positionRight, positionLeft=positionLeft,orientationRight=orientationRight, orientationLeft=orientationLeft)
+        trajectory = [currentPoint]
         
-        
-        positionRight = self.controlInstructions.absolutePosition
-        positionLeft  = self.controlInstructions.realativPosition 
-        orientationRight = self.controlInstructions.absoluteOrientation
-        orientationLeft = self.controlInstructions.rotationRelative
-        trajectory = utils.TrajcetoryPoint(positionRight=positionRight, positionLeft=positionLeft,orientationRight=orientationRight, orientationLeft=orientationLeft)
-        trajectory1 = utils.TrajcetoryPoint(positionRight=np.array([0.3, 0, 0.2]), positionLeft=np.array([0.0, 0.3, 0]), orientationRight=rotabstest1, orientationLeft=np.array([0,0,0,1]))
-        trajectory2 = utils.TrajcetoryPoint(positionRight=np.array([0.3, -0.0, 0.2]), positionLeft=np.array([0.3, 0, 0.0]),orientationRight=np.array([1,0,0,0]), orientationLeft=np.array([0,0,0,1]))
+        for i in range(len(data.trajcetory)):
+            positionRight = np.asarray(data.trajcetory[i].positionRight)
+            positionLeft  = np.asarray(data.trajcetory[i].positionLeft)
+            orientationRight = np.asarray(data.trajcetory[i].orientationRight)
+            orientationLeft = np.asarray(data.trajcetory[i].orientationLeft)
+            gripperLeft = np.asarray(data.trajcetory[i].gripperLeft)
+            gripperRight = np.asarray(data.trajcetory[i].gripperRight)
+            pointTime = np.asarray(data.trajcetory[i].pointTime)
+            trajectroyPoint = utils.TrajcetoryPoint(positionRight=positionRight,\
+                                                    positionLeft=positionLeft,\
+                                                    orientationRight=orientationRight,\
+                                                    orientationLeft=orientationLeft,\
+                                                    gripperLeft=gripperLeft,\
+                                                    gripperRight=gripperRight,\
+                                                    pointTime=pointTime)
+            trajectory.append(trajectroyPoint)
 
-        self.controlInstructions.mode = 'combined'
-
-        testTraj = [trajectory, trajectory1, trajectory]
-
-        self.controlInstructions.trajectory.updatePoints(testTraj, np.zeros(3), np.zeros(3))
+        self.controlInstructions.trajectory.updatePoints(trajectory, np.zeros(3), np.zeros(3))
 
 
 def main():
 
     # starting ROS node and subscribers
     rospy.init_node('pub_joint_pos', anonymous=True) 
-    pub = rospy.Publisher('/joint_states', JointState, queue_size=5)
+    pub = rospy.Publisher('/joint_states', JointState, queue_size=1)
 
     ymuiContoller = YmuiContoller()
     rospy.sleep(0.5)
 
     rospy.Subscriber("/Jacobian_R_L", Jacobian_msg, ymuiContoller.callback, queue_size=1)
     #rospy.Subscriber("/spr/dlo_estimation", PointCloud, ymuiContoller.callback_dlo)
+    rospy.Subscriber("/Trajectroy", Trajectory_msg, ymuiContoller.callbackTrajectory, queue_size=1)
+
 
     rate = rospy.Rate(ymuiContoller.updateRate) 
 

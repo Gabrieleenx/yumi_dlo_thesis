@@ -54,6 +54,8 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   Jacobian_msg.msg
+  Trajectory_point.msg
+  Trajectory_msg.msg
 )
 
 ## Generate services in the 'srv' folder
