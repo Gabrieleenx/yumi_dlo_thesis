@@ -33,8 +33,12 @@ class JointState(object):
         self.gripperRightPosition = pose[14:16]
         self.gripperLeftPosition = pose[16:18]
 
+    def UpdateVelocity(self, vel):
+        self.jointVelocity = vel[0:14]
+        self.gripperRightVelocity = vel[14:16]
+        self.gripperLeftVelocity = vel[16:18]
 
-class TrajcetoryPoint(object):
+class TrajectoryPoint(object):
     def __init__(self,\
             positionLeft=np.array([0.4 ,0.2, 0.2]),\
             positionRight=np.array([0.4 ,-0.2, 0.2]),\
@@ -221,6 +225,7 @@ class ControlInstructions(object):
         self.maxRelativeNorm = 2 #max distans init value  
         self.targetRelativeNorm = 0.2 # Initial target norm, if 0 collision could happen 
 
+        self.errorThreshold = 0.01 # meters allowed to devate from path before velocity comandds are ignored  
 
     def getIndividualTargetVelocity(self, k):
 
@@ -238,7 +243,11 @@ class ControlInstructions(object):
         self.errorVelocities[9:12]= QuaternionToRotVel(self.rotationLeftArm, \
             self.targetOrientation[4:8], 0.2)
 
-        self.velocities = self.targetVelocity + k*self.errorVelocities
+        if np.linalg.norm(self.errorVelocities) <= self.errorThreshold:
+            self.velocities = self.targetVelocity + k*self.errorVelocities
+        else:
+            self.velocities = k*self.errorVelocities
+            
         return self.velocities
 
     def getAbsoluteTargetVelocity(self, k):
@@ -251,8 +260,11 @@ class ControlInstructions(object):
         self.errorVelocities[3:6]= QuaternionToRotVel(self.absoluteOrientation, \
             self.targetOrientation[0:4], 0.2)
 
-        self.velocities[0:6] = self.targetVelocity[0:6] + k*self.errorVelocities[0:6]
-
+        if np.linalg.norm(self.errorVelocities[0:6]) <= self.errorThreshold:
+            self.velocities[0:6] = self.targetVelocity[0:6] + k*self.errorVelocities[0:6]
+        else:
+            self.velocities[0:6] = k*self.errorVelocities[0:6]
+        
         return self.velocities[0:6]
 
     def getRelativeTargetVelocity(self, k):
@@ -286,7 +298,10 @@ class ControlInstructions(object):
         self.errorVelocities[9:12]= QuaternionToRotVel(self.rotationRelative, \
             self.targetOrientation[4:8], 0.2)
 
-        self.velocities[6:12] = self.targetVelocity[6:12]  + k*self.errorVelocities[6:12]
+        if np.linalg.norm(self.errorVelocities[6:12]) <= self.errorThreshold:
+            self.velocities[6:12] = self.targetVelocity[6:12]  + k*self.errorVelocities[6:12]
+        else:
+            self.velocities[6:12] = k*self.errorVelocities[6:12]
 
         return self.velocities[6:12], self.translationRightArm, self.translationLeftArm, self.absoluteOrientation
 

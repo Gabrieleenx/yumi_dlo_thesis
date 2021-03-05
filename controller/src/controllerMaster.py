@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
-from sensor_msgs.msg import JointState, PointCloud
+from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
 from controller.msg import Jacobian_msg, Trajectory_msg
 import numpy as np
@@ -18,7 +18,7 @@ import Task
 class YmuiContoller(object):
     def __init__(self):
 
-        self.updateRate = 100 #Hz
+        self.updateRate = 50 #Hz also defined in kdl_jacobian 
         self.dT = 1/self.updateRate
 
         self.jointState = utils.JointState()
@@ -30,7 +30,6 @@ class YmuiContoller(object):
 
         # Trajectory
         self.controlInstructions = utils.ControlInstructions(self.dT)
-
 
         # Forward kinematics and transformers 
         # for critical updates
@@ -48,7 +47,6 @@ class YmuiContoller(object):
 
         # Task objects 
         # ctype 0 = equality, 1 = upper, -1 = lower
-
         #values from https://search.abb.com/library/Download.aspx?DocumentID=3HAC052982-001&LanguageCode=en&DocumentPartId=&Action=Launch
         jointPoistionBoundUpper = np.array([168.5, 43.5, 168.5, 80, 290, 138, 229])*np.pi/(180) # in radians 
         jointPoistionBoundUpper = np.hstack([jointPoistionBoundUpper, jointPoistionBoundUpper]) # two arms
@@ -81,10 +79,16 @@ class YmuiContoller(object):
         self.selfCollisionRightElbow = Task.ElbowCollision(Dof=14, arm='right', minDistance=0.3, timestep=self.dT)
         self.selfCollisionLeftElbow = Task.ElbowCollision(Dof=14, arm='left', minDistance=0.3, timestep=self.dT)
 
+        # mutex
         self.lock = threading.Lock()
+        # publish velocity comands
+        self.pub = rospy.Publisher('/joint_velocity', JointState, queue_size=1)
+
 
     def callback(self, data):
-        time_start = time.time()
+        # update joint position
+        self.jointState.UpdatePose(pose=np.asarray(data.jointPosition))
+
         (gripperLengthRight, _) = self.tfListener.lookupTransform('/yumi_link_7_r', '/yumi_gripp_r', rospy.Time(0))
         (gripperLengthLeft, _) = self.tfListener.lookupTransform('/yumi_link_7_l', '/yumi_gripp_l', rospy.Time(0))
 
@@ -133,7 +137,7 @@ class YmuiContoller(object):
         # trajcetory Control 
         self.controlInstructions.updateTransform(yumiGrippPoseR=self.yumiGrippPoseR,\
                                                  yumiGrippPoseL=self.yumiGrippPoseL)
-        
+        self.lock.acquire()
         self.controlInstructions.updateTarget()
 
         if self.controlInstructions.mode == 'individual':
@@ -159,6 +163,7 @@ class YmuiContoller(object):
             self.jointState.gripperRightVelocity = np.zeros(2)
             return
         
+        self.lock.release()
 
         # solve HQP
         # ----------------------
@@ -166,18 +171,22 @@ class YmuiContoller(object):
         # gripper control
         # ----------------------
 
-        
-        # temporary update 
-        # ----------------------
-        pose = self.jointState.GetJointPosition() + self.jointState.GetJointVelocity()*self.dT
-        self.lock.acquire()
-        self.jointState.UpdatePose(pose=pose)
-        self.lock.release()
-        #print('Hz', 1/(time.time() - time_start))
+        # publish velocity comands
+        self.publishVelocity()
+
+
+    def publishVelocity(self):
+        msg = JointState()
+        msg.header.stamp = rospy.Time.now()
+        msg.name = ['yumi_joint_1_r', 'yumi_joint_2_r', 'yumi_joint_7_r', 'yumi_joint_3_r', 'yumi_joint_4_r', 'yumi_joint_5_r', \
+            'yumi_joint_6_r', 'yumi_joint_1_l', 'yumi_joint_2_l', 'yumi_joint_7_l', 'yumi_joint_3_l', \
+                'yumi_joint_4_l', 'yumi_joint_5_l', 'yumi_joint_6_l', 'gripper_r_joint', 'gripper_r_joint_m',\
+                    'gripper_l_joint', 'gripper_l_joint_m']
+        msg.velocity = self.jointState.GetJointVelocity().tolist()
+        self.pub.publish(msg)
 
     def callbackTrajectory(self, data):
-        # set mode
-        self.controlInstructions.mode = data.mode
+       
         # current point as first point 
         #TODO add grippers
         if data.mode == 'combined':
@@ -194,18 +203,17 @@ class YmuiContoller(object):
             print('Error, mode not matching combined or individual')
             return
 
-        currentPoint = utils.TrajcetoryPoint(positionRight=positionRight, positionLeft=positionLeft,orientationRight=orientationRight, orientationLeft=orientationLeft)
+        currentPoint = utils.TrajectoryPoint(positionRight=positionRight, positionLeft=positionLeft,orientationRight=orientationRight, orientationLeft=orientationLeft)
         trajectory = [currentPoint]
-        
-        for i in range(len(data.trajcetory)):
-            positionRight = np.asarray(data.trajcetory[i].positionRight)
-            positionLeft  = np.asarray(data.trajcetory[i].positionLeft)
-            orientationRight = np.asarray(data.trajcetory[i].orientationRight)
-            orientationLeft = np.asarray(data.trajcetory[i].orientationLeft)
-            gripperLeft = np.asarray(data.trajcetory[i].gripperLeft)
-            gripperRight = np.asarray(data.trajcetory[i].gripperRight)
-            pointTime = np.asarray(data.trajcetory[i].pointTime)
-            trajectroyPoint = utils.TrajcetoryPoint(positionRight=positionRight,\
+        for i in range(len(data.trajectory)):
+            positionRight = np.asarray(data.trajectory[i].positionRight)
+            positionLeft  = np.asarray(data.trajectory[i].positionLeft)
+            orientationRight = np.asarray(data.trajectory[i].orientationRight)
+            orientationLeft = np.asarray(data.trajectory[i].orientationLeft)
+            gripperLeft = np.asarray(data.trajectory[i].gripperLeft)
+            gripperRight = np.asarray(data.trajectory[i].gripperRight)
+            pointTime = np.asarray(data.trajectory[i].pointTime)
+            trajectroyPoint = utils.TrajectoryPoint(positionRight=positionRight,\
                                                     positionLeft=positionLeft,\
                                                     orientationRight=orientationRight,\
                                                     orientationLeft=orientationLeft,\
@@ -213,44 +221,26 @@ class YmuiContoller(object):
                                                     gripperRight=gripperRight,\
                                                     pointTime=pointTime)
             trajectory.append(trajectroyPoint)
-
+        self.lock.acquire()
+        # set mode
+        self.controlInstructions.mode = data.mode
         self.controlInstructions.trajectory.updatePoints(trajectory, np.zeros(3), np.zeros(3))
+        self.lock.release()
 
 
 def main():
 
     # starting ROS node and subscribers
     rospy.init_node('pub_joint_pos', anonymous=True) 
-    pub = rospy.Publisher('/joint_states', JointState, queue_size=1)
+    #pub = rospy.Publisher('/joint_states', JointState, queue_size=1)
 
     ymuiContoller = YmuiContoller()
     rospy.sleep(0.5)
 
-    rospy.Subscriber("/Jacobian_R_L", Jacobian_msg, ymuiContoller.callback, queue_size=1)
-    #rospy.Subscriber("/spr/dlo_estimation", PointCloud, ymuiContoller.callback_dlo)
+    rospy.Subscriber("/Jacobian_R_L", Jacobian_msg, ymuiContoller.callback, queue_size=3)
     rospy.Subscriber("/Trajectroy", Trajectory_msg, ymuiContoller.callbackTrajectory, queue_size=1)
 
-
-    rate = rospy.Rate(ymuiContoller.updateRate) 
-
-    msg = JointState()
-    
-
-    seq = 1
-    while not rospy.is_shutdown():
-        msg.header.stamp = rospy.Time.now()
-        msg.header.seq = seq
-        msg.name = ['yumi_joint_1_r', 'yumi_joint_2_r', 'yumi_joint_7_r', 'yumi_joint_3_r', 'yumi_joint_4_r', 'yumi_joint_5_r', \
-            'yumi_joint_6_r', 'yumi_joint_1_l', 'yumi_joint_2_l', 'yumi_joint_7_l', 'yumi_joint_3_l', \
-                'yumi_joint_4_l', 'yumi_joint_5_l', 'yumi_joint_6_l', 'gripper_r_joint', 'gripper_r_joint_m',\
-                    'gripper_l_joint', 'gripper_l_joint_m']
-        ymuiContoller.lock.acquire()
-        msg.position = ymuiContoller.jointState.GetJointPosition().tolist()
-        ymuiContoller.lock.release()
-        pub.publish(msg)
-        rate.sleep()
-        seq += 1
-
+    rospy.spin()
 
 if __name__ == '__main__':
     main()

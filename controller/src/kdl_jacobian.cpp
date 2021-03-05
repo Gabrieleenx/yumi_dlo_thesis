@@ -11,7 +11,10 @@
 #include <std_msgs/Float64MultiArray.h>
 #include <geometry_msgs/Pose.h>
 #include <controller/Jacobian_msg.h>
+#include <mutex>
 
+// mutex 
+std::mutex mtx_reciving;
 
 
 void jacobian_data(int dof, KDL::Jacobian jacobian_right, KDL::Jacobian jacobian_left, std_msgs::Float64MultiArray* jac){
@@ -61,6 +64,7 @@ void pose_data(KDL::Frame frame, geometry_msgs::Pose* pose){
     pose->position.y = frame.p.data[1];
     pose->position.z = frame.p.data[2];
 }
+
 
 class Calc_jacobian{
     private:
@@ -113,12 +117,19 @@ class Calc_jacobian{
     std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_left_arm;
     std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_left_to_right;
 
+    //
+
+    std::vector<double> joint_state;
+    
     public:
+    int state_recived = 0;
+
     // constructor
     Calc_jacobian(ros::NodeHandle *nh );
 
     void callback(const sensor_msgs::JointState::ConstPtr& joint_state_data);
 
+    void update();
 };
 
 // Member functions definitions
@@ -153,25 +164,39 @@ Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh ){
     fk_solver_right_arm = std::make_unique<KDL::ChainFkSolverPos_recursive>(yumi_right_arm);
     fk_solver_left_arm = std::make_unique<KDL::ChainFkSolverPos_recursive>(yumi_left_arm);
     fk_left_to_right = std::make_unique<KDL::ChainFkSolverPos_recursive>(yumi_left_right);
-
+    joint_state.resize(18);
 }
 
 void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_state_data){
+    //TODO To be updated 
+    mtx_reciving.lock();
+    std::copy(joint_state_data->position.begin(), joint_state_data->position.end(), joint_state.begin());
+    //joint_state = (double)joint_state_data->position;
+    state_recived = 1;
+    mtx_reciving.unlock();
 
-    // joints state to q 
+}
+
+void Calc_jacobian::update(){
+
+    mtx_reciving.lock();
+   // joints state to q 
     for (int i= 0 ; i < 7; i++ ){
-        q_right_arm(i) = joint_state_data->position[i];
-        q_left_arm(i) = joint_state_data->position[i+7];
-        q_left_right(i) = joint_state_data->position[i+7];
-        q_left_right(i+7) = joint_state_data->position[i];
+        q_right_arm(i) = joint_state[i];
+        q_left_arm(i) = joint_state[i+7];
+        q_left_right(i) = joint_state[i+7];
+        q_left_right(i+7) = joint_state[i];
         if (i < 4){
-            q_right_elbow(i) = joint_state_data->position[i];
-            q_left_elbow(i) = joint_state_data->position[i+7];
+            q_right_elbow(i) = joint_state[i];
+            q_left_elbow(i) = joint_state[i+7];
         }
     }
     // --------------------- Jacobians --------------------------------------------------
     controller::Jacobian_msg jac_msg;
-    
+    // send joint position 
+    jac_msg.jointPosition = joint_state;
+    mtx_reciving.unlock();
+
     // arm 
 
     jac_solver_right_arm->JntToJac(q_right_arm, jacobian_right_arm);
@@ -232,10 +257,21 @@ int main(int argc, char** argv){
     // ROS
     ros::init(argc, argv, "kdl_jacobian");
     ros::NodeHandle nh;
+    // multithreaded spinner 
+    ros::AsyncSpinner spinner(0);
+    spinner.start();
 
     Calc_jacobian calc_jacobian(&nh);
 
-    ros::spin();
+    ros::Rate loop_rate(50);
+
+    while (ros::ok()){
+        if (calc_jacobian.state_recived >= 1){
+            calc_jacobian.update();
+        }
+        loop_rate.sleep();
+    }
+
 
     ros::waitForShutdown();
 
