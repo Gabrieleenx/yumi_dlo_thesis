@@ -195,7 +195,7 @@ class Trajectory(object):
         vkk = (v3 - v2)/t3
         for i in range(3):
             if np.sign(vk[i]) == np.sign(vkk[i]):
-                vel[i] = 0.5*(vk[i] + vkk[i]) # bug code somewhere, motion not desiered, works if put to 0
+                vel[i] = 0.5*(vk[i] + vkk[i]) 
             else:
                 vel[i] = 0
         return vel
