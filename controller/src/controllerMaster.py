@@ -2,7 +2,7 @@
 
 import rospy
 from sensor_msgs.msg import JointState
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64MultiArray, Float64
 from controller.msg import Jacobian_msg, Trajectory_msg
 import numpy as np
 import tf
@@ -22,11 +22,6 @@ class YmuiContoller(object):
         self.dT = 1/self.updateRate
 
         self.jointState = utils.JointState()
-
-        self.maxJointVelocity = 0.5
-        self.maxScaleJointVelocity = 5
-
-        self.controlArmVelocity = np.zeros((14,1))
 
         # Trajectory
         self.controlInstructions = utils.ControlInstructions(self.dT)
@@ -81,6 +76,7 @@ class YmuiContoller(object):
 
         # mutex
         self.lock = threading.Lock()
+        self.lockForce = threading.Lock()
         # publish velocity comands
         self.pub = rospy.Publisher('/joint_velocity', JointState, queue_size=1)
 
@@ -88,19 +84,20 @@ class YmuiContoller(object):
     def callback(self, data):
         # update joint position
         self.jointState.UpdatePose(pose=np.asarray(data.jointPosition))
-
+        # distance from wrist to tip of grippers, ussually constant. changed on robot_setup_tf package
         (gripperLengthRight, _) = self.tfListener.lookupTransform('/yumi_link_7_r', '/yumi_gripp_r', rospy.Time(0))
         (gripperLengthLeft, _) = self.tfListener.lookupTransform('/yumi_link_7_l', '/yumi_gripp_l', rospy.Time(0))
 
         self.gripperLengthRight = np.asarray(gripperLengthRight)
         self.gripperLengthLeft = np.asarray(gripperLengthLeft)
-
+        # calculated the combined geometric jacobian from base link to tip of gripper for both arms
         jacobianCombined = utils.CalcJacobianCombined(data=data.jacobian[0], \
                                                     gripperLengthRight=gripperLengthRight,\
                                                     gripperLengthLeft=gripperLengthLeft,\
                                                     transformer=self.transformer,\
                                                     yumiGrippPoseR=self.yumiGrippPoseR,\
                                                     yumiGrippPoseL=self.yumiGrippPoseL)
+        # forward kinematics information 
         self.yumiGrippPoseR.update(data.forwardKinematics[0], self.transformer, self.gripperLengthRight)
         self.yumiGrippPoseL.update(data.forwardKinematics[1], self.transformer, self.gripperLengthLeft)
         self.yumiElbowPoseR.update(data.forwardKinematics[2],  self.transformer, np.zeros(3))
@@ -111,7 +108,7 @@ class YmuiContoller(object):
         # velocity bound
         SoT = [self.jointVelocityBoundUpper, self.jointVelocityBoundLower]
 
-        #position bound
+        # position bound
         self.jointPositionBoundUpper.compute(jointState=self.jointState)
         SoT.append(self.jointPositionBoundUpper)
         self.jointPositionBoundLower.compute(jointState=self.jointState)
@@ -138,6 +135,7 @@ class YmuiContoller(object):
         self.controlInstructions.updateTransform(yumiGrippPoseR=self.yumiGrippPoseR,\
                                                  yumiGrippPoseL=self.yumiGrippPoseL)
         self.lock.acquire()
+        # calculates target velocities and positions
         self.controlInstructions.updateTarget()
 
         if self.controlInstructions.mode == 'individual':
@@ -146,10 +144,12 @@ class YmuiContoller(object):
             SoT.append(self.indiviualControl)
 
         elif self.controlInstructions.mode == 'combined':
-
+            # combined task update
+            self.lockForce.acquire()
             self.relativeControl.compute(controlInstructions=self.controlInstructions,\
                                         jacobian=jacobianCombined,\
                                         transformer=self.transformer)
+            self.lockForce.release()
             SoT.append(self.relativeControl) 
 
             self.absoluteControl.compute(controlInstructions=self.controlInstructions,\
@@ -168,8 +168,14 @@ class YmuiContoller(object):
         # solve HQP
         # ----------------------
         self.jointState.jointVelocity = self.HQP.solve(SoT=SoT)
+
         # gripper control
         # ----------------------
+        gripperRightError = self.controlInstructions.gripperRight - self.jointState.gripperRightPosition
+        self.jointState.gripperRightVelocity = 0.5*gripperRightError
+
+        gripperLeftError = self.controlInstructions.gripperLeft - self.jointState.gripperLeftPosition
+        self.jointState.gripperLeftVelocity = 0.5*gripperLeftError
 
         # publish velocity comands
         self.publishVelocity()
@@ -186,25 +192,31 @@ class YmuiContoller(object):
         self.pub.publish(msg)
 
     def callbackTrajectory(self, data):
-       
-        # current point as first point 
-        #TODO add grippers
+        # current pose as first point 
         if data.mode == 'combined':
-            positionRight = self.controlInstructions.absolutePosition
-            positionLeft  = self.controlInstructions.realativPosition 
-            orientationRight = self.controlInstructions.absoluteOrientation
-            orientationLeft = self.controlInstructions.rotationRelative
+            positionRight = np.copy(self.controlInstructions.absolutePosition)
+            positionLeft  = np.copy(self.controlInstructions.realativPosition) 
+            orientationRight = np.copy(self.controlInstructions.absoluteOrientation)
+            orientationLeft = np.copy(self.controlInstructions.rotationRelative)
         elif data.mode == 'individual':
-            positionRight = self.controlInstructions.translationRightArm
-            positionLeft  = self.controlInstructions.translationLeftArm 
-            orientationRight = self.controlInstructions.rotationRightArm
-            orientationLeft = self.controlInstructions.rotationLeftArm
+            positionRight = np.copy(self.controlInstructions.translationRightArm)
+            positionLeft  = np.copy(self.controlInstructions.translationLeftArm)
+            orientationRight = np.copy(self.controlInstructions.rotationRightArm)
+            orientationLeft = np.copy(self.controlInstructions.rotationLeftArm)
         else:
             print('Error, mode not matching combined or individual')
             return
-
-        currentPoint = utils.TrajectoryPoint(positionRight=positionRight, positionLeft=positionLeft,orientationRight=orientationRight, orientationLeft=orientationLeft)
+        # current gripper position
+        gripperLeft = np.copy(self.jointState.gripperLeftPosition)
+        gripperRight = np.copy(self.jointState.gripperRightPosition)
+        currentPoint =utils.TrajectoryPoint(positionRight=positionRight,\
+                                                    positionLeft=positionLeft,\
+                                                    orientationRight=orientationRight,\
+                                                    orientationLeft=orientationLeft,\
+                                                    gripperLeft=gripperLeft,\
+                                                    gripperRight=gripperRight)
         trajectory = [currentPoint]
+        # append trajectory points
         for i in range(len(data.trajectory)):
             positionRight = np.asarray(data.trajectory[i].positionRight)
             positionLeft  = np.asarray(data.trajectory[i].positionLeft)
@@ -224,9 +236,19 @@ class YmuiContoller(object):
         self.lock.acquire()
         # set mode
         self.controlInstructions.mode = data.mode
-        self.controlInstructions.trajectory.updatePoints(trajectory, np.zeros(3), np.zeros(3))
+        self.controlInstructions.ifForceControl = data.forceControl
+        self.controlInstructions.maxForce = data.maxForce
+        # use current velocity for smoother transitions, (not for orientaion)
+        velLeftInit = np.copy(self.controlInstructions.velocities[6:9])
+        velRightInit = np.copy(self.controlInstructions.velocities[0:3])
+        # update the trajectroy 
+        self.controlInstructions.trajectory.updatePoints(trajectory, velLeftInit, velRightInit)
         self.lock.release()
 
+    def callbackForce(self, data):
+        self.lockForce.acquire()
+        self.controlInstructions.force = data.data
+        self.lockForce.release()
 
 def main():
 
@@ -236,7 +258,7 @@ def main():
 
     ymuiContoller = YmuiContoller()
     rospy.sleep(0.5)
-
+    rospy.Subscriber("/CableForce", Float64, ymuiContoller.callbackForce, queue_size=1)
     rospy.Subscriber("/Jacobian_R_L", Jacobian_msg, ymuiContoller.callback, queue_size=3)
     rospy.Subscriber("/Trajectroy", Trajectory_msg, ymuiContoller.callbackTrajectory, queue_size=1)
 

@@ -91,7 +91,7 @@ class ObjectTracking(object):
         self.pcd = self.pcd.voxel_down_sample(voxel_size=self.voxel_size)
 
         #homogeneous coordinates 
-        K_inv = np.linalg.inv(self.camera_properties['color_K'])
+        K_inv = np.linalg.pinv(self.camera_properties['color_K'])
         p_homogeneous = np.transpose(K_inv.dot(np.asarray(self.pcd.points).T))
         p_homogeneous_offset = p_homogeneous + self.offset_xyz
 
@@ -153,6 +153,7 @@ class ObjectTracking(object):
             self.estimate = SPR_Transform.get('Y')
             time_update = time.time() - time_start 
             print('time_update ', time_update)
+            self.publish_msg()
 
     def publish_msg(self):
         cloudpoints = self.estimate
@@ -227,14 +228,14 @@ def main():
     depth_camera = message_filters.Subscriber("/camera/depth/image_rect_raw", Image)
     rgb_camera = message_filters.Subscriber("/camera/color/image_raw", Image)
 
-    ts = message_filters.ApproximateTimeSynchronizer([depth_camera, rgb_camera], 5, 0.1, allow_headerless=False)
+    ts = message_filters.ApproximateTimeSynchronizer([depth_camera, rgb_camera], 5, 0.05, allow_headerless=False)
     ts.registerCallback(objectTracking.callback)
 
-    rospy.sleep(3)
-    while not rospy.is_shutdown():
-        objectTracking.publish_msg()
-        rospy.sleep(0.1)
-    
+    #rospy.sleep(3)
+    #while not rospy.is_shutdown():
+    #    objectTracking.publish_msg()
+    #    rospy.sleep(0.1)
+    rospy.spin()
 
 
 if __name__ == '__main__':
