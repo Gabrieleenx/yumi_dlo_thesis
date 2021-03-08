@@ -120,7 +120,13 @@ class Calc_jacobian{
     //
 
     std::vector<double> joint_state;
-    
+
+    std::string name_list[18] = {"yumi_joint_1_r", "yumi_joint_2_r", "yumi_joint_7_r",
+         "yumi_joint_3_r", "yumi_joint_4_r", "yumi_joint_5_r", "yumi_joint_6_r", 
+         "yumi_joint_1_l", "yumi_joint_2_l", "yumi_joint_7_l", "yumi_joint_3_l", 
+         "yumi_joint_4_l", "yumi_joint_5_l", "yumi_joint_6_l", "gripper_r_joint",
+         "gripper_r_joint_m", "gripper_l_joint", "gripper_l_joint_m"};
+
     public:
     int state_recived = 0;
 
@@ -168,10 +174,16 @@ Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh ){
 }
 
 void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_state_data){
-    //TODO To be updated 
+    // sort input data
     mtx_reciving.lock();
-    std::copy(joint_state_data->position.begin(), joint_state_data->position.end(), joint_state.begin());
-    //joint_state = (double)joint_state_data->position;
+    for (int i = 0; i < 18; i++){
+        for (int j = 0; j < 18; j++){
+            if (name_list[i].compare(joint_state_data->name[j]) == 0 ){
+                joint_state[i] = joint_state_data->position[j];
+                break;
+            }
+        }
+    }
     state_recived = 1;
     mtx_reciving.unlock();
 
