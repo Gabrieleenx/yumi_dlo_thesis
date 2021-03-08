@@ -257,7 +257,7 @@ def main():
     #pub = rospy.Publisher('/joint_states', JointState, queue_size=1)
 
     ymuiContoller = YmuiContoller()
-    rospy.sleep(0.5)
+    rospy.sleep(0.05)
     rospy.Subscriber("/CableForce", Float64, ymuiContoller.callbackForce, queue_size=1)
     rospy.Subscriber("/Jacobian_R_L", Jacobian_msg, ymuiContoller.callback, queue_size=3)
     rospy.Subscriber("/Trajectroy", Trajectory_msg, ymuiContoller.callbackTrajectory, queue_size=1)

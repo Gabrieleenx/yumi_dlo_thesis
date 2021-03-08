@@ -1,4 +1,4 @@
-## Controller for thesis work with YuMi (readme not up to date!)
+## Controller for thesis work with YuMi 
 
 ## Maintainer 
 * Gabriel Arslan Waltersson
@@ -24,13 +24,13 @@ This package takes in the comtrol comands as individual or combined (absolute an
 * Input - controller
 ```
 /Jacobian_R_L
-/control_msg
-TransformListener()
+/Trajectroy_msg
+/TransformListener()
+/CableForce
 ```
 * Output  - controller
 ```
-/joint_velocity_commands (Will be renamed)
-/joint_states (for simulation, not when running with YuMi)
+/joint_velocity
 ```
 
 ## Dependencies
@@ -53,7 +53,7 @@ rosdep install --from-paths src --ignore-src -y -r
 https://github.com/orocos/orocos_kinematics_dynamics
 ```
 
-* setup tf tree node and apriltag
+* setup tf tree node
 ```
 https://github.com/Gabrieleenx/yumi_dlo_thesis/tree/master/robot_setup_tf
 ```
@@ -62,6 +62,7 @@ https://github.com/Gabrieleenx/yumi_dlo_thesis/tree/master/robot_setup_tf
 ``` 
     numpy
     scipy
+    quadprog
 ```
 
 ## Usage
@@ -78,14 +79,21 @@ roslaunch yumi_description display.launch model:='$(find yumi_description)/urdf/
 ``` 
 rosrun robot_setup_tf tf_broadcaster
 ``` 
+* for simulation
+``` 
+rosrun controller yumi_simulator.py
+``` 
 
 * start kdl_jacobian
 ``` 
-rosrun test_cotroller kdl_jacobian
+rosrun controller kdl_jacobian
 ``` 
 
 * Start the controller 
 ``` 
-rosrun test_cotroller controller
+rosrun controller controllerMaster.py
 ``` 
-
+* test trajectories 
+``` 
+rosrun path_planner test_trajectories.py
+``` 
