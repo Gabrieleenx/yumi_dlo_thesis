@@ -70,6 +70,8 @@ class Calc_jacobian{
     private:
     ros::Subscriber joint_state_sub;
     ros::Publisher jacobian_pub;
+    ros::Publisher joint_states_pub;
+
     // define kdl tree and chain for each arm
     KDL::Tree yumi_tree;
     KDL::Chain yumi_right_arm;
@@ -120,12 +122,16 @@ class Calc_jacobian{
     //
 
     std::vector<double> joint_state;
-
-    std::string name_list[18] = {"yumi_joint_1_r", "yumi_joint_2_r", "yumi_joint_7_r",
+    
+    std::string joint_name_list[18] = {"yumi_joint_1_r", "yumi_joint_2_r", "yumi_joint_7_r",
          "yumi_joint_3_r", "yumi_joint_4_r", "yumi_joint_5_r", "yumi_joint_6_r", 
          "yumi_joint_1_l", "yumi_joint_2_l", "yumi_joint_7_l", "yumi_joint_3_l", 
          "yumi_joint_4_l", "yumi_joint_5_l", "yumi_joint_6_l", "gripper_r_joint",
          "gripper_r_joint_m", "gripper_l_joint", "gripper_l_joint_m"};
+    
+    std::string name_list[18] = {"yumi_robr_joint_1", "yumi_robr_joint_2", "yumi_robr_joint_3", "yumi_robr_joint_4",
+         "yumi_robr_joint_5", "yumi_robr_joint_6", "yumi_robr_joint_7", "yumi_robl_joint_1", "yumi_robl_joint_2", "yumi_robl_joint_3",
+         "yumi_robl_joint_4", "yumi_robl_joint_5", "yumi_robl_joint_6", "yumi_robl_joint_7"}; // TODO grippers
 
     public:
     int state_recived = 0;
@@ -141,10 +147,11 @@ class Calc_jacobian{
 // Member functions definitions
 
 Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh ){
-    joint_state_sub = nh->subscribe("/joint_states", 2, &Calc_jacobian::callback, this);
+    joint_state_sub = nh->subscribe("/yumi/egm/joint_states", 2, &Calc_jacobian::callback, this);
     //jacobian_pub = nh->advertise<std_msgs::Float64MultiArray>("/Jacobian_R_L", 2);
     jacobian_pub = nh->advertise<controller::Jacobian_msg>("/Jacobian_R_L", 1);
-    
+    joint_states_pub = nh->advertise<sensor_msgs::JointState>("/joint_states", 1);
+
     // get tree from urdf file for entire yumi
     if (!kdl_parser::treeFromFile("/home/gabriel/catkin/src/yumi_dlo_thesis/yumi_description/urdf/yumi.urdf", yumi_tree)){
         ROS_ERROR("Failed to construct kdl tree");
@@ -176,16 +183,28 @@ Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh ){
 void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_state_data){
     // sort input data
     mtx_reciving.lock();
-    for (int i = 0; i < 18; i++){
-        for (int j = 0; j < 18; j++){
+    for (int i = 0; i < 14; i++){
+        for (int j = 0; j < 14; j++){
             if (name_list[i].compare(joint_state_data->name[j]) == 0 ){
                 joint_state[i] = joint_state_data->position[j];
                 break;
             }
         }
     }
+    joint_state[14] = 0.0;
+    joint_state[15] = 0.0;
+    joint_state[16] = 0.0;
+    joint_state[17] = 0.0;
     state_recived = 1;
     mtx_reciving.unlock();
+    sensor_msgs::JointState msg;
+    msg.header.stamp = ros::Time::now();
+    for (int i = 0; i < 18; i++){
+        msg.name.push_back(joint_name_list[i]);
+        msg.position.push_back(joint_state[i]);
+    }
+   
+    joint_states_pub.publish(msg);
 
 }
 

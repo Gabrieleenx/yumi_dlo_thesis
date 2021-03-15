@@ -78,7 +78,8 @@ class YmuiContoller(object):
         self.lock = threading.Lock()
         self.lockForce = threading.Lock()
         # publish velocity comands
-        self.pub = rospy.Publisher('/joint_velocity', JointState, queue_size=1)
+        #self.pub = rospy.Publisher('/joint_velocity', JointState, queue_size=1)
+        self.pub = rospy.Publisher('/yumi/egm/joint_group_velocity_controller/command', Float64MultiArray, queue_size=1)
 
 
     def callback(self, data):
@@ -182,13 +183,16 @@ class YmuiContoller(object):
 
 
     def publishVelocity(self):
-        msg = JointState()
-        msg.header.stamp = rospy.Time.now()
-        msg.name = ['yumi_joint_1_r', 'yumi_joint_2_r', 'yumi_joint_7_r', 'yumi_joint_3_r', 'yumi_joint_4_r', 'yumi_joint_5_r', \
-            'yumi_joint_6_r', 'yumi_joint_1_l', 'yumi_joint_2_l', 'yumi_joint_7_l', 'yumi_joint_3_l', \
-                'yumi_joint_4_l', 'yumi_joint_5_l', 'yumi_joint_6_l', 'gripper_r_joint', 'gripper_r_joint_m',\
-                    'gripper_l_joint', 'gripper_l_joint_m']
-        msg.velocity = self.jointState.GetJointVelocity().tolist()
+        #msg = JointState()
+        #msg.header.stamp = rospy.Time.now()
+        #msg.name = ['yumi_joint_1_r', 'yumi_joint_2_r', 'yumi_joint_7_r', 'yumi_joint_3_r', 'yumi_joint_4_r', 'yumi_joint_5_r', \
+        #    'yumi_joint_6_r', 'yumi_joint_1_l', 'yumi_joint_2_l', 'yumi_joint_7_l', 'yumi_joint_3_l', \
+        #        'yumi_joint_4_l', 'yumi_joint_5_l', 'yumi_joint_6_l', 'gripper_r_joint', 'gripper_r_joint_m',\
+        #            'gripper_l_joint', 'gripper_l_joint_m']
+        #msg.velocity = self.jointState.GetJointVelocity().tolist()
+        
+        msg = Float64MultiArray()
+        msg.data = np.hstack([self.jointState.GetJointVelocity()[7:14], self.jointState.GetJointVelocity()[0:7]]).tolist()
         self.pub.publish(msg)
 
     def callbackTrajectory(self, data):

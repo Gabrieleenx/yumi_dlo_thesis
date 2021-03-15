@@ -306,10 +306,11 @@ def main():
 
     pub.publish(msg)
     print('sent msg 2, combined ')
+    '''
     rospy.sleep(30)
 
    
- # --------------------------------------------
+    # --------------------------------------------
 
 
     msg = Trajectory_msg()
@@ -379,7 +380,7 @@ def main():
     rospy.sleep(14)
 
 
-   
+   '''
 
 
 

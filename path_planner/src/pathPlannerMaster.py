@@ -15,7 +15,8 @@ class PathPlanner(object):
         self.tasks = listOfTasks
         self.numOfTasks = len(self.tasks)
         self.currentTask = 0
-        self.DLOEstimation = np.zeros((50,3)) # matrix with 3d points 
+        self.DLOPoints = np.zeros((50,3)) # matrix with 3d points 
+        self.DLO = utils.DLO()
         self.tfListener = tf.TransformListener()
         self.gripperRight = utils.FramePose()
         self.gripperLeft = utils.FramePose()
@@ -26,9 +27,11 @@ class PathPlanner(object):
         numOfPoints = len(data.points)
         self.DLOEstimation = np.zeros((numOfPoints,3))
         for i in range(numOfPoints):
-            self.DLOEstiamtion[i,0] = data.points[i].x
-            self.DLOEstiamtion[i,1] = data.points[i].y
-            self.DLOEstiamtion[i,2] = data.points[i].z
+            self.DLOPoints[i,0] = data.points[i].x
+            self.DLOPoints[i,1] = data.points[i].y
+            self.DLOPoints[i,2] = data.points[i].z
+
+        self.DLO.update(self.DLOPoints)
 
     def update():
         # update pose 
@@ -37,7 +40,7 @@ class PathPlanner(object):
         self.gripperRight.update(posRight, orientationRight)
         self.gripperLeft.update(posLeft, orientationLeft)
 
-        self.tasks[self.currentTask].update(self.map, self.DLOEstiamtion, self.gripperLeft, self.gripperRight)
+        self.tasks[self.currentTask].update(self.map, self.DLO, self.gripperLeft, self.gripperRight)
 
         if self.tasks[currentTask].newMessage() == 1:
             msg = self.tasks[currentTask].getMessage()
