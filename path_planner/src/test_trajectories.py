@@ -63,7 +63,7 @@ def main():
     trajectoryPoint.orientationRight = [1,0,0,0]
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
-    trajectoryPoint.pointTime = 8.0
+    trajectoryPoint.pointTime = 1.0
 
     trajectory.append(trajectoryPoint)
     # ---------------
@@ -73,7 +73,7 @@ def main():
     pub.publish(msg)
 
     print('sent individual' )
-    rospy.sleep(38)
+    rospy.sleep(26)
 
     # --------------------------------------------
     msg = Trajectory_msg()
@@ -137,7 +137,7 @@ def main():
 
     pub.publish(msg)
     print('sent msg 2, combined ')
-    rospy.sleep(38)
+    rospy.sleep(33)
 
 
     # --------------------------------------------

@@ -58,7 +58,6 @@ class HQPSolver(object):
                 print('error in task number')
                 print(i)
                 print('Joint velocity set to 0')
-                print(P)
                 
                 return np.zeros(n_i)
 

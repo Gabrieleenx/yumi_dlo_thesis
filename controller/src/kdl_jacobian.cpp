@@ -12,6 +12,7 @@
 #include <geometry_msgs/Pose.h>
 #include <controller/Jacobian_msg.h>
 #include <mutex>
+#include <abb_egm_msgs/EGMState.h>
 
 // mutex 
 std::mutex mtx_reciving;
@@ -69,6 +70,9 @@ void pose_data(KDL::Frame frame, geometry_msgs::Pose* pose){
 class Calc_jacobian{
     private:
     ros::Subscriber joint_state_sub;
+    ros::Subscriber egm_state_sub;
+
+    ros::Publisher velocity_pub;
     ros::Publisher jacobian_pub;
     ros::Publisher joint_states_pub;
 
@@ -119,7 +123,7 @@ class Calc_jacobian{
     std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_left_arm;
     std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_left_to_right;
 
-    //
+    // order input data
 
     std::vector<double> joint_state;
     
@@ -133,6 +137,9 @@ class Calc_jacobian{
          "yumi_robr_joint_5", "yumi_robr_joint_6", "yumi_robr_joint_7", "yumi_robl_joint_1", "yumi_robl_joint_2", "yumi_robl_joint_3",
          "yumi_robl_joint_4", "yumi_robl_joint_5", "yumi_robl_joint_6", "yumi_robl_joint_7"}; // TODO grippers
 
+    // egm active for both arms
+    bool egm_active = false;
+
     public:
     int state_recived = 0;
 
@@ -141,6 +148,9 @@ class Calc_jacobian{
 
     void callback(const sensor_msgs::JointState::ConstPtr& joint_state_data);
 
+    void callback_egm_state(const abb_egm_msgs::EGMState::ConstPtr& egm_state_data);
+
+
     void update();
 };
 
@@ -148,9 +158,12 @@ class Calc_jacobian{
 
 Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh ){
     joint_state_sub = nh->subscribe("/yumi/egm/joint_states", 2, &Calc_jacobian::callback, this);
+    egm_state_sub = nh->subscribe("/yumi/egm/egm_states", 2, &Calc_jacobian::callback_egm_state, this);
+
     //jacobian_pub = nh->advertise<std_msgs::Float64MultiArray>("/Jacobian_R_L", 2);
     jacobian_pub = nh->advertise<controller::Jacobian_msg>("/Jacobian_R_L", 1);
     joint_states_pub = nh->advertise<sensor_msgs::JointState>("/joint_states", 1);
+    velocity_pub = nh->advertise<std_msgs::Float64MultiArray>("/yumi/egm/joint_group_velocity_controller/command", 1);
 
     // get tree from urdf file for entire yumi
     if (!kdl_parser::treeFromFile("/home/gabriel/catkin/src/yumi_dlo_thesis/yumi_description/urdf/yumi.urdf", yumi_tree)){
@@ -179,6 +192,7 @@ Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh ){
     fk_left_to_right = std::make_unique<KDL::ChainFkSolverPos_recursive>(yumi_left_right);
     joint_state.resize(18);
 }
+
 
 void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_state_data){
     // sort input data
@@ -209,7 +223,26 @@ void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_stat
 
 }
 
+
+void Calc_jacobian::callback_egm_state(const abb_egm_msgs::EGMState::ConstPtr& egm_state_data){
+    if (egm_state_data->egm_channels[0].active == true && egm_state_data->egm_channels[1].active == true){
+        egm_active = true;
+    }
+    else{
+        egm_active = false;
+    }
+}
+
+
 void Calc_jacobian::update(){
+
+    if (egm_active == false){
+        std_msgs::Float64MultiArray msg;
+        std::vector<double> msg_data = {0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+        msg.data = msg_data;
+        velocity_pub.publish(msg);
+        return;
+    }
 
     mtx_reciving.lock();
    // joints state to q 
