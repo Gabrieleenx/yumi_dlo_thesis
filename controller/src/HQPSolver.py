@@ -12,7 +12,7 @@ class HQPSolver(object):
     def __init__(self):
         #self.SoT = SoT                  # List of Task objects
         self.slack_boundary = 1e-5      # Currently unused.
-        self.slack_ratio = 1e5          # Between qdot and w cost
+        self.slack_ratio = 5e3         # Between qdot and w cost
         self.slack = []
                 
 
@@ -48,14 +48,21 @@ class HQPSolver(object):
                         h = np.concatenate((h, hj), axis=0)
 
             # Set cost matrix and solve level:
-            P = np.eye(n_i + m_i)
+            P = np.eye(n_i + m_i) * 1
             P[-m_i:, -m_i:] = self.slack_ratio * np.eye(m_i)
-            x = quadprog_solve_qp(P, np.zeros((n_i + m_i, )), G, h, A, b)
-            self.slack[i] = x[n_i:]
-            qd = x[:n_i]
-            
+            try:
+                x = quadprog_solve_qp(P, np.zeros((n_i + m_i, )), G, h, A, b)
+                self.slack[i] = x[n_i:]
+                qd = x[:n_i]
+            except:
+                print('error in task number')
+                print(i)
+                print('Joint velocity set to 0')
+                print(P)
+                
+                return np.zeros(n_i)
+
         # After solving the last task, return optimal joint velocities as control input.
-        
         return qd
 
 
@@ -74,12 +81,10 @@ def quadprog_solve_qp(P, q=None, G=None, h=None, A=None, b=None):
         qp_b = -np.hstack([b, h])
         meq = A.shape[0]
 
-
-    elif A is not None and G is None:       # Only equality constraint (x = a reformed as -a <= x <= a)
+    elif A is not None and G is None:       # Only equality constraint (x = a reformed as -a <= x <= a) <- not sure about this comment
         qp_C = -A.T
         qp_b = -b
         meq = A.shape[0]
-
 
     else:                                   # Only ineqality constraint
         qp_C = -G.T

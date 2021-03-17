@@ -20,7 +20,7 @@ class Simulator(object):
 
     def callback(self, data):
         vel = np.asarray(data.data)
-        vel = np.hstack([vel, np.zeros(4)])
+        vel = np.hstack([vel[7:14], vel[0:7], np.zeros(4)])
         self.lock.acquire()
         self.jointState.UpdateVelocity(vel)
         self.lock.release()
@@ -28,6 +28,7 @@ class Simulator(object):
     def update(self):
         # updates the pose
         self.lock.acquire()
+
         pose = self.jointState.GetJointPosition() + self.jointState.GetJointVelocity()*self.dT
         self.lock.release()
         # hard joint limits 
@@ -54,11 +55,10 @@ def main():
         simulator.update()
         msg.header.stamp = rospy.Time.now()
         msg.header.seq = seq
-        msg.name = ["yumi_robl_joint_1", "yumi_robl_joint_2", "yumi_robl_joint_3", \
-                    "yumi_robl_joint_4", "yumi_robl_joint_5", "yumi_robl_joint_6", "yumi_robl_joint_7",\
-                    "yumi_robr_joint_1", "yumi_robr_joint_2", "yumi_robr_joint_3", "yumi_robr_joint_4",\
-                    "yumi_robr_joint_5", "yumi_robr_joint_6", "yumi_robr_joint_7", "gripper_r_joint_m",\
-                    "gripper_l_joint", "gripper_l_joint_m"]
+        msg.name = ["yumi_robr_joint_1", "yumi_robr_joint_2", "yumi_robr_joint_3", "yumi_robr_joint_4",\
+                    "yumi_robr_joint_5", "yumi_robr_joint_6", "yumi_robr_joint_7",  "yumi_robl_joint_1", "yumi_robl_joint_2", "yumi_robl_joint_3", \
+                    "yumi_robl_joint_4", "yumi_robl_joint_5", "yumi_robl_joint_6", "yumi_robl_joint_7","gripper_r_joint", "gripper_r_joint_m",\
+                    "gripper_l_joint", "gripper_l_joint_m",]
         msg.position = simulator.jointState.GetJointPosition().tolist()
         pub.publish(msg)
         rate.sleep()

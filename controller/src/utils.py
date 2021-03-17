@@ -6,7 +6,7 @@ import tf
 
 class JointState(object):
     def __init__(self,\
-            jointPosition=np.array([-0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),\
+            jointPosition=np.array([-0.4, 0.0, -0.4, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0]),\
             jointVelocity=np.zeros(14),\
             gripperRightPosition=np.zeros(2),\
             gripperLeftPosition=np.zeros(2),\
@@ -142,7 +142,7 @@ class Trajectory(object):
             quat = tf.transformations.quaternion_from_matrix(rotMatrix)
             return quat, np.zeros(3)
 
-        r = 1/(2*np.sin(vf))*np.array([[R_i_f[2,1] - R_i_f[1,2]],\
+        r = (1/(2*np.sin(vf)))*np.array([[R_i_f[2,1] - R_i_f[1,2]],\
                                     [R_i_f[0,2] - R_i_f[2,0]],\
                                     [R_i_f[1,0] - R_i_f[0,1]]])
 
@@ -228,7 +228,7 @@ class ControlInstructions(object): # generates target velocity in task space
         self.force = 0
         self.distanceForceActivation = 0
         self.maxForce = 4 # in N
-        self.errorThreshold = 0.003 # meters allowed to devate from path before velocity commands are ignored 
+        self.errorThreshold = 1.0 # meters allowed to devate from path before velocity commands are ignored 
          
 
     def getIndividualTargetVelocity(self, k):
@@ -341,7 +341,7 @@ class ControlInstructions(object): # generates target velocity in task space
 
 # used to calculate error
 def PositionToVelocity(currentPositionXYZ, targetPositionXYZ, maxVelocity):
-    positionDiff = targetPositionXYZ - currentPositionXYZ
+    positionDiff = (targetPositionXYZ - currentPositionXYZ)/10
     norm = np.linalg.norm(positionDiff)
     positionDiffNormalized = normalize(positionDiff)        
     return positionDiffNormalized*min([maxVelocity, norm])
@@ -361,7 +361,7 @@ def QuaternionToRotVel(currentQ, targetQ, maxRotVel):
 
     errorOrientationNormalized = normalize(errorOrientation)     
     errorOrientationNormalized*min([maxRotVel, norm])   
-    return errorOrientationNormalized*min([maxRotVel, norm])
+    return errorOrientationNormalized*min([maxRotVel, 4*norm])
 
 
 def CalcJacobianCombined(data, gripperLengthRight, gripperLengthLeft, transformer, yumiGrippPoseR, yumiGrippPoseL):

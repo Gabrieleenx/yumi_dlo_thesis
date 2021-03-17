@@ -182,6 +182,7 @@ Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh ){
 
 void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_state_data){
     // sort input data
+
     mtx_reciving.lock();
     for (int i = 0; i < 14; i++){
         for (int j = 0; j < 14; j++){

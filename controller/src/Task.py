@@ -39,15 +39,16 @@ class Task(object):
             G = None
             h = None
         elif self.constraintType == 1:
+            A = None
+            b = None
             G = np.hstack((self.constraintMatrix, np.zeros((self.mdim(), m))))
             h = self.constraintVector + np.maximum(w, 0)
+        elif self.constraintType == -1:
             A = None
             b = None
-        elif self.constraintType == -1:
             G = np.hstack((self.constraintMatrix, np.zeros((self.mdim(), m))))
             h = self.constraintVector - np.maximum(w, 0)
-            A = None
-            b = None
+           
         return A, b, G, h
 
     def append_slack(self, m):
@@ -109,7 +110,7 @@ class IndividualControl(Task):
         self.constraintType = 0
 
     def compute(self, controlInstructions, jacobian):
-        effectorVelocities = controlInstructions.getIndividualTargetVelocity(k=2) # k is the gain for vel = vel + k*error
+        effectorVelocities = controlInstructions.getIndividualTargetVelocity(k=1) # k is the gain for vel = vel + k*error
         self.constraintMatrix = jacobian
         self.constraintVector = effectorVelocities
 
@@ -120,7 +121,7 @@ class RelativeControl(Task):
         self.constraintType = 0
     
     def compute(self, controlInstructions, jacobian, transformer):
-        velocities, tfRightArm, tfLeftArm, absoluteOrientation = controlInstructions.getRelativeTargetVelocity(k=2) # k is the gain for vel = vel + k*error
+        velocities, tfRightArm, tfLeftArm, absoluteOrientation = controlInstructions.getRelativeTargetVelocity(k=1) # k is the gain for vel = vel + k*error
 
         tfMatrix = transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=absoluteOrientation)
 
@@ -146,7 +147,7 @@ class AbsoluteControl(Task):
         self.constraintType = 0
     
     def compute(self, controlInstructions, jacobian):
-        velocities = controlInstructions.getAbsoluteTargetVelocity(k=2) # k is the gain for vel = vel + k*error
+        velocities = controlInstructions.getAbsoluteTargetVelocity(k=1) # k is the gain for vel = vel + k*error
 
         linkJ = np.hstack([0.5*np.eye(6), 0.5*np.eye(6)])
         absoluteJacobian = linkJ.dot(jacobian)
@@ -171,26 +172,37 @@ class ElbowCollision(Task):
         translationRightElbow = yumiElbowPoseR.getPosition()
         translationLeftElbow = yumiElbowPoseL.getPosition()
 
-        difference = translationRightElbow[1] - translationLeftElbow[1] 
-        distance = np.linalg.norm(difference)
-        factor = self.minDistance/abs(difference)
+        difference = translationLeftElbow[1] - translationRightElbow[1]  
 
-        self.saftyMargin = 4
+        self.safetyMargin = 4
 
         if self.arm == 'right':
-            boundPoint = translationLeftElbow[1] + difference*factor
+            boundPoint = translationLeftElbow[1] - self.minDistance
             jacobianNew = np.zeros((1, self.Dof))
 
             jacobianNew[0, 0:4] = jacobian[1,0:4]
-            self.constraintMatrix = self.timestep*self.saftyMargin * jacobianNew
+            self.constraintMatrix = self.timestep*self.safetyMargin * jacobianNew
 
             self.constraintVector = np.array([(boundPoint - translationRightElbow[1])])
 
         elif self.arm == 'left':
-            boundPoint = translationRightElbow[1] - difference*factor
+            boundPoint = translationRightElbow[1] + self.minDistance
             jacobianNew = np.zeros((1, self.Dof))
-
             jacobianNew[0, 7:11] = jacobian[1,0:4]
-            self.constraintMatrix = -self.timestep*self.saftyMargin * jacobianNew
+            self.constraintMatrix = -self.timestep*self.safetyMargin * jacobianNew
             self.constraintVector = -np.array([(boundPoint - translationLeftElbow[1])])
 
+
+class JointPositionPotential(Task):
+    def __init__(self, Dof, defaultPose, timestep):
+        super(JointPositionPotential, self).__init__(Dof)
+        self.timestep = timestep
+        self.defaultPose = defaultPose
+        self.constraintType = 0
+
+    def compute(self, jointState):
+        
+        self.constraintMatrix =  self.timestep * np.eye(self.ndim())
+        self.constraintMatrix[0,0] = self.constraintMatrix[0,0]*5
+        self.constraintMatrix[7,7] = self.constraintMatrix[7,7]*5
+        self.constraintVector = (self.defaultPose - jointState.jointPosition)/200

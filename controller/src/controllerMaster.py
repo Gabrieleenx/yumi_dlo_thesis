@@ -43,18 +43,19 @@ class YmuiContoller(object):
         # Task objects 
         # ctype 0 = equality, 1 = upper, -1 = lower
         #values from https://search.abb.com/library/Download.aspx?DocumentID=3HAC052982-001&LanguageCode=en&DocumentPartId=&Action=Launch
-        jointPoistionBoundUpper = np.array([168.5, 43.5, 168.5, 80, 290, 138, 229])*np.pi/(180) # in radians 
+        jointPoistionBoundUpper = np.array([168.5, 43.5, 168.5, 80, 290, 138, 229])*np.pi/(180) *0.98 # in radians 
         jointPoistionBoundUpper = np.hstack([jointPoistionBoundUpper, jointPoistionBoundUpper]) # two arms
         self.jointPositionBoundUpper = Task.JointPositionBoundsTask(Dof=14,\
                      bounds=jointPoistionBoundUpper, timestep=self.dT, ctype=1)
         
-        jointPoistionBoundLower = np.array([-168.5, -143.5, -168.5, -123.5, -290, -88, -229])*np.pi/(180) # in radians 
+        jointPoistionBoundLower = np.array([-168.5, -143.5, -168.5, -123.5, -290, -88, -229])*np.pi/(180) *0.98 # in radians 
         jointPoistionBoundLower = np.hstack([jointPoistionBoundLower, jointPoistionBoundLower]) # two arms
         self.jointPositionBoundLower = Task.JointPositionBoundsTask(Dof=14,\
                      bounds=jointPoistionBoundLower, timestep=self.dT, ctype=-1)
 
-        velocityDownScaling = 4
-        jointVelocityBound = np.array([180, 180, 180, 180, 400, 400, 400])*np.pi/(180) / velocityDownScaling # in radians 
+        #velocityDownScaling = 4
+        #jointVelocityBound = np.array([180, 180, 180, 180, 400, 400, 400])*np.pi/(180) / velocityDownScaling # in radians 
+        jointVelocityBound = np.array([1, 1, 1, 1, 1, 1, 1])
         jointVelocityBound = np.hstack([jointVelocityBound, jointVelocityBound]) # two arms
 
         self.jointVelocityBoundUpper = Task.JointVelocityBoundsTask(Dof=14,\
@@ -74,6 +75,8 @@ class YmuiContoller(object):
         self.selfCollisionRightElbow = Task.ElbowCollision(Dof=14, arm='right', minDistance=0.3, timestep=self.dT)
         self.selfCollisionLeftElbow = Task.ElbowCollision(Dof=14, arm='left', minDistance=0.3, timestep=self.dT)
 
+        defaultPose = np.array([-0.3, 0.0, -0.4, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0])
+        self.jointPositionPotential = Task.JointPositionPotential(Dof=14, defaultPose=defaultPose, timestep=self.dT)
         # mutex
         self.lock = threading.Lock()
         self.lockForce = threading.Lock()
@@ -106,9 +109,10 @@ class YmuiContoller(object):
         
         # stack of tasks, in decending hierarchy
         # ----------------------
+        SoT = []
         # velocity bound
         SoT = [self.jointVelocityBoundUpper, self.jointVelocityBoundLower]
-
+        
         # position bound
         self.jointPositionBoundUpper.compute(jointState=self.jointState)
         SoT.append(self.jointPositionBoundUpper)
@@ -166,6 +170,9 @@ class YmuiContoller(object):
         
         self.lock.release()
 
+        self.jointPositionPotential.compute(jointState=self.jointState)
+        SoT.append(self.jointPositionPotential)
+        
         # solve HQP
         # ----------------------
         self.jointState.jointVelocity = self.HQP.solve(SoT=SoT)
