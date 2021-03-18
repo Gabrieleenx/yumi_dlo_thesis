@@ -6,6 +6,8 @@ import threading
 import numpy as np
 from sensor_msgs.msg import JointState, PointCloud
 from std_msgs.msg import Float64MultiArray
+from abb_egm_msgs.msg import EGMState, EGMChannelState
+
 
 class Simulator(object):
     def __init__(self):
@@ -41,6 +43,8 @@ def main():
     # starting ROS node and subscribers
     rospy.init_node('yumi_simulator', anonymous=True) 
     pub = rospy.Publisher('/yumi/egm/joint_states', JointState, queue_size=1)
+    pub_egm_state = rospy.Publisher('/yumi/egm/egm_states', EGMState, queue_size=1)
+
     simulator = Simulator()
 
     #rospy.Subscriber("/joint_velocity", JointState, simulator.callback, queue_size=1)
@@ -49,7 +53,13 @@ def main():
     rate = rospy.Rate(simulator.updateRate) 
 
     msg = JointState()
-    
+    msg_egm_state = EGMState()
+    msg_channel0 = EGMChannelState()
+    msg_channel1 = EGMChannelState()
+    msg_channel0.active = True
+    msg_channel1.active = True
+    msg_egm_state.egm_channels = [msg_channel0, msg_channel1]
+
     seq = 1
     while not rospy.is_shutdown():
         simulator.update()
@@ -61,6 +71,7 @@ def main():
                     "gripper_l_joint", "gripper_l_joint_m",]
         msg.position = simulator.jointState.GetJointPosition().tolist()
         pub.publish(msg)
+        pub_egm_state.publish(msg_egm_state)
         rate.sleep()
         seq += 1
 

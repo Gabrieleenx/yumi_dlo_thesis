@@ -43,12 +43,12 @@ class YmuiContoller(object):
         # Task objects 
         # ctype 0 = equality, 1 = upper, -1 = lower
         #values from https://search.abb.com/library/Download.aspx?DocumentID=3HAC052982-001&LanguageCode=en&DocumentPartId=&Action=Launch
-        jointPoistionBoundUpper = np.array([168.5, 43.5, 168.5, 80, 290, 138, 229])*np.pi/(180) *0.98 # in radians 
+        jointPoistionBoundUpper = np.array([168.5, 43.5, 168.5, 80, 290, 138, 229])*np.pi/(180) *0.99 # in radians 
         jointPoistionBoundUpper = np.hstack([jointPoistionBoundUpper, jointPoistionBoundUpper]) # two arms
         self.jointPositionBoundUpper = Task.JointPositionBoundsTask(Dof=14,\
                      bounds=jointPoistionBoundUpper, timestep=self.dT, ctype=1)
         
-        jointPoistionBoundLower = np.array([-168.5, -143.5, -168.5, -123.5, -290, -88, -229])*np.pi/(180) *0.98 # in radians 
+        jointPoistionBoundLower = np.array([-168.5, -143.5, -168.5, -123.5, -290, -88, -229])*np.pi/(180) *0.99 # in radians 
         jointPoistionBoundLower = np.hstack([jointPoistionBoundLower, jointPoistionBoundLower]) # two arms
         self.jointPositionBoundLower = Task.JointPositionBoundsTask(Dof=14,\
                      bounds=jointPoistionBoundLower, timestep=self.dT, ctype=-1)
@@ -72,8 +72,8 @@ class YmuiContoller(object):
 
         self.relativeControl = Task.RelativeControl(Dof=14)
 
-        self.selfCollisionRightElbow = Task.ElbowCollision(Dof=14, arm='right', minDistance=0.3, timestep=self.dT)
-        self.selfCollisionLeftElbow = Task.ElbowCollision(Dof=14, arm='left', minDistance=0.3, timestep=self.dT)
+        self.selfCollisionRightElbow = Task.ElbowCollision(Dof=14, arm='right', minDistance=0.2, timestep=self.dT)
+        self.selfCollisionLeftElbow = Task.ElbowCollision(Dof=14, arm='left', minDistance=0.2, timestep=self.dT)
 
         defaultPose = np.array([-0.3, 0.0, -0.4, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0])
         self.jointPositionPotential = Task.JointPositionPotential(Dof=14, defaultPose=defaultPose, timestep=self.dT)

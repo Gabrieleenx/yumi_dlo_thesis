@@ -12,7 +12,7 @@ class HQPSolver(object):
     def __init__(self):
         #self.SoT = SoT                  # List of Task objects
         self.slack_boundary = 1e-5      # Currently unused.
-        self.slack_ratio = 5e3         # Between qdot and w cost
+        self.slack_ratio = 5e4         # Between qdot and w cost
         self.slack = []
                 
 
@@ -49,7 +49,7 @@ class HQPSolver(object):
 
             # Set cost matrix and solve level:
             P = np.eye(n_i + m_i) * 1
-            P[-m_i:, -m_i:] = self.slack_ratio * np.eye(m_i)
+            P[-m_i:, -m_i:] = SoT[i].slack_ratio() * np.eye(m_i)
             try:
                 x = quadprog_solve_qp(P, np.zeros((n_i + m_i, )), G, h, A, b)
                 self.slack[i] = x[n_i:]

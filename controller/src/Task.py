@@ -9,11 +9,12 @@ class Task(object):
     """
     Base abstract class for all tasks.
     """
-    def __init__(self, Dof):
+    def __init__(self, Dof, slackRatio=1e4):
         self.Dof = Dof
         self.constraintMatrix = np.array([])
         self.constraintVector = np.array([])
         self.constraintType = None  # 0 for equality, 1 for Gx <= h, -1 for Gx >= h
+        self.slackRatio = slackRatio         # Between qdot and w cost
 
     def ndim(self):
         """
@@ -26,6 +27,9 @@ class Task(object):
         Returns the number of constraint equations defining the task.
         """
         return self.constraintVector.size
+
+    def slack_ratio(self):
+        return self.slackRatio
 
     def append_slack_locked(self, m, w):
         """
@@ -75,7 +79,7 @@ class Task(object):
 
 class JointPositionBoundsTask(Task):
     def __init__(self, Dof, bounds, timestep, ctype):
-        super(JointPositionBoundsTask, self).__init__(Dof)
+        super(JointPositionBoundsTask, self).__init__(Dof, 1e3)
         self.timestep = timestep
         self.bounds = bounds
         self.constraintType = ctype
@@ -91,7 +95,7 @@ class JointPositionBoundsTask(Task):
 
 class JointVelocityBoundsTask(Task):
     def __init__(self, Dof, bounds, ctype):
-        super(JointVelocityBoundsTask, self).__init__(Dof)
+        super(JointVelocityBoundsTask, self).__init__(Dof, 1e3)
         self.bounds = bounds
         self.constraintType = ctype
 
@@ -157,7 +161,7 @@ class AbsoluteControl(Task):
 
 class ElbowCollision(Task):
     def __init__(self, Dof, arm, minDistance, timestep):
-        super(ElbowCollision, self).__init__(Dof)
+        super(ElbowCollision, self).__init__(Dof, 1e3)
         self.arm = arm
         if arm == 'right':
             self.constraintType = 1
@@ -195,7 +199,7 @@ class ElbowCollision(Task):
 
 class JointPositionPotential(Task):
     def __init__(self, Dof, defaultPose, timestep):
-        super(JointPositionPotential, self).__init__(Dof)
+        super(JointPositionPotential, self).__init__(Dof, 5e2)
         self.timestep = timestep
         self.defaultPose = defaultPose
         self.constraintType = 0
@@ -203,6 +207,6 @@ class JointPositionPotential(Task):
     def compute(self, jointState):
         
         self.constraintMatrix =  self.timestep * np.eye(self.ndim())
-        self.constraintMatrix[0,0] = self.constraintMatrix[0,0]*5
-        self.constraintMatrix[7,7] = self.constraintMatrix[7,7]*5
-        self.constraintVector = (self.defaultPose - jointState.jointPosition)/200
+        self.constraintMatrix[0,0] = self.constraintMatrix[0,0]*3
+        self.constraintMatrix[7,7] = self.constraintMatrix[7,7]*3
+        self.constraintVector = (self.defaultPose - jointState.jointPosition)/100
