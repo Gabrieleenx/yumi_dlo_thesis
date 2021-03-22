@@ -16,6 +16,8 @@ find_package(catkin REQUIRED COMPONENTS
   kdl_parser
   abb_egm_msgs
   message_generation
+  abb_rapid_sm_addin_msgs
+  abb_robot_msgs
 )
 
 ## System dependencies are found with CMake's conventions

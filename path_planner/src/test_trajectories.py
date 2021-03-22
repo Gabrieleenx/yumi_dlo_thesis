@@ -25,7 +25,7 @@ def main():
     trajectoryPoint.positionLeft = [0.35, 0.2, 0.2]
     trajectoryPoint.orientationLeft = [1,0,0,0]
     trajectoryPoint.orientationRight = [1,0,0,0]
-    trajectoryPoint.gripperLeft = [0.02,0.02]
+    trajectoryPoint.gripperLeft = [20,20]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
 
@@ -38,8 +38,8 @@ def main():
     trajectoryPoint.positionLeft = [0.35, 0.15, 0.0]
     trajectoryPoint.orientationLeft = [1,0,0,0]
     trajectoryPoint.orientationRight = [1,0,0,0]
-    trajectoryPoint.gripperLeft = [0.02,0.02]
-    trajectoryPoint.gripperRight = [0.02,0.02]
+    trajectoryPoint.gripperLeft = [20,20]
+    trajectoryPoint.gripperRight = [20,20]
     trajectoryPoint.pointTime = 8.0
 
     trajectory.append(trajectoryPoint)
@@ -49,8 +49,8 @@ def main():
     trajectoryPoint.positionLeft = [0.35, 0.15, 0.0]
     trajectoryPoint.orientationLeft = [1,0,0,0]
     trajectoryPoint.orientationRight = [1,0,0,0]
-    trajectoryPoint.gripperLeft = [0.02,0.02]
-    trajectoryPoint.gripperRight = [0.02,0.02]
+    trajectoryPoint.gripperLeft = [20,20]
+    trajectoryPoint.gripperRight = [20,20]
     trajectoryPoint.pointTime = 8.0
 
     trajectory.append(trajectoryPoint)

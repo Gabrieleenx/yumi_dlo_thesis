@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   tf
   apriltag_ros
+  abb_rws_service_provider
 )
 
 ## System dependencies are found with CMake's conventions

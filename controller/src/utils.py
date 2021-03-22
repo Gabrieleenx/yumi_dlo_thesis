@@ -229,7 +229,7 @@ class ControlInstructions(object): # generates target velocity in task space
         self.distanceForceActivation = 0
         self.maxForce = 4 # in N
         self.errorThreshold = 1.0 # meters allowed to devate from path before velocity commands are ignored 
-         
+        self.trajIndex = 0
 
     def getIndividualTargetVelocity(self, k):
 
@@ -304,6 +304,13 @@ class ControlInstructions(object): # generates target velocity in task space
             self.velocities[6:12] = k*self.errorVelocities[6:12]
 
         return self.velocities[6:12], self.translationRightArm, self.translationLeftArm, self.absoluteOrientation
+
+    def newIndex(self):
+        if self.trajIndex != self.trajectory.index:
+            self.trajIndex = self.trajectory.index
+            return True
+        else:
+            return False
 
     def updateTarget(self):
         if len(self.trajectory.trajectory) < 2: 
