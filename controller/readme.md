@@ -10,27 +10,32 @@
 * [Usage](#usage)
 
 ## General
-This package takes in the comtrol comands as individual or combined (absolute and relative) trajectories and calulates the inverse kinematics and force control to output joint velocity comands for the YuMi robot.      
+This package takes in the comtrol comands as individual or combined (absolute and relative) trajectories and calulates the inverse kinematics and force control to output joint velocity comands for the YuMi robot. (force controll still needs work)      
 
 ## ROS_communication
 * Input - kdl_jacobian
 ```
-/joint_states
+/yumi/egm/joint_states
+/yumi/egm/egm_states
 ```
 * Output  - kdl_jacobian
 ```
 /Jacobian_R_L
+/joint_states 
+/yumi/egm/joint_group_velocity_controller/command
 ```
-* Input - controller
+* Input - controllerMaster
 ```
 /Jacobian_R_L
 /Trajectroy_msg
 /TransformListener()
 /CableForce
 ```
-* Output  - controller
+* Output  - controllerMaster
 ```
-/joint_velocity
+/yumi/egm/joint_group_velocity_controller/command
+/yumi/rws/sm_addin/set_sg_command (rosservice)
+/yumi/rws/sm_addin/run_sg_routine (rosservice)
 ```
 
 ## Dependencies
@@ -64,6 +69,10 @@ https://github.com/Gabrieleenx/yumi_dlo_thesis/tree/master/robot_setup_tf
     scipy
     quadprog
 ```
+* abb_robot_driver
+```
+https://github.com/ros-industrial/abb_robot_driver
+```
 
 ## Usage
 * compile, as some packages are not standard catkin and compile with only cmake
@@ -79,10 +88,15 @@ roslaunch yumi_description display.launch model:='$(find yumi_description)/urdf/
 ``` 
 rosrun robot_setup_tf tf_broadcaster
 ``` 
-* for simulation
+* for simulation ()
 ``` 
 rosrun controller yumi_simulator.py
 ``` 
+* for robot or robotstudio (warning: this activates egm and joint controllers and also closes egm and rapid when set_yumi_settings_and_start.py is closed)
+```
+roslaunch abb_robot_bringup_examples ex3_rws_and_egm_yumi_robot.launch robot_ip:=<robot controller's IP address>
+rosrun robot_setup_tf set_yumi_settings_and_start.py
+```
 
 * start kdl_jacobian
 ``` 
