@@ -39,9 +39,14 @@ class YmuiContoller(object):
 
         self.tfListener = tf.TransformListener() # for non critical updates, no guarantee for synch
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
-
+                
+        #rosservice
+        self.SetSGCommand = rospy.ServiceProxy('/yumi/rws/sm_addin/set_sg_command', SetSGCommand)
+        self.RunSGRoutine = rospy.ServiceProxy('/yumi/rws/sm_addin/run_sg_routine', TriggerWithResultCode)
+        stopEGM = rospy.ServiceProxy('/yumi/rws/sm_addin/stop_egm', TriggerWithResultCode)
+        
         # solver 
-        self.HQP = HQPSolver.HQPSolver()
+        self.HQP = HQPSolver.HQPSolver(stopEGM)
 
         # Task objects 
         # ctype 0 = equality, 1 = upper, -1 = lower
@@ -78,18 +83,15 @@ class YmuiContoller(object):
         self.selfCollisionRightElbow = Task.ElbowCollision(Dof=14, arm='right', minDistance=0.2, timestep=self.dT)
         self.selfCollisionLeftElbow = Task.ElbowCollision(Dof=14, arm='left', minDistance=0.2, timestep=self.dT)
 
-        defaultPose = np.array([-0.3, 0.0, -0.4, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0])
+        defaultPose = np.array([-0.2, 0.0, -0.4, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0])
         self.jointPositionPotential = Task.JointPositionPotential(Dof=14, defaultPose=defaultPose, timestep=self.dT)
+        
         # mutex
         self.lock = threading.Lock()
         self.lockForce = threading.Lock()
+        
         # publish velocity comands
-        #self.pub = rospy.Publisher('/joint_velocity', JointState, queue_size=1)
         self.pub = rospy.Publisher('/yumi/egm/joint_group_velocity_controller/command', Float64MultiArray, queue_size=1)
-        #
-        #rosservice
-        self.SetSGCommand = rospy.ServiceProxy('/yumi/rws/sm_addin/set_sg_command', SetSGCommand)
-        self.RunSGRoutine = rospy.ServiceProxy('/yumi/rws/sm_addin/run_sg_routine', TriggerWithResultCode)
 
 
     def callback(self, data):

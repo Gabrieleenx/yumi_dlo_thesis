@@ -3,19 +3,17 @@
 # Slightly modified vesion of https://github.com/ritalaezza/sot-myo/blob/akos_re/src/HQPSolver.py
 
 import numpy as np
-#from Task import *
-#from utils import *
 import quadprog
 from cvxopt import matrix as cvxopt_matrix
 
 class HQPSolver(object):
-    def __init__(self):
+    def __init__(self, stopEGM):
         #self.SoT = SoT                  # List of Task objects
-        self.slack_boundary = 1e-5      # Currently unused.
-        self.slack_ratio = 5e4         # Between qdot and w cost
+        #self.slack_boundary = 1e-5      # Currently unused.
+        #self.slack_ratio = 5e4         # Between qdot and w cost
         self.slack = []
+        self.stopEGM = stopEGM
                 
-
     def solve(self,  SoT=[]):
         """
         Solves the stack of tasks and returns qdot*.
@@ -57,8 +55,11 @@ class HQPSolver(object):
             except:
                 print('error in task number')
                 print(i)
-                print('Joint velocity set to 0')
-                
+                try:
+                    self.stopEGM()
+                except:
+                    print('failed to stop EGM, if simulation dont suport egm this is normal')
+                print('Joint velocity set to 0 and egm is stoped')
                 return np.zeros(n_i)
 
         # After solving the last task, return optimal joint velocities as control input.
