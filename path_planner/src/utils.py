@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
+import tf
 
 
 class FramePose(object):
@@ -60,3 +61,60 @@ def normalize(v):
     if norm == 0: 
        return v
     return v / norm
+
+
+def calcAbsoluteAndRelative(yumiGrippPoseR, yumiGrippPoseL, transformer):
+    translationRightArm = yumiGrippPoseR.getPosition()
+    translationLeftArm = yumiGrippPoseL.getPosition()
+    rotationRightArm = yumiGrippPoseR.getQuaternion()
+    rotationLeftArm = yumiGrippPoseL.getQuaternion()
+
+    tfMatrixRight = transformer.fromTranslationRotation(translation=translationRightArm, rotation=rotationRightArm)
+    tfMatrixLeft = transformer.fromTranslationRotation(translation=translationLeftArm, rotation=rotationLeftArm)
+    tfMatrixLeftInv = np.linalg.pinv(tfMatrixLeft)
+
+    translationRelativeLeftRight = tfMatrixLeftInv.dot(np.hstack([self.translationRightArm, 1]))[0:3]
+    rotLeftRight = tfMatrixLeftInv.dot(tfMatrixRight)
+    relativeOrientation = tf.transformations.quaternion_from_matrix(rotLeftRight)
+
+    avgQ = np.vstack([rotationRightArm, rotationLeftArm])
+    absoluteOrientation = averageQuaternions(avgQ)  
+    absolutePosition = 0.5*(translationRightArm + translationLeftArm)
+
+    transformation1 = transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=self.absoluteOrientation)
+    transformationInv1 = np.linalg.pinv(transformation1)
+    transformation2 = transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=self.rotationLeftArm)
+
+    leftToAbsoluteFrameRot = transformationInv1.dot(transformation2)
+    homogeneousLeftRelative = np.hstack([translationRelativeLeftRight,1])
+    homogeneousAbsouluteRelative = leftToAbsoluteFrameRot.dot(homogeneousLeftRelative)
+    realativPosition = homogeneousAbsouluteRelative[0:3]
+
+    return absolutePosition, absoluteOrientation, realativPosition, relativeOrientation
+
+
+class FixtureObject(object):
+    # cable goes through in y direction 
+    # quaterniorn w,ix,iy,iz
+    def __init__(self, position, orientation):
+        self.position = position
+        self.orientation = orientation
+        #self.index = index
+        self.fixtureHeight = 0.06
+        self.previousCableLength = 0 # How much of the cable is already attached to fixtures 
+
+
+def calcClipPoint(targetFixture, previousFixture, map_, cableSlack):
+    # calculates the point on the rope (from right) that will be in target fixture
+    length = 0
+    if targetFixture >= 0 and previousFixture >= 0:
+        fixture0 = map_[previousFixture]
+        fixture1 = map_[targetFixture]
+        length = np.linalg.norm(fixture1.position - fixture0.position)
+        length += fixture0.previousCableLength
+
+    length += cableSlack
+
+    return length
+
+

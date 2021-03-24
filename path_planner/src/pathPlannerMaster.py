@@ -33,31 +33,35 @@ class PathPlanner(object):
 
         self.DLO.update(self.DLOPoints)
 
-    def update():
+    def update(self):
         # update pose 
         (posRight, orientationRight) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
         (posLeft, orientationLeft) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
         self.gripperRight.update(posRight, orientationRight)
         self.gripperLeft.update(posLeft, orientationLeft)
 
-        self.tasks[self.currentTask].update(self.map, self.DLO, self.gripperLeft, self.gripperRight)
+        self.tasks[self.currentTask].updateAndTrackProgress(self.map, self.DLO, self.gripperLeft, self.gripperRight)
+        if self.tasks[self.currentTask].getNewTrajectory() == 1:
+            msg = self.tasks[self.currentTask].getTrajectory()
+            self.pub.publish(msg)
 
-        if self.tasks[currentTask].newMessage() == 1:
-            msg = self.tasks[currentTask].getMessage()
-            pub.publish(msg)
-
-        if self.tasks[currentTask].taskDone() == 1:
+        if self.tasks[self.currentTask].getTaskDone() == 1:
             if self.currentTask < self.numOfTasks-1:
                 self.currentTask += 1 
 
     
 def main():
     rospy.init_node('pathPlanner', anonymous=True) 
-    listOfObjects = []
-    listOfTasks = []
+    # objectes ----------------
+    obj0 = FixtureObject(np.array(0.3, -0.1, 0), np.array([1,0,0,0]))
+    listOfObjects = [obj0]
+    # tasks -------------------
+    grabCable = tasks.GrabCable(0, -1, 0.05)
+
+    listOfTasks = [grabCable]
     pathPlanner = PathPlanner(listOfObjects, listOfTasks)
     rospy.Subscriber("/spr/dlo_estimation", PointCloud, pathPlanner.callback, queue_size=2, )
-    
+    rospy.sleep(0.15)
     rate = rospy.Rate(30)
 
     while not rospy.is_shutdown():

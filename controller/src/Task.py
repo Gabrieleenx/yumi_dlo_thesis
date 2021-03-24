@@ -199,7 +199,7 @@ class ElbowCollision(Task):
 
 class JointPositionPotential(Task):
     def __init__(self, Dof, defaultPose, timestep):
-        super(JointPositionPotential, self).__init__(Dof, 5e2)
+        super(JointPositionPotential, self).__init__(Dof, 2e2)
         self.timestep = timestep
         self.defaultPose = defaultPose
         self.constraintType = 0
@@ -207,6 +207,6 @@ class JointPositionPotential(Task):
     def compute(self, jointState):
         
         self.constraintMatrix =  self.timestep * np.eye(self.ndim())
-        self.constraintMatrix[0,0] = self.constraintMatrix[0,0]*3
-        self.constraintMatrix[7,7] = self.constraintMatrix[7,7]*3
-        self.constraintVector = (self.defaultPose - jointState.jointPosition)/100
+        self.constraintMatrix[0,0] = self.constraintMatrix[0,0]*6
+        self.constraintMatrix[7,7] = self.constraintMatrix[7,7]*6
+        self.constraintVector = (self.defaultPose - jointState.jointPosition)/150
