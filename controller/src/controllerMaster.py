@@ -83,7 +83,8 @@ class YmuiContoller(object):
         self.selfCollisionRightElbow = Task.ElbowCollision(Dof=14, arm='right', minDistance=0.2, timestep=self.dT)
         self.selfCollisionLeftElbow = Task.ElbowCollision(Dof=14, arm='left', minDistance=0.2, timestep=self.dT)
 
-        defaultPose = np.array([0.0, 0.0, 0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0, 0.0, 0.0, 0.0, 0.0])
+        #defaultPose = np.array([0.0, 0.0, 0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0, 0.0, 0.0, 0.0, 0.0])
+        defaultPose =np.array([1.0, -2.0, -1.2, 0.5, -2.0, 1.0, 0.0, -1.0, -2.0, 1.2, 0.5, 2.0, 1.0, 0.0])
         self.jointPositionPotential = Task.JointPositionPotential(Dof=14, defaultPose=defaultPose, timestep=self.dT)
         
         # mutex

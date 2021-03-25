@@ -10,7 +10,8 @@ def main():
     # starting ROS node and subscribers
     rospy.init_node('trajectory_test', anonymous=True) 
     pub = rospy.Publisher('/Trajectroy', Trajectory_msg, queue_size=1)
-    
+    rospy.sleep(0.1)
+
     # --------------------------------------------------
 
     msg = Trajectory_msg()
@@ -153,7 +154,7 @@ def main():
     rot = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 210*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.35, 0.0, 0.2]
+    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
     trajectoryPoint.positionLeft = [0, 0.25, 0]
     trajectoryPoint.orientationLeft = [0,0,0,1]
     trajectoryPoint.orientationRight = rot
@@ -167,7 +168,7 @@ def main():
     rot = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 150*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.35, 0.0, 0.2]
+    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
     trajectoryPoint.positionLeft = [0, 0.25, 0]
     trajectoryPoint.orientationLeft = [0,0,0,1]
     trajectoryPoint.orientationRight = rot
@@ -181,7 +182,7 @@ def main():
     rot = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 180*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.35, 0.0, 0.2]
+    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
     trajectoryPoint.positionLeft = [0, 0.25, 0]
     trajectoryPoint.orientationLeft = [0,0,0,1]
     trajectoryPoint.orientationRight = rot
@@ -194,7 +195,7 @@ def main():
     rot = tf.transformations.quaternion_from_euler(40*np.pi/180, 0, 180*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.35, 0.0, 0.2]
+    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
     trajectoryPoint.positionLeft = [0, 0.25, 0]
     trajectoryPoint.orientationLeft = [0,0,0,1]
     trajectoryPoint.orientationRight = rot
@@ -208,7 +209,7 @@ def main():
     rot = tf.transformations.quaternion_from_euler(-40*np.pi/180, 0, 180*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.35, 0.0, 0.2]
+    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
     trajectoryPoint.positionLeft = [0, 0.25, 0]
     trajectoryPoint.orientationLeft = [0,0,0,1]
     trajectoryPoint.orientationRight = rot
@@ -221,7 +222,7 @@ def main():
     rot = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 180*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.35, 0.0, 0.2]
+    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
     trajectoryPoint.positionLeft = [0, 0.25, 0]
     trajectoryPoint.orientationLeft = [0,0,0,1]
     trajectoryPoint.orientationRight = rot
@@ -235,7 +236,7 @@ def main():
     rot = tf.transformations.quaternion_from_euler(0,40*np.pi/180,  180*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.35, 0.0, 0.2]
+    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
     trajectoryPoint.positionLeft = [0, 0.25, 0]
     trajectoryPoint.orientationLeft = [0,0,0,1]
     trajectoryPoint.orientationRight = rot
@@ -249,7 +250,7 @@ def main():
     rot = tf.transformations.quaternion_from_euler( 0,-40*np.pi/180, 180*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.35, 0.0, 0.2]
+    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
     trajectoryPoint.positionLeft = [0, 0.25, 0]
     trajectoryPoint.orientationLeft = [0,0,0,1]
     trajectoryPoint.orientationRight = rot
@@ -262,7 +263,7 @@ def main():
     rot = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 180*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.35, 0.0, 0.2]
+    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
     trajectoryPoint.positionLeft = [0, 0.25, 0]
     trajectoryPoint.orientationLeft = [0,0,0,1]
     trajectoryPoint.orientationRight = rot
@@ -277,7 +278,7 @@ def main():
     rotrel = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 60*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.35, 0.0, 0.2]
+    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
     trajectoryPoint.positionLeft = [0, 0.25, 0]
     trajectoryPoint.orientationLeft = rotrel
     trajectoryPoint.orientationRight = rot
@@ -292,7 +293,7 @@ def main():
     rotrel = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 0*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.35, 0.0, 0.2]
+    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
     trajectoryPoint.positionLeft = [0, 0.25, 0]
     trajectoryPoint.orientationLeft = rotrel
     trajectoryPoint.orientationRight = rot
