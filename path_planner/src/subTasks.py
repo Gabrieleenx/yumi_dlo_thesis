@@ -18,10 +18,9 @@ class subTask(object):
 class GoToHeight(object):
     # Works for both comined and individual control, preservs orientation
     def __init__(self, targetHeight, gippers):
-        self.inputArgs = ['self.gripperLeft', 'self.gripperRight', 'self.mode']
+        self.inputArgs = ['self.gripperLeft', 'self.gripperRight', 'self.mode', 'self.tfListener']
         self.targetHeight = targetHeight # height from world frame (i.e. table) and not yumi_base_link
             # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
-        self.tfListener = tf.TransformListener()
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
         self.avgVelocity = 0.02
         self.shortestTime = 1
@@ -31,8 +30,9 @@ class GoToHeight(object):
         gripperLeft = inputs[0]
         gripperRight = inputs[1]
         mode = inputs[2]
+        tfListener = inputs[3]
 
-        (worldToBase, _) = self.tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
+        (worldToBase, _) = tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
         targertHeightBase = self.targetHeight - worldToBase[2]
         trajectoryPoint = Trajectory_point()
 
@@ -73,9 +73,10 @@ class GoToHeight(object):
         return [trajectoryPoint]
     
 
-class overCable(object):
+class OverCable(object):
     def __init__(self, targetHeight, gippers):
-        self.inputArgs = ['self.map', 'self.DLO', 'self.gripperLeft', 'self.gripperRight', 'self.targetFixture', 'self.previousFixture', 'self.cableSlack']
+        self.inputArgs = ['self.map', 'self.DLO', 'self.gripperLeft', 'self.gripperRight', 'self.targetFixture',\
+             'self.previousFixture', 'self.cableSlack', 'self.tfListener']
         self.gripper = gippers # in mm, [Right, left]
         self.targetHeight = targetHeight # height from world frame (i.e. table) and not yumi_base_link
             # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
@@ -91,6 +92,10 @@ class overCable(object):
         targetFixture = inputs[4]
         previousFixture = inputs[5]
         cableSlack = inputs[6]
+        tfListener = inputs[7]
+
+        (worldToBase, _) = tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
+        targertHeightBase = self.targetHeight - worldToBase[2]
 
         clipPoint = calcClipPoint(targetFixture, previousFixture, map_, cableSlack)
 
@@ -102,6 +107,9 @@ class overCable(object):
         if point0 > 0 and point1 < DLO.getLength():
             position0 = DLO.getCoord(point0)
             position1 = DLO.getCoord(point0)
+
+            position0[2] = targertHeightBase[0]
+            position1[2] = targertHeightBase[1]
 
         else:
             print('Error, pickup points are outside the cable')

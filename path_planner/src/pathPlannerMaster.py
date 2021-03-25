@@ -7,6 +7,8 @@ import tf
 import numpy as np
 import utils
 import tasks
+# TODO thread safe
+# TODO Wait for first DLO
 
 class PathPlanner(object):
     def __init__(self, listOfObjects, listOfTasks):

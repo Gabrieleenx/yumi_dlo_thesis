@@ -78,9 +78,12 @@ class ObjectTracking(object):
         black_lower = (0, 0, 0)
         black_upper = (180, 255, 25)
 
-        hsv_image = cv2.cvtColor(color_img, cv2.COLOR_RGB2HSV)
-        mask = cv2.inRange(hsv_image, black_lower, black_upper)
+        blue_lower = (100, 200, 150)
+        blue_upper = (120, 255, 255)
 
+        hsv_image = cv2.cvtColor(color_img, cv2.COLOR_RGB2HSV)
+        mask = cv2.inRange(hsv_image, blue_lower, blue_upper)
+      
         # get coord
         [row,col]=np.nonzero(mask)
 
@@ -146,8 +149,9 @@ class ObjectTracking(object):
             #depth_img.reshape(-1)[indices] = 255
             #cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
             #cv2.imshow('RealSense', depth_img)
+            #cv2.imshow('RealSense', mask)
             #cv2.waitKey(1)
-
+            
             # call SPR 
             SPR_Transform = spr_local.SPR_register(self.target, self.estimate, self.SPR_opt)  # CPD warp Y to X, fliped! X_warp = SPR_Transform.Y;
             self.estimate = SPR_Transform.get('Y')
@@ -204,8 +208,8 @@ def main():
 
 
     # initial estimate 
-    cable_length = 0.7
-    num_points = 50
+    cable_length = 1
+    num_points = 100
     distance = 0.4
 
     x = np.ones(num_points)*distance

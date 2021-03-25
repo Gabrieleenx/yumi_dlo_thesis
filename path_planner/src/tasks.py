@@ -60,6 +60,7 @@ class Task(object):
         self.subTasks = []
         self.startSubTaskIdx = 0
         self.mode = mode
+        self.tfListener = tf.TransformListener()
 
     def getNewTrajectory(self):
         return self.newTrajectory
@@ -89,7 +90,8 @@ class GrabCable(Task):
     def __init__(self, targetFixture, previousFixture, cableSlack):
         super(GrabCable, self).__init__('individual')   
         goToHeight = subTasks.GoToHeight(np.array([0.2,0.2]), np.array([0,0])) 
-        self.subTasks = [goToHeight]
+        overCable = subTasks.OverCable(np.array([0.2,0.2]), np.array([20,20]))
+        self.subTasks = [goToHeight, overCable]
         self.targetFixture = targetFixture # int, starting from 0, which fixture is the target,
             # will be matched with map elements.
         self.previousFixture = previousFixture # # int, starting from -1 (-1 means no previous fixture),
