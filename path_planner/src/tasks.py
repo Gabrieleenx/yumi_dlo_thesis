@@ -4,6 +4,7 @@ import numpy as np
 import rospy
 import subTasks
 from controller.msg import Trajectory_point, Trajectory_msg
+import tf
 
 '''
 class Task(object):

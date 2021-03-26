@@ -6,14 +6,6 @@ from controller.msg import Trajectory_point
 import tf
 import utils
 
-'''
-class subTask(object):
-    def __init__(self):
-        self.inputArgs = []
-
-    def getTrajectoryPoint(self, inputs):
-        pass
-'''
 
 class GoToHeight(object):
     # Works for both comined and individual control, preservs orientation
@@ -73,7 +65,7 @@ class GoToHeight(object):
         return [trajectoryPoint]
     
 
-class OverCable(object):
+class OverCable(object): # only for individual control 
     def __init__(self, targetHeight, gippers):
         self.inputArgs = ['self.map', 'self.DLO', 'self.gripperLeft', 'self.gripperRight', 'self.targetFixture',\
              'self.previousFixture', 'self.cableSlack', 'self.tfListener']
@@ -83,6 +75,7 @@ class OverCable(object):
         self.grippWidth = 0.15
         self.avgVelocity = 0.02
         self.shortestTime = 1
+        self.avgRotVel = 0.4 # it will use which ever is slower between avgRotVel and avgVelocity 
 
     def getTrajectoryPoint(self, inputs):
         map_ = inputs[0]
@@ -97,16 +90,16 @@ class OverCable(object):
         (worldToBase, _) = tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
         targertHeightBase = self.targetHeight - worldToBase[2]
 
-        clipPoint = calcClipPoint(targetFixture, previousFixture, map_, cableSlack)
+        clipPoint = utils.calcClipPoint(targetFixture, previousFixture, map_, cableSlack)
 
         point0 = clipPoint - self.grippWidth/2 
         point1 = clipPoint + self.grippWidth/2
 
         # TODO which arm to which point 
-
+        # get position 
         if point0 > 0 and point1 < DLO.getLength():
             position0 = DLO.getCoord(point0)
-            position1 = DLO.getCoord(point0)
+            position1 = DLO.getCoord(point1)
 
             position0[2] = targertHeightBase[0]
             position1[2] = targertHeightBase[1]
@@ -114,16 +107,24 @@ class OverCable(object):
         else:
             print('Error, pickup points are outside the cable')
             return []
+       
+        # get  orientation
+        rotZ0 = utils.getZRotationCable(point0, DLO)
+        rotZ1 = utils.getZRotationCable(point1, DLO)
+        quat0 = tf.transformations.quaternion_from_euler(rotZ0, 0, np.pi, 'rzyx')
+        quat1 = tf.transformations.quaternion_from_euler(rotZ1, 0, np.pi, 'rzyx')
 
-        dist0 = np.linalg.norm(position0 - gripperRight.getPosition())
-        dist1 = np.linalg.norm(position1 - gripperLeft.getPosition())
-        maxDist = max(dist0, dist1)
+        # calc time
+        time = utils.getPointTime(gripperRight, gripperLeft, position1, position0,\
+                        quat1, quat0, self.avgVelocity, 0.4, self.shortestTime)
 
         trajectoryPoint = Trajectory_point()
         trajectoryPoint.positionRight = position0.tolist()
         trajectoryPoint.positionLeft = position1.tolist()
-        trajectoryPoint.orientationLeft = [1,0,0,0]
-        trajectoryPoint.orientationRight = [1,0,0,0]
+        trajectoryPoint.orientationLeft = quat1
+        trajectoryPoint.orientationRight = quat0
         trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
         trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
-        trajectoryPoint.pointTime = max(maxDist/self.avgVelocity, self.shortestTime)
+        trajectoryPoint.pointTime = time
+
+        return [trajectoryPoint]

@@ -4,7 +4,7 @@ The urdf file is from https://github.com/kth-ros-pkg/yumi/tree/egm_modifications
 
 To run
 ```
-roslaunch yumi_description display.launch model:='$(find yumi_description)/urdf/yumi.urdf'
+roslaunch yumi_description display.launch
 ```
 visualizes in rviz ans subcribes to joint positions. (change fixed frame to yumi_base_link in rviz, and arms are not visulized until first jointposition is sent)
 

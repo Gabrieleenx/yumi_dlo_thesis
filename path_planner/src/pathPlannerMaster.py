@@ -17,16 +17,18 @@ class PathPlanner(object):
         self.tasks = listOfTasks
         self.numOfTasks = len(self.tasks)
         self.currentTask = 0
-        self.DLOPoints = np.zeros((50,3)) # matrix with 3d points 
+        self.DLOPoints = np.zeros((100,3)) # matrix with 3d points 
         self.DLO = utils.DLO()
         self.tfListener = tf.TransformListener()
         self.gripperRight = utils.FramePose()
         self.gripperLeft = utils.FramePose()
 
 
-    def callback(data):
+    def callback(self, data):
         # update self.DLOEstiamtion
         numOfPoints = len(data.points)
+        self.DLOPoints = np.zeros((numOfPoints,3)) # matrix with 3d points 
+
         self.DLOEstimation = np.zeros((numOfPoints,3))
         for i in range(numOfPoints):
             self.DLOPoints[i,0] = data.points[i].x
@@ -37,6 +39,10 @@ class PathPlanner(object):
 
     def update(self):
         # update pose 
+        if self.DLO.pointsRecived == 0:
+            print('No DLO points have been recived')
+            return
+
         (posRight, orientationRight) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
         (posLeft, orientationLeft) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
         self.gripperRight.update(posRight, orientationRight)
@@ -55,14 +61,14 @@ class PathPlanner(object):
 def main():
     rospy.init_node('pathPlanner', anonymous=True) 
     # objectes ----------------
-    obj0 = FixtureObject(np.array(0.3, -0.1, 0), np.array([1,0,0,0]))
+    obj0 = utils.FixtureObject(np.array([0.3, -0.1, 0]), np.array([1,0,0,0]))
     listOfObjects = [obj0]
     # tasks -------------------
-    grabCable = tasks.GrabCable(0, -1, 0.05)
+    grabCable = tasks.GrabCable(0, -1, 0.15)
 
     listOfTasks = [grabCable]
     pathPlanner = PathPlanner(listOfObjects, listOfTasks)
-    rospy.Subscriber("/spr/dlo_estimation", PointCloud, pathPlanner.callback, queue_size=2, )
+    rospy.Subscriber("/spr/dlo_estimation", PointCloud, pathPlanner.callback, queue_size=2)
     rospy.sleep(0.15)
     rate = rospy.Rate(30)
 

@@ -22,13 +22,15 @@ class FramePose(object):
 
 class DLO(object):
     def __init__(self):
-        self.points = np.zeros((50,3))
-        self.lengthList = np.zeros(50)
+        #self.points = np.zeros((100,3))
+        #self.lengthList = np.zeros(100)
         self.totalLenght = 0 
+        self.pointsRecived = 0
 
     def update(self, points):
         numPoints = np.shape(points)[0]
         self.points = np.copy(points)
+        self.lengthList = np.zeros(numPoints)
 
         for i in range(numPoints-1):
             diff = points[i+1] - points[i]
@@ -36,6 +38,7 @@ class DLO(object):
             self.lengthList[i+1] = self.lengthList[i] + dist
         
         self.totalLenght = self.lengthList[-1]
+        self.pointsRecived = 1
 
     def getCoord(self, length):
         if length < 0 or length > self.totalLenght:
@@ -118,3 +121,46 @@ def calcClipPoint(targetFixture, previousFixture, map_, cableSlack):
     return length
 
 
+def getZRotationCable(length, DLO):
+    length0 = length-0.01
+    length1 = length+0.01
+    if length0 < 0 or length1 > DLO.getLength():
+        print('error in getZRotationCable, length outside domain, length0 = ', length0, ' length1 = ', length1)
+        return 0
+
+    point0 = DLO.getCoord(length0)
+    point1 = DLO.getCoord(length1)
+
+    dy = point1[1] - point0[1]
+    dx = point1[0] - point0[0]
+    rotZ = np.arctan2(dy,dx)
+    return rotZ - np.pi/2
+
+
+def getPointTime(gripperRight, gripperLeft, posTargetLeft, posTargetRight,\
+                        rotTargetLeft, rotTargetRight, avgSpeed, avgRotVel, shortestTime):
+    # get max distance, for calc time 
+    distRight = np.linalg.norm(posTargetRight - gripperRight.getPosition())
+    distLeft = np.linalg.norm(posTargetLeft - gripperLeft.getPosition())
+    maxDist = max(distLeft, distRight)
+    timeSpeed = max(maxDist/avgSpeed, shortestTime)
+
+    rotDistRight = getTotalRadians(gripperRight.getQuaternion(), rotTargetRight)
+    rotDistLeft = getTotalRadians(gripperLeft.getQuaternion(), rotTargetLeft)
+    maxRot = max(rotDistRight, rotDistLeft)
+    timeRot = max(maxRot/avgRotVel, shortestTime)
+
+    return max(timeSpeed, timeRot)
+
+
+def getTotalRadians(currentQ, targetQ):
+    if currentQ.dot(targetQ) < 0:
+        currentQ = -currentQ
+
+    skewTarget = np.array([[0, -targetQ[2], targetQ[1]],\
+                            [targetQ[2],0,-targetQ[0]],\
+                                [-targetQ[1],targetQ[0],0]])
+
+    errorOrientation = currentQ[3]*targetQ[0:3] - targetQ[3]*currentQ[0:3] - skewTarget.dot(currentQ[0:3] )
+    norm = np.linalg.norm(errorOrientation)
+    return norm

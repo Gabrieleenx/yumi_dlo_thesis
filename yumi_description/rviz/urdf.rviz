@@ -65,11 +65,6 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
-        right_leg:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
       Name: RobotModel
       Robot Description: robot_description
       TF Prefix: ""
@@ -83,8 +78,6 @@ Visualization Manager:
         All Enabled: true
         base_link:
           Value: true
-        right_leg:
-          Value: true
       Marker Scale: 0.5
       Name: TF
       Show Arrows: true
@@ -96,11 +89,15 @@ Visualization Manager:
             {}
       Update Interval: 0
       Value: true
+    - Class: rviz/PointCloud
+      Enabled: true
+      Name: SPRCable
+      Topic: /spr/dlo_estimation
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: base_link
-    Frame Rate: 30
+    Fixed Frame: yumi_base_link
+    Frame Rate: 10
   Name: root
   Tools:
     - Class: rviz/Interact

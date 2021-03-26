@@ -82,7 +82,7 @@ catkin_make_isolated -DPYTHON_EXECUTABLE=/usr/bin/python3 -DPYTHON_INCLUDE_DIR=/
 
 * start yumi_descriotion 
 ``` 
-roslaunch yumi_description display.launch model:='$(find yumi_description)/urdf/yumi.urdf'
+roslaunch yumi_description display.launch
 ``` 
 * start tf broadcaster, for seting up transformation tree between the camera and world frame
 ``` 

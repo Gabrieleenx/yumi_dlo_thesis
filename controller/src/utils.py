@@ -367,7 +367,7 @@ def QuaternionToRotVel(currentQ, targetQ, maxRotVel):
     norm = np.linalg.norm(errorOrientation)
 
     errorOrientationNormalized = normalize(errorOrientation)     
-    errorOrientationNormalized*min([maxRotVel, norm])   
+    #errorOrientationNormalized*min([maxRotVel, norm])   
     return errorOrientationNormalized*min([maxRotVel, 4*norm])
 
 
