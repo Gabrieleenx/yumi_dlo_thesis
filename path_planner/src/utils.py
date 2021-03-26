@@ -18,6 +18,12 @@ class FramePose(object):
     def update(self, position, orientation):
         self.position = np.asarray(position)
         self.quaternion = np.asarray(orientation)
+    
+    def copyClass(self):
+        classCopy = FramePose()
+        classCopy.quaternion = self.quaternion
+        classCopy.position = self.position 
+        return classCopy
 
 
 class DLO(object):

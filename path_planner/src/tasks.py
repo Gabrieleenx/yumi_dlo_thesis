@@ -6,52 +6,6 @@ import subTasks
 from controller.msg import Trajectory_point, Trajectory_msg
 import tf
 
-'''
-class Task(object):
-    # base class for all tasks
-    def __init__(self, mode):
-        self.newMessage = 1
-        self.taskDone = 0
-        self.subTasks = []
-        self.currentSubTask = 0
-        self.mode = mode
-
-    def update(map, DLO, gripperLeft, gripperRight):
-        if self.currentSubTask > len[self.subTasks]:
-            self.taskDone = 1
-            return
-
-        inputArg = self.subTasks[self.currentSubTask].inputArg
-        input_ = []
-        
-        for i in range(len(inputArg)):
-            input_.append(eval(inputArg[i]))
-
-        self.subTasks[self.currentSubTask].update(input_)
-
-        self.currentSubTask += self.subTasks[self.currentSubTask].taskState()
-
-        self.newMessage = self.subTasks[self.currentSubTask].newMessage()
-         
-    def newMessage():
-        return self.newMessage
-
-    def getMessage():
-        self.newMessage = 0
-        msg = Trajectory_msg()
-        msg.header.stamp = rospy.Time.now()
-        msg.mode = self.mode
-        msg.forceControl = 0 # hardcoded for now
-        msg.maxForce = 4.0
-        trajectory = []
-        for i in range(self.currentSubTask, len[self.subTasks]):
-            trajectory.extend(self.subTasks[i].getTrajectory())
-        msg.trajectory = trajectory
-        return msg
-
-    def taskDone():
-        return self.taskDone
-'''
 
 class Task(object):
     # base class for all tasks
@@ -74,12 +28,23 @@ class Task(object):
         msg.forceControl = 0 # hardcoded for now
         msg.maxForce = 4.0
         trajectory = []
+
+        gripperRightTemp = self.gripperRight.copyClass()
+        gripperLeftTemp = self.gripperLeft.copyClass()
+
+        if self.mode == 'combined':
+            position0, orientation0, position1, orientation1 = utils.calcAbsoluteAndRelative(gripperRight, gripperLeft, self.transformer)
+            gripperRightTemp.update(position0, orientation0)
+            gripperLeftTemp.update(position1, orientation1)
+
         for i in range(self.startSubTaskIdx, len(self.subTasks)):
             inputArgs = self.subTasks[i].inputArgs
             input_ = []
             for j in range(len(inputArgs)):
                 input_.append(eval(inputArgs[j]))
-            trajectory.extend(self.subTasks[i].getTrajectoryPoint(input_))
+
+            trajectoryPoint = self.subTasks[i].getTrajectoryPoint(input_)
+            trajectory.extend(trajectoryPoint)
 
         msg.trajectory = trajectory
         return msg
@@ -92,7 +57,10 @@ class GrabCable(Task):
         super(GrabCable, self).__init__('individual')   
         goToHeight = subTasks.GoToHeight(np.array([0.2,0.2]), np.array([0,0])) 
         overCable = subTasks.OverCable(np.array([0.2,0.2]), np.array([20,20]))
-        self.subTasks = [goToHeight, overCable]
+        onCable = subTasks.OverCable(np.array([0.0,0.0]), np.array([20,20]))
+        grippCable = subTasks.HoldPosition(3, np.array([0,0]))
+
+        self.subTasks = [goToHeight, overCable, onCable, grippCable, goToHeight]
         self.targetFixture = targetFixture # int, starting from 0, which fixture is the target,
             # will be matched with map elements.
         self.previousFixture = previousFixture # # int, starting from -1 (-1 means no previous fixture),

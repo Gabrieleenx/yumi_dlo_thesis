@@ -10,10 +10,9 @@ import utils
 class GoToHeight(object):
     # Works for both comined and individual control, preservs orientation
     def __init__(self, targetHeight, gippers):
-        self.inputArgs = ['self.gripperLeft', 'self.gripperRight', 'self.mode', 'self.tfListener']
+        self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', 'self.mode', 'self.tfListener']
         self.targetHeight = targetHeight # height from world frame (i.e. table) and not yumi_base_link
             # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
-        self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
         self.avgVelocity = 0.02
         self.shortestTime = 1
         self.gripper = gippers # in mm, [Right, left]
@@ -37,6 +36,9 @@ class GoToHeight(object):
             maxDist = max(abs(positionLeft[2] - targertHeightBase[1]), abs(positionRight[2] - targertHeightBase[0]))
             positionRight[2] = targertHeightBase[0]
             positionLeft[2] = targertHeightBase[1]
+            gripperLeft.position = positionLeft
+            gripperRight.position = positionRight
+            
             trajectoryPoint.positionRight = positionRight.tolist()
             trajectoryPoint.positionLeft = positionLeft.tolist()
             trajectoryPoint.orientationLeft = orientationLeft.tolist()
@@ -44,9 +46,16 @@ class GoToHeight(object):
             trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
             trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
             trajectoryPoint.pointTime = max(maxDist/self.avgVelocity, self.shortestTime)
+
+            gripperLeft.update(positionLeft, orientationLeft)
+            gripperRight.update(positionRight, orientationRight)
+
         
         elif mode == 'combined':
-            absPos, absRot, relPos, relRot = utils.calcAbsoluteAndRelative(gripperRight, gripperLeft, self.transformer)
+            absPos = gripperRight.getPosition()
+            absRot = gripperRight.getQuaternion()
+            relPos = gripperLeft.getPosition()
+            relRot  = gripperLeft.getQuaternion()
 
             maxDist = abs(absPos[2] - targertHeightBase[0])
             absPos[2] = targertHeightBase[0]
@@ -58,6 +67,9 @@ class GoToHeight(object):
             trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
             trajectoryPoint.pointTime = max(maxDist/self.avgVelocity, self.shortestTime)
 
+            gripperLeft.update(relPos, relRot)
+            gripperRight.update(absPos, absRot)
+
         else: 
             print('Error, mode not valid in subtask')
             return []
@@ -67,11 +79,10 @@ class GoToHeight(object):
 
 class OverCable(object): # only for individual control 
     def __init__(self, targetHeight, gippers):
-        self.inputArgs = ['self.map', 'self.DLO', 'self.gripperLeft', 'self.gripperRight', 'self.targetFixture',\
+        self.inputArgs = ['self.map', 'self.DLO', 'gripperLeftTemp', 'gripperRightTemp', 'self.targetFixture',\
              'self.previousFixture', 'self.cableSlack', 'self.tfListener']
         self.gripper = gippers # in mm, [Right, left]
-        self.targetHeight = targetHeight # height from world frame (i.e. table) and not yumi_base_link
-            # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
+        self.targetHeight = targetHeight # height from cable
         self.grippWidth = 0.15
         self.avgVelocity = 0.02
         self.shortestTime = 1
@@ -87,8 +98,8 @@ class OverCable(object): # only for individual control
         cableSlack = inputs[6]
         tfListener = inputs[7]
 
-        (worldToBase, _) = tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
-        targertHeightBase = self.targetHeight - worldToBase[2]
+        #(worldToBase, _) = tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
+        #targertHeightBase = self.targetHeight + worldToBase[2]
 
         clipPoint = utils.calcClipPoint(targetFixture, previousFixture, map_, cableSlack)
 
@@ -101,8 +112,8 @@ class OverCable(object): # only for individual control
             position0 = DLO.getCoord(point0)
             position1 = DLO.getCoord(point1)
 
-            position0[2] = targertHeightBase[0]
-            position1[2] = targertHeightBase[1]
+            position0[2] += self.targetHeight[0]
+            position1[2] += self.targetHeight[1]
 
         else:
             print('Error, pickup points are outside the cable')
@@ -127,4 +138,61 @@ class OverCable(object): # only for individual control
         trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
         trajectoryPoint.pointTime = time
 
+        gripperLeft.update(position1, quat1)
+        gripperRight.update(position0, quat0)
+
+        return [trajectoryPoint]
+
+
+class HoldPosition(object):
+    # Works for both comined and individual control, preservs orientation
+    def __init__(self, time_, gippers):
+        self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', 'self.mode']
+        self.time = time_ # height from world frame (i.e. table) and not yumi_base_link
+            # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
+        self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
+        self.gripper = gippers # in mm, [Right, left]
+
+    def getTrajectoryPoint(self, inputs):
+        gripperLeft = inputs[0]
+        gripperRight = inputs[1]
+        mode = inputs[2]
+
+        trajectoryPoint = Trajectory_point()
+
+        if mode == 'individual':
+            positionLeft = gripperLeft.getPosition()
+            positionRight = gripperRight.getPosition()
+            orientationLeft = gripperLeft.getQuaternion()
+            orientationRight = gripperRight.getQuaternion()
+
+            trajectoryPoint.positionRight = positionRight.tolist()
+            trajectoryPoint.positionLeft = positionLeft.tolist()
+            trajectoryPoint.orientationLeft = orientationLeft.tolist()
+            trajectoryPoint.orientationRight = orientationRight.tolist()
+            trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
+            trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+            trajectoryPoint.pointTime = self.time
+
+            gripperLeft.update(positionLeft, orientationLeft)
+            gripperRight.update(positionRight, orientationRight)
+        
+        elif mode == 'combined':
+            absPos, absRot, relPos, relRot = utils.calcAbsoluteAndRelative(gripperRight, gripperLeft, self.transformer)
+
+            trajectoryPoint.positionRight = absPos.tolist()
+            trajectoryPoint.positionLeft = relPos.tolist()
+            trajectoryPoint.orientationLeft = relRot.tolist()
+            trajectoryPoint.orientationRight = absRot.tolist()
+            trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
+            trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+            trajectoryPoint.pointTime = self.time
+
+            gripperLeft.update(relPos, relRot)
+            gripperRight.update(absPos, absRot)
+
+        else: 
+            print('Error, mode not valid in subtask')
+            return []
+        
         return [trajectoryPoint]

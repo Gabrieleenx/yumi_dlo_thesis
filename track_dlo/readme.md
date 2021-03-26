@@ -65,7 +65,7 @@ catkin_make_isolated -DPYTHON_EXECUTABLE=/usr/bin/python3 -DPYTHON_INCLUDE_DIR=/
 
 * start the camera, depth resolution running as standard (640, 480)
 ``` 
-roslaunch realsense2_camera rs_camera.launch color_width:=1280 color_height:=720
+ roslaunch realsense2_camera rs_camera.launch color_width:=1280 color_height:=720 color_fps:=15 depth_fps:=15
 ``` 
 * start tf broadcaster, for seting up transformation tree between the camera and world frame
 ``` 
