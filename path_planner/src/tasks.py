@@ -11,11 +11,14 @@ class Task(object):
     # base class for all tasks
     def __init__(self, mode):
         self.newTrajectory = 1
+        self.newTrajectoryCheck = 1
         self.taskDone = 0
         self.subTasks = []
+        self.goToSubTask = []
         self.startSubTaskIdx = 0
         self.mode = mode
         self.tfListener = tf.TransformListener()
+        self.subTaskCheck = 1
 
     def getNewTrajectory(self):
         return self.newTrajectory
@@ -38,16 +41,35 @@ class Task(object):
             gripperLeftTemp.update(position1, orientation1)
 
         for i in range(self.startSubTaskIdx, len(self.subTasks)):
+
             inputArgs = self.subTasks[i].inputArgs
             input_ = []
             for j in range(len(inputArgs)):
                 input_.append(eval(inputArgs[j]))
-
+                    
             trajectoryPoint = self.subTasks[i].getTrajectoryPoint(input_)
-            trajectory.extend(trajectoryPoint)
 
+            trajectory.extend(trajectoryPoint)
         msg.trajectory = trajectory
         return msg
+
+    def trackProgress(self, currentSubTask):
+
+        if currentSubTask != 0 and self.newTrajectoryCheck == 1: 
+            self.newTrajectoryCheck = 0
+            return
+        currentSubTask = self.startSubTaskIdx + currentSubTask
+        inputArgs = self.subTasks[currentSubTask].verificationArgs
+        input_ = []
+        for j in range(len(inputArgs)):
+            input_.append(eval(inputArgs[j]))
+        verified = self.subTasks[currentSubTask].verification(input_)
+        if verified == True:
+            return
+        elif verified == False:
+            self.startSubTaskIdx = self.goToSubTask[currentSubTask]
+            self.newTrajectory = 1
+            self.newTrajectoryCheck = 1
 
     def getTaskDone(self):
         return self.taskDone
@@ -59,8 +81,10 @@ class GrabCable(Task):
         overCable = subTasks.OverCable(np.array([0.2,0.2]), np.array([20,20]))
         onCable = subTasks.OverCable(np.array([0.0,0.0]), np.array([20,20]))
         grippCable = subTasks.HoldPosition(3, np.array([0,0]))
+        goToHeightWithCable = subTasks.GoToHeightWithCable(np.array([0.2,0.2]), np.array([0,0])) 
 
-        self.subTasks = [goToHeight, overCable, onCable, grippCable, goToHeight]
+        self.subTasks = [goToHeight, overCable, onCable, grippCable, goToHeightWithCable]
+        self.goToSubTask = [0,1,1,1,1]
         self.targetFixture = targetFixture # int, starting from 0, which fixture is the target,
             # will be matched with map elements.
         self.previousFixture = previousFixture # # int, starting from -1 (-1 means no previous fixture),
@@ -69,11 +93,15 @@ class GrabCable(Task):
             # should stick out from the fixture, and if previous it defines how much longer the cable should
             # be then the closest distance between the current and target fixture.  
             
-    def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight):
+    def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask):
+
         self.map = map_ 
         self.DLO = DLO
         self.gripperLeft = gripperLeft
         self.gripperRight = gripperRight
+
+
+        self.trackProgress(currentSubTask)
         # TODO track progress and taskDone
 
 

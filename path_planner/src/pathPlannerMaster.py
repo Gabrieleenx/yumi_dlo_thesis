@@ -3,10 +3,12 @@
 import rospy
 from controller.msg import Trajectory_point, Trajectory_msg
 from sensor_msgs.msg import PointCloud
+from std_msgs.msg import Int64
 import tf
 import numpy as np
 import utils
 import tasks
+import threading
 # TODO thread safe
 # TODO Wait for first DLO
 
@@ -22,7 +24,9 @@ class PathPlanner(object):
         self.tfListener = tf.TransformListener()
         self.gripperRight = utils.FramePose()
         self.gripperLeft = utils.FramePose()
-
+        self.currentSubTask = 1
+        self.mtx_spr = threading.Lock()
+        self.mtx_subTask = threading.Lock()
 
     def callback(self, data):
         # update self.DLOEstiamtion
@@ -35,7 +39,14 @@ class PathPlanner(object):
             self.DLOPoints[i,1] = data.points[i].y
             self.DLOPoints[i,2] = data.points[i].z
 
+        self.mtx_spr.acquire()
         self.DLO.update(self.DLOPoints)
+        self.mtx_spr.release()
+
+    def callbackCurrentSubTask(self, data):
+        self.mtx_subTask.acquire()
+        self.currentSubTask = data.data
+        self.mtx_subTask.release()
 
     def update(self):
         # update pose 
@@ -47,8 +58,12 @@ class PathPlanner(object):
         (posLeft, orientationLeft) = self.tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_l', rospy.Time(0))
         self.gripperRight.update(posRight, orientationRight)
         self.gripperLeft.update(posLeft, orientationLeft)
+        self.mtx_spr.acquire()
+        self.mtx_subTask.acquire()
+        self.tasks[self.currentTask].updateAndTrackProgress(self.map, self.DLO, self.gripperLeft, self.gripperRight, self.currentSubTask)
+        self.mtx_subTask.release()
+        self.mtx_spr.release()
 
-        self.tasks[self.currentTask].updateAndTrackProgress(self.map, self.DLO, self.gripperLeft, self.gripperRight)
         if self.tasks[self.currentTask].getNewTrajectory() == 1:
             msg = self.tasks[self.currentTask].getTrajectory()
             self.pub.publish(msg)
@@ -69,8 +84,10 @@ def main():
     listOfTasks = [grabCable]
     pathPlanner = PathPlanner(listOfObjects, listOfTasks)
     rospy.Subscriber("/spr/dlo_estimation", PointCloud, pathPlanner.callback, queue_size=2)
+    rospy.Subscriber("/controller/sub_task", Int64, pathPlanner.callbackCurrentSubTask, queue_size=2)
+
     rospy.sleep(0.15)
-    rate = rospy.Rate(30)
+    rate = rospy.Rate(10)
 
     while not rospy.is_shutdown():
         pathPlanner.update()

@@ -16,13 +16,13 @@ class FramePose(object):
         return self.position
 
     def update(self, position, orientation):
-        self.position = np.asarray(position)
-        self.quaternion = np.asarray(orientation)
+        self.position = np.copy(np.asarray(position))
+        self.quaternion = np.copy(np.asarray(orientation))
     
     def copyClass(self):
         classCopy = FramePose()
-        classCopy.quaternion = self.quaternion
-        classCopy.position = self.position 
+        classCopy.quaternion = np.copy(self.quaternion)
+        classCopy.position = np.copy(self.position) 
         return classCopy
 
 
@@ -32,6 +32,7 @@ class DLO(object):
         #self.lengthList = np.zeros(100)
         self.totalLenght = 0 
         self.pointsRecived = 0
+        self.constrainLength = 0
 
     def update(self, points):
         numPoints = np.shape(points)[0]
@@ -170,3 +171,32 @@ def getTotalRadians(currentQ, targetQ):
     errorOrientation = currentQ[3]*targetQ[0:3] - targetQ[3]*currentQ[0:3] - skewTarget.dot(currentQ[0:3] )
     norm = np.linalg.norm(errorOrientation)
     return norm
+
+
+def getOffestCableConstraint(map_, fixtrueIndex, gripperTargetPosition, DLO):
+    if fixtrueIndex >= 0:
+        cableAttachmentPostion = map_[fixtrueIndex].position 
+        cableAttachmentPostion[2] += map_[fixtrueIndex].fixtureHeight 
+
+        dist = np.linalg.norm(gripperTargetPosition - cableAttachmentPostion)
+        cableLenght = DLO.constrainLength
+        
+        if dist < cableLenght:
+            return np.zeros(3)
+
+        offsetFactor = (dist - cableLenght)/dist
+        d = cableAttachmentPostion - gripperTargetPosition
+
+        return d*offsetFactor
+
+    else:
+        return np.zeros(3)
+
+
+def checkIfWithinTol(pos, targetPos, posTol, quat, targetQuat, quatTol):
+    dist = np.linalg.norm(pos - targetPos)
+    rot = getTotalRadians(quat, targetQuat)
+    if dist <= posTol and rot <= quatTol:
+        return True
+    else:
+        return False 

@@ -8,11 +8,11 @@ def myhook():
       rospy.wait_for_service('/yumi/rws/sm_addin/stop_egm')
       rosservice.call_service('/yumi/rws/sm_addin/stop_egm', {})
 
-      rospy.sleep(0.5)
+      rospy.sleep(0.7)
 
       rospy.wait_for_service('/yumi/rws/stop_rapid')
       rosservice.call_service('/yumi/rws/stop_rapid', {})
-      rospy.sleep(0.5)
+      rospy.sleep(0.7)
 
       print("shutdown commplete")
 
@@ -21,20 +21,22 @@ def myhook():
 if __name__ == "__main__":
       rospy.wait_for_service('/yumi/rws/stop_rapid')
       rosservice.call_service('/yumi/rws/stop_rapid', {})
-      rospy.sleep(0.4)
+      rospy.sleep(1.5)
       rospy.wait_for_service('/yumi/rws/pp_to_main')
       rosservice.call_service('/yumi/rws/pp_to_main', {})
-      rospy.sleep(0.4)
+      rospy.sleep(1.5)
       rospy.wait_for_service('/yumi/rws/start_rapid')
       rosservice.call_service('/yumi/rws/start_rapid', {})
-      rospy.sleep(0.4)
+      rospy.sleep(1.5)
 
 
       setup_uc = dict(use_filtering=True, comm_timeout=1.0)
       xyz = dict(x=0.0, y=0.0, z=0.0)
       quat = dict(q1=1.0, q2=0.0, q3=0.0, q4=0.0)
       tframe = dict(trans=xyz, rot=quat)
-      tload = dict(mass=0.001, cog=dict(x=0.0, y=0.0, z=0.001), aom=quat, ix=0.0, iy=0.0, iz=0.0)
+      #tload = dict(mass=0.001, cog=dict(x=0.0, y=0.0, z=0.001), aom=quat, ix=0.0, iy=0.0, iz=0.0)
+      #mass [kg], cog [mm], inertia [kgm^2] 
+      tload = dict(mass=0.230, cog=dict(x=8.2, y=11.7, z=52.0), aom=quat, ix=0.00021, iy=0.00024, iz=0.00009) # page 21-22 in https://abb.sluzba.cz/Pages/Public/IRC5UserDocumentationRW6/en/3HAC054949%20PM%20IRB%2014000%20Gripper-en.pdf
       tool = dict(robhold=True, tframe=tframe, tload=tload)
       wobj = dict(robhold=False, ufprog=True,  ufmec='', uframe=dict(trans=xyz, rot=quat), oframe=dict(trans=xyz, rot=quat))
       correction_frame=dict(trans=xyz, rot=quat)
@@ -47,15 +49,15 @@ if __name__ == "__main__":
 
       rospy.wait_for_service('/yumi/rws/sm_addin/set_egm_settings')
       rosservice.call_service('/yumi/rws/sm_addin/set_egm_settings', dict(task="T_ROB_L", settings=settings))
-      rospy.sleep(0.4)   
+      rospy.sleep(1.5)   
       rospy.wait_for_service('/yumi/rws/sm_addin/set_egm_settings')
       rosservice.call_service('/yumi/rws/sm_addin/set_egm_settings', dict(task="T_ROB_R", settings=settings))
-      rospy.sleep(0.4)  
+      rospy.sleep(1.5)  
 
 
       rospy.wait_for_service('/yumi/rws/sm_addin/start_egm_joint')
       rosservice.call_service('/yumi/rws/sm_addin/start_egm_joint', {})
-      rospy.sleep(0.4)
+      rospy.sleep(1.5)
 
       rospy.wait_for_service('/yumi/egm/controller_manager/switch_controller')
       print(rosservice.call_service('/yumi/egm/controller_manager/switch_controller', dict(start_controllers=['joint_group_velocity_controller'],\

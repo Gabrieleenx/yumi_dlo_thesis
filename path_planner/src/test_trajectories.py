@@ -28,7 +28,7 @@ def main():
     trajectoryPoint.orientationRight = [1,0,0,0]
     trajectoryPoint.gripperLeft = [20,20]
     trajectoryPoint.gripperRight = [0.0,0.0]
-    trajectoryPoint.pointTime = 8.0
+    trajectoryPoint.pointTime = 12.0
 
     trajectory = [trajectoryPoint]
     
@@ -64,7 +64,7 @@ def main():
     trajectoryPoint.orientationRight = [1,0,0,0]
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
-    trajectoryPoint.pointTime = 1.0
+    trajectoryPoint.pointTime = 2.0
 
     trajectory.append(trajectoryPoint)
     # ---------------
@@ -74,7 +74,7 @@ def main():
     pub.publish(msg)
 
     print('sent individual' )
-    rospy.sleep(26)
+    rospy.sleep(31)
 
     # --------------------------------------------
     msg = Trajectory_msg()

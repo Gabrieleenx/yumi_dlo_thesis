@@ -2,7 +2,7 @@
 
 import rospy
 from sensor_msgs.msg import JointState
-from std_msgs.msg import Float64MultiArray, Float64
+from std_msgs.msg import Float64MultiArray, Float64, Int64
 from controller.msg import Jacobian_msg, Trajectory_msg
 import numpy as np
 import tf
@@ -93,6 +93,7 @@ class YmuiContoller(object):
         
         # publish velocity comands
         self.pub = rospy.Publisher('/yumi/egm/joint_group_velocity_controller/command', Float64MultiArray, queue_size=1)
+        self.pubSubTask = rospy.Publisher('/controller/sub_task', Int64, queue_size=1)
 
 
     def callback(self, data):
@@ -189,6 +190,7 @@ class YmuiContoller(object):
 
         # gripper control
         # ----------------------
+        
         if self.controlInstructions.newIndex():
             try:
                 self.SetSGCommand(task="T_ROB_L", command=5, target_position=self.controlInstructions.gripperLeft[0])
@@ -197,7 +199,7 @@ class YmuiContoller(object):
                 self.RunSGRoutine()
             except:
                 print('smart gripper error or running simulation')
-
+        
         # publish velocity comands
         self.publishVelocity()
 
@@ -207,6 +209,10 @@ class YmuiContoller(object):
         # Left Arm, Right Arm
         msg.data = np.hstack([self.jointState.GetJointVelocity()[7:14], self.jointState.GetJointVelocity()[0:7]]).tolist()
         self.pub.publish(msg)
+        msgSubTask = Int64()
+        msgSubTask.data = self.controlInstructions.trajectory.index - 1
+        self.pubSubTask.publish(msgSubTask)
+
 
     def callbackTrajectory(self, data):
         # current pose as first point 
