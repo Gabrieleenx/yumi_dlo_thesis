@@ -69,6 +69,7 @@ class PathPlanner(object):
             self.pub.publish(msg)
 
         if self.tasks[self.currentTask].getTaskDone() == 1:
+            print('task done')
             if self.currentTask < self.numOfTasks-1:
                 self.currentTask += 1 
 

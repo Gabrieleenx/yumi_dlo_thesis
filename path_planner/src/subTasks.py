@@ -6,17 +6,41 @@ from controller.msg import Trajectory_point
 import tf
 import utils
 
+'''
+Subtask needs to contain the following
+
+class subTask(object):
+    def __init__(self, grippers):
+        self.gripper = grippers # in mm, [Right, left]
+        self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', ...] 
+        self.verificationArgs = ['var1',..]   at least one variable for these even if nothing is used 
+        self.pointTime = 1
+
+    def getTrajectoryPoint(self, inputs):
+        gripperLeft = inputs[0]
+        gripperRight = inputs[1]
+
+        do things ... 
+
+        gripperLeft.update(positionLeft, orientationLeft)
+        gripperRight.update(positionRight, orientationRight)
+        return [trajectoryPoint]
+
+    def verification(self, input_):
+        return bool 
+'''
 
 class GoToHeight(object):
     # Works for both comined and individual control, preservs orientation
-    def __init__(self, targetHeight, gippers):
+    def __init__(self, targetHeight, grippers):
         self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', 'self.mode', 'self.tfListener']
         self.verificationArgs = ['self.taskDone']
         self.targetHeight = targetHeight # height from world frame (i.e. table) and not yumi_base_link
             # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
         self.avgVelocity = 0.02
         self.shortestTime = 1
-        self.gripper = gippers # in mm, [Right, left]
+        self.gripper = grippers # in mm, [Right, left]
+        self.pointTime = 1
 
     def getTrajectoryPoint(self, inputs):
         gripperLeft = inputs[0]
@@ -37,14 +61,15 @@ class GoToHeight(object):
             maxDist = max(abs(positionLeft[2] - targertHeightBase[1]), abs(positionRight[2] - targertHeightBase[0]))
             positionRight[2] = targertHeightBase[0]
             positionLeft[2] = targertHeightBase[1]
-            
+            self.pointTime = max(maxDist/self.avgVelocity, self.shortestTime)
+
             trajectoryPoint.positionRight = positionRight.tolist()
             trajectoryPoint.positionLeft = positionLeft.tolist()
             trajectoryPoint.orientationLeft = orientationLeft.tolist()
             trajectoryPoint.orientationRight = orientationRight.tolist()
             trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
             trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
-            trajectoryPoint.pointTime = max(maxDist/self.avgVelocity, self.shortestTime)
+            trajectoryPoint.pointTime = self.pointTime
 
             gripperLeft.update(positionLeft, orientationLeft)
             gripperRight.update(positionRight, orientationRight)
@@ -58,13 +83,15 @@ class GoToHeight(object):
 
             maxDist = abs(absPos[2] - targertHeightBase[0])
             absPos[2] = targertHeightBase[0]
+            self.pointTime = max(maxDist/self.avgVelocity, self.shortestTime)
+
             trajectoryPoint.positionRight = absPos.tolist()
             trajectoryPoint.positionLeft = relPos.tolist()
             trajectoryPoint.orientationLeft = relRot.tolist()
             trajectoryPoint.orientationRight = absRot.tolist()
             trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
             trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
-            trajectoryPoint.pointTime = max(maxDist/self.avgVelocity, self.shortestTime)
+            trajectoryPoint.pointTime = self.pointTime 
 
             gripperLeft.update(relPos, relRot)
             gripperRight.update(absPos, absRot)
@@ -79,11 +106,11 @@ class GoToHeight(object):
         return True
 
 class OverCable(object): # only for individual control 
-    def __init__(self, targetHeight, gippers):
+    def __init__(self, targetHeight, grippers):
         self.inputArgs = ['self.map', 'self.DLO', 'gripperLeftTemp', 'gripperRightTemp', 'self.targetFixture',\
              'self.previousFixture', 'self.cableSlack', 'self.tfListener']
         self.verificationArgs = ['self.DLO']
-        self.gripper = gippers # in mm, [Right, left]
+        self.gripper = grippers # in mm, [Right, left]
         self.targetHeight = targetHeight # height from cable
         self.grippWidth = 0.15
         self.avgVelocity = 0.02
@@ -92,6 +119,7 @@ class OverCable(object): # only for individual control
         self.point0 = 0
         self.point1 = 0
         self.currentTarget = [0]
+        self.pointTime = 1
 
     def getTrajectoryPoint(self, inputs):
         map_ = inputs[0]
@@ -133,7 +161,7 @@ class OverCable(object): # only for individual control
 
         self.currentTarget = [position0, quat0, position1, quat1]
         # calc time
-        time = utils.getPointTime(gripperRight, gripperLeft, position1, position0,\
+        self.pointTime = utils.getPointTime(gripperRight, gripperLeft, position1, position0,\
                         quat1, quat0, self.avgVelocity, 0.4, self.shortestTime)
 
         trajectoryPoint = Trajectory_point()
@@ -143,7 +171,7 @@ class OverCable(object): # only for individual control
         trajectoryPoint.orientationRight = quat0
         trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
         trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
-        trajectoryPoint.pointTime = time
+        trajectoryPoint.pointTime = self.pointTime
 
         gripperLeft.update(position1, quat1)
         gripperRight.update(position0, quat0)
@@ -184,13 +212,13 @@ class OverCable(object): # only for individual control
 
 class HoldPosition(object):
     # Works for both comined and individual control, preservs orientation
-    def __init__(self, time_, gippers):
+    def __init__(self, time_, grippers):
         self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', 'self.mode']
         self.verificationArgs = ['self.taskDone']
-        self.time = time_ # height from world frame (i.e. table) and not yumi_base_link
+        self.pointTime = time_ # height from world frame (i.e. table) and not yumi_base_link
             # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
-        self.gripper = gippers # in mm, [Right, left]
+        self.gripper = grippers # in mm, [Right, left]
 
     def getTrajectoryPoint(self, inputs):
         gripperLeft = inputs[0]
@@ -211,7 +239,7 @@ class HoldPosition(object):
             trajectoryPoint.orientationRight = orientationRight.tolist()
             trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
             trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
-            trajectoryPoint.pointTime = self.time
+            trajectoryPoint.pointTime = self.pointTime
 
             gripperLeft.update(positionLeft, orientationLeft)
             gripperRight.update(positionRight, orientationRight)
@@ -225,7 +253,7 @@ class HoldPosition(object):
             trajectoryPoint.orientationRight = absRot.tolist()
             trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
             trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
-            trajectoryPoint.pointTime = self.time
+            trajectoryPoint.pointTime = self.pointTime
 
             gripperLeft.update(relPos, relRot)
             gripperRight.update(absPos, absRot)
@@ -242,14 +270,17 @@ class HoldPosition(object):
 
 class GoToHeightWithCable(object):
     # Works for both comined and individual control, preservs orientation
-    def __init__(self, targetHeight, gippers):
+    def __init__(self, targetHeight, grippers):
         self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', 'self.mode', 'self.tfListener', 'self.map', 'self.previousFixture', 'self.DLO']
-        self.verificationArgs = ['self.taskDone']
+        self.verificationArgs = ['self.DLO', 'self.gripperRight', 'self.gripperLeft']
         self.targetHeight = targetHeight # height from world frame (i.e. table) and not yumi_base_link
             # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
         self.avgVelocity = 0.02
         self.shortestTime = 1
-        self.gripper = gippers # in mm, [Right, left]
+        self.gripper = grippers # in mm, [Right, left]
+        self.tol = 0.04 # if cable gripp position is off more then 4 cm then task faild and also
+                        # some margin for noise and delay
+        self.pointTime = 1
 
     def getTrajectoryPoint(self, inputs):
         gripperLeft = inputs[0]
@@ -278,6 +309,7 @@ class GoToHeightWithCable(object):
             
             positionRight += offsetPosition
             positionLeft += offsetPosition
+            self.pointTime = max(maxDist/self.avgVelocity, self.shortestTime)
 
             trajectoryPoint.positionRight = positionRight.tolist()
             trajectoryPoint.positionLeft = positionLeft.tolist()
@@ -285,7 +317,7 @@ class GoToHeightWithCable(object):
             trajectoryPoint.orientationRight = orientationRight.tolist()
             trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
             trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
-            trajectoryPoint.pointTime = max(maxDist/self.avgVelocity, self.shortestTime)
+            trajectoryPoint.pointTime = self.pointTime
 
             gripperLeft.update(positionLeft, orientationLeft)
             gripperRight.update(positionRight, orientationRight)
@@ -300,13 +332,15 @@ class GoToHeightWithCable(object):
 
             maxDist = abs(absPos[2] - targertHeightBase[0])
             absPos[2] = targertHeightBase[0]
+            self.pointTime = max(maxDist/self.avgVelocity, self.shortestTime)
+
             trajectoryPoint.positionRight = absPos.tolist()
             trajectoryPoint.positionLeft = relPos.tolist()
             trajectoryPoint.orientationLeft = relRot.tolist()
             trajectoryPoint.orientationRight = absRot.tolist()
             trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
             trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
-            trajectoryPoint.pointTime = max(maxDist/self.avgVelocity, self.shortestTime)
+            trajectoryPoint.pointTime = self.pointTime
 
             gripperLeft.update(relPos, relRot)
             gripperRight.update(absPos, absRot)
@@ -318,8 +352,16 @@ class GoToHeightWithCable(object):
         return [trajectoryPoint]   
 
     def verification(self, input_):
+        DLO = input_[0]
+        gripperRight = input_[1]
+        gripperLeft = input_[2]
 
         minDistRight, pointRight = utils.closesPointDLO(DLO, gripperRight.getPosition())
         minDistLeft, pointLeft = utils.closesPointDLO(DLO, gripperLeft.getPosition())
+
+        if minDistLeft < self.tol and minDistRight < self.tol:
+            return True
+        else:
+            return False
 
         

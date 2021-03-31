@@ -19,6 +19,9 @@ class Task(object):
         self.mode = mode
         self.tfListener = tf.TransformListener()
         self.subTaskCheck = 1
+        self.time = rospy.Time.now()
+        self.lastSubtask = 0
+        self.numSubTasks = 0
 
     def getNewTrajectory(self):
         return self.newTrajectory
@@ -55,24 +58,40 @@ class Task(object):
 
     def trackProgress(self, currentSubTask):
 
-        if currentSubTask != 0 and self.newTrajectoryCheck == 1: 
-            self.newTrajectoryCheck = 0
+        if currentSubTask != 0 and self.newTrajectoryCheck == 1:     
             return
+
+        self.newTrajectoryCheck = 0
         currentSubTask = self.startSubTaskIdx + currentSubTask
+
+        # check if task is done
+        if currentSubTask == self.numSubTasks-1 and self.lastSubtask == self.numSubTasks-2:
+            self.time = rospy.Time.now().to_sec()
+        if currentSubTask == self.numSubTasks-1:
+            pointTime = self.subTasks[currentSubTask].pointTime 
+
+            if pointTime < rospy.Time.now().to_sec() - self.time:
+                self.taskDone = 1
+
+        # verify subtask 
         inputArgs = self.subTasks[currentSubTask].verificationArgs
         input_ = []
         for j in range(len(inputArgs)):
             input_.append(eval(inputArgs[j]))
+
         verified = self.subTasks[currentSubTask].verification(input_)
         if verified == True:
+            self.lastSubtask = currentSubTask
             return
         elif verified == False:
             self.startSubTaskIdx = self.goToSubTask[currentSubTask]
+            self.time = rospy.Time.now().to_sec()
             self.newTrajectory = 1
             self.newTrajectoryCheck = 1
 
     def getTaskDone(self):
         return self.taskDone
+
 
 class GrabCable(Task):
     def __init__(self, targetFixture, previousFixture, cableSlack):
@@ -85,6 +104,8 @@ class GrabCable(Task):
 
         self.subTasks = [goToHeight, overCable, onCable, grippCable, goToHeightWithCable]
         self.goToSubTask = [0,1,1,1,1]
+        self.numSubTasks = len(self.subTasks)
+
         self.targetFixture = targetFixture # int, starting from 0, which fixture is the target,
             # will be matched with map elements.
         self.previousFixture = previousFixture # # int, starting from -1 (-1 means no previous fixture),
@@ -99,10 +120,10 @@ class GrabCable(Task):
         self.DLO = DLO
         self.gripperLeft = gripperLeft
         self.gripperRight = gripperRight
-
-
         self.trackProgress(currentSubTask)
-        # TODO track progress and taskDone
+        
+        
+        # TODO taskDone
 
 
 class ClippIntoFixture(Task):
