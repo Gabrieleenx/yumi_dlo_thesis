@@ -206,10 +206,19 @@ void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_stat
             }
         }
     }
-    joint_state[14] = 0.0;
-    joint_state[15] = 0.0;
-    joint_state[16] = 0.0;
-    joint_state[17] = 0.0;
+    int num_elements = joint_state_data->position.size();
+    if (num_elements > 14){ // for simulation
+        joint_state[14] = joint_state_data->position[14];
+        joint_state[15] = joint_state_data->position[15];
+        joint_state[16] = joint_state_data->position[16];
+        joint_state[17] = joint_state_data->position[17];      
+    }
+    else{ // real robot do not give values for gripper position 
+        joint_state[14] = 0.0;
+        joint_state[15] = 0.0;
+        joint_state[16] = 0.0;
+        joint_state[17] = 0.0;
+    }
     state_recived = 1;
     mtx_reciving.unlock();
     sensor_msgs::JointState msg;

@@ -200,3 +200,12 @@ def checkIfWithinTol(pos, targetPos, posTol, quat, targetQuat, quatTol):
         return True
     else:
         return False 
+
+
+def closesPointDLO(DLO, pos):
+    diff = DLO.points - pos
+    dist = np.linalg.norm(diff, axis=1)
+    minDist = np.min(dist)
+    minIndex = np.argmin(dist)
+    point = DLO.lengthList[minIndex]
+    return minDist, point

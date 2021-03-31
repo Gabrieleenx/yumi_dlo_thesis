@@ -318,5 +318,8 @@ class GoToHeightWithCable(object):
         return [trajectoryPoint]   
 
     def verification(self, input_):
-        # TODO
-        return True
+
+        minDistRight, pointRight = utils.closesPointDLO(DLO, gripperRight.getPosition())
+        minDistLeft, pointLeft = utils.closesPointDLO(DLO, gripperLeft.getPosition())
+
+        

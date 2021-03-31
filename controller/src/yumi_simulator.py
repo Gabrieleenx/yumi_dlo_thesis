@@ -17,9 +17,10 @@ class Simulator(object):
         self.lock = threading.Lock()
         upperArmLimit = np.array([168.5, 43.5, 168.5, 80, 290, 138, 229])*np.pi/(180)
         lowerArmLimit = np.array([-168.5, -143.5, -168.5, -123.5, -290, -88, -229])*np.pi/(180)
-        self.jointPoistionBoundUpper = np.hstack([upperArmLimit, upperArmLimit, np.array([0.3,0.3,0.3,0.3])]) # in radians 
-        self.jointPoistionBoundLower = np.hstack([lowerArmLimit, lowerArmLimit, np.array([-0.3,-0.3,-0.3,-0.3])]) # in radians 
-
+        self.jointPoistionBoundUpper = np.hstack([upperArmLimit, upperArmLimit, np.array([0.025,0.025,0.025,0.025])]) # in radians 
+        self.jointPoistionBoundLower = np.hstack([lowerArmLimit, lowerArmLimit, np.array([-0.0,-0.0,-0.0,-0.0])]) # in radians 
+        self.targetGripperPos = np.array([0.0, 0.0]) 
+        
     def callback(self, data):
         vel = np.asarray(data.data)
         vel = np.hstack([vel[7:14], vel[0:7], np.zeros(4)])
@@ -27,12 +28,22 @@ class Simulator(object):
         self.jointState.UpdateVelocity(vel)
         self.lock.release()
 
+    def callbackGripper(self, data):
+        self.targetGripperPos = np.asarray(data.data)
+
     def update(self):
         # updates the pose
         self.lock.acquire()
-
         pose = self.jointState.GetJointPosition() + self.jointState.GetJointVelocity()*self.dT
+        rightGripper = self.jointState.GetJointPosition()[14:16]
+        leftGripper = self.jointState.GetJointPosition()[16:18]
         self.lock.release()
+
+        velRightGripper = (self.targetGripperPos[0]/1000 - rightGripper)*self.dT
+        pose[14:16] = rightGripper + velRightGripper
+        velLeftGripper = (self.targetGripperPos[1]/1000 - leftGripper)*self.dT
+        pose[16:18] = leftGripper + velLeftGripper
+
         # hard joint limits 
         pose = np.clip(pose, self.jointPoistionBoundLower, self.jointPoistionBoundUpper)
         self.jointState.UpdatePose(pose=pose)
@@ -49,7 +60,8 @@ def main():
 
     #rospy.Subscriber("/joint_velocity", JointState, simulator.callback, queue_size=1)
     rospy.Subscriber("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArray, simulator.callback, queue_size=1)
-   
+    rospy.Subscriber("/sim/grippers", Float64MultiArray, simulator.callbackGripper, queue_size=1)
+
     rate = rospy.Rate(simulator.updateRate) 
 
     msg = JointState()

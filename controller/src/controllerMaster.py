@@ -93,6 +93,8 @@ class YmuiContoller(object):
         
         # publish velocity comands
         self.pub = rospy.Publisher('/yumi/egm/joint_group_velocity_controller/command', Float64MultiArray, queue_size=1)
+        self.pubGripperSim = rospy.Publisher('/sim/grippers', Float64MultiArray, queue_size=1) # only for sim
+
         self.pubSubTask = rospy.Publisher('/controller/sub_task', Int64, queue_size=1)
 
 
@@ -199,6 +201,9 @@ class YmuiContoller(object):
                 self.RunSGRoutine()
             except:
                 print('smart gripper error or running simulation')
+                msg = Float64MultiArray()
+                msg.data = np.hstack([self.controlInstructions.gripperRight[0], self.controlInstructions.gripperLeft[0]]).tolist()
+                self.pubGripperSim.publish(msg)
         
         # publish velocity comands
         self.publishVelocity()
@@ -229,7 +234,7 @@ class YmuiContoller(object):
         else:
             print('Error, mode not matching combined or individual')
             return
-        # current gripper position # TODO Change between individual and combined 
+        # current gripper position # 
         gripperLeft = np.copy(self.jointState.gripperLeftPosition)
         gripperRight = np.copy(self.jointState.gripperRightPosition)
         currentPoint =utils.TrajectoryPoint(positionRight=positionRight,\
@@ -256,14 +261,31 @@ class YmuiContoller(object):
                                                     gripperRight=gripperRight,\
                                                     pointTime=pointTime)
             trajectory.append(trajectroyPoint)
-        self.lock.acquire()
+        self.lock.acquire()       
+
+        # use current velocity for smoother transitions, (not for orientaion)
+        if self.controlInstructions.mode == data.mode:
+            velLeftInit = np.copy(self.controlInstructions.velocities[6:9])
+            velRightInit = np.copy(self.controlInstructions.velocities[0:3])
+        elif self.controlInstructions.mode == 'individual':
+            # simple solution, not fully accurate trasition 
+            velLeftInit = np.zeros(3)
+            velRightInit = 0.5*(np.copy(self.controlInstructions.velocities[0:3]) +\
+                                     np.copy(self.controlInstructions.velocities[6:9]))
+        elif self.controlInstructions.mode == 'combined':
+            # simple solution, not fully accurate trasition 
+            velLeftInit = np.copy(self.controlInstructions.velocities[0:3])
+            velRightInit = np.copy(self.controlInstructions.velocities[0:3])
+        else:
+            print('Warning, Previous mode not matching, combined or individual')
+            velLeftInit = np.zeros(3)
+            velRightInit = np.zeros(3)
+            
         # set mode
         self.controlInstructions.mode = data.mode
         self.controlInstructions.ifForceControl = data.forceControl
         self.controlInstructions.maxForce = data.maxForce
-        # use current velocity for smoother transitions, (not for orientaion)
-        velLeftInit = np.copy(self.controlInstructions.velocities[6:9])
-        velRightInit = np.copy(self.controlInstructions.velocities[0:3])
+
         # update the trajectroy 
         self.controlInstructions.trajectory.updatePoints(trajectory, velLeftInit, velRightInit)
         self.controlInstructions.trajIndex = 0
