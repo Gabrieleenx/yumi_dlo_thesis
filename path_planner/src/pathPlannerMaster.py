@@ -72,17 +72,19 @@ class PathPlanner(object):
             print('task done')
             if self.currentTask < self.numOfTasks-1:
                 self.currentTask += 1 
+                self.tasks[self.currentTask].taskDone = 0 
 
     
 def main():
     rospy.init_node('pathPlanner', anonymous=True) 
     # objectes ----------------
-    obj0 = utils.FixtureObject(np.array([0.3, -0.1, 0]), np.array([1,0,0,0]))
+    obj0 = utils.FixtureObject(np.array([0.3, -0.1, 0]), np.array([1,0,0,0]), 0.06)
     listOfObjects = [obj0]
     # tasks -------------------
     grabCable = tasks.GrabCable(0, -1, 0.15)
+    clippIntoFixture = tasks.ClippIntoFixture(0, -1, 0.15)
 
-    listOfTasks = [grabCable]
+    listOfTasks = [grabCable, clippIntoFixture]
     pathPlanner = PathPlanner(listOfObjects, listOfTasks)
     rospy.Subscriber("/spr/dlo_estimation", PointCloud, pathPlanner.callback, queue_size=2)
     rospy.Subscriber("/controller/sub_task", Int64, pathPlanner.callbackCurrentSubTask, queue_size=2)

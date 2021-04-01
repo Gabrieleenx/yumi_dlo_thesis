@@ -106,13 +106,13 @@ class GoToHeight(object):
         return True
 
 class OverCable(object): # only for individual control 
-    def __init__(self, targetHeight, grippers):
+    def __init__(self, targetHeight, grippers, grippWidth):
         self.inputArgs = ['self.map', 'self.DLO', 'gripperLeftTemp', 'gripperRightTemp', 'self.targetFixture',\
              'self.previousFixture', 'self.cableSlack', 'self.tfListener']
         self.verificationArgs = ['self.DLO']
         self.gripper = grippers # in mm, [Right, left]
         self.targetHeight = targetHeight # height from cable
-        self.grippWidth = 0.15
+        self.grippWidth = grippWidth
         self.avgVelocity = 0.02
         self.shortestTime = 1
         self.avgRotVel = 0.4 # it will use which ever is slower between avgRotVel and avgVelocity 
@@ -161,8 +161,8 @@ class OverCable(object): # only for individual control
 
         self.currentTarget = [position0, quat0, position1, quat1]
         # calc time
-        self.pointTime = utils.getPointTime(gripperRight, gripperLeft, position1, position0,\
-                        quat1, quat0, self.avgVelocity, 0.4, self.shortestTime)
+        self.pointTime = utils.getPointTime(gripperRight, gripperLeft, position0, position1,\
+                        quat0, quat1, self.avgVelocity, 0.4, self.shortestTime)
 
         trajectoryPoint = Trajectory_point()
         trajectoryPoint.positionRight = position0.tolist()
@@ -245,7 +245,11 @@ class HoldPosition(object):
             gripperRight.update(positionRight, orientationRight)
         
         elif mode == 'combined':
-            absPos, absRot, relPos, relRot = utils.calcAbsoluteAndRelative(gripperRight, gripperLeft, self.transformer)
+            absPos = gripperRight.getPosition()
+            absRot = gripperRight.getQuaternion()
+            relPos = gripperLeft.getPosition()
+            relRot  = gripperLeft.getQuaternion()
+
 
             trajectoryPoint.positionRight = absPos.tolist()
             trajectoryPoint.positionLeft = relPos.tolist()
@@ -362,6 +366,52 @@ class GoToHeightWithCable(object):
         if minDistLeft < self.tol and minDistRight < self.tol:
             return True
         else:
-            return False
+            return True
 
-        
+
+class OverFixture(object):
+    def __init__(self, grippers, gripperWidth, targetHeight):
+        self.gripper = grippers # in mm, [Right, left]
+        self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', 'self.map',\
+                 'self.previousFixture', 'self.targetFixture'] 
+        self.verificationArgs = ['self.taskDone'] #  at least one variable for these even if nothing is used 
+        self.pointTime = 1
+        self.gripperWidth = gripperWidth
+        self.targetHeight = targetHeight # height over fixture, single float 
+        self.avgVelocity = 0.02 # m/s
+        self.avgRotVel = 0.4 # rad/s 
+        self.shortestTime = 1
+
+    def getTrajectoryPoint(self, inputs):
+        gripperLeft = inputs[0]
+        gripperRight = inputs[1]
+        map_ =  inputs[2]
+        previousFixture = inputs[3]
+        targetFixture = inputs[4]
+
+        targetFixtureObj = map_[targetFixture]
+        absPos = targetFixtureObj.getPosition()
+        absPos[2] = targetFixtureObj.getFixtureHeight() + self.targetHeight
+        absRot = np.array([1,0,0,0]) # TODO fix targetFixtureObj.getOrientation()
+
+        relRot = np.array([0,0,0,1])
+        relPos = np.array([0, self.gripperWidth, 0])
+
+        self.pointTime = utils.getPointTime(gripperRight, gripperLeft, absPos, relPos,\
+                        absRot, relRot, self.avgVelocity, self.avgRotVel, self.shortestTime)
+        trajectoryPoint = Trajectory_point()
+
+        trajectoryPoint.positionRight = absPos.tolist()
+        trajectoryPoint.positionLeft = relPos.tolist()
+        trajectoryPoint.orientationLeft = relRot.tolist()
+        trajectoryPoint.orientationRight = absRot.tolist()
+        trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
+        trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+        trajectoryPoint.pointTime = self.pointTime
+
+        gripperLeft.update(relPos, relRot)
+        gripperRight.update(absPos, absRot)
+        return [trajectoryPoint]
+
+    def verification(self, input_):
+        return True

@@ -26,7 +26,7 @@ class ObjectTracking(object):
         self.pub = rospy.Publisher('/spr/dlo_estimation', PointCloud, queue_size=3)
         # object that listen to transformation tree. 
         self.tf_listener = tf.TransformListener()
-        self.target_num_points = 100
+        self.target_num_points = 300
         self.min_num_points = self.target_num_points/3
         self.voxel_size = 15
         self.offset_xyz = np.array([-0.045,0,0]) # offset in x,y,z in meters
@@ -78,8 +78,8 @@ class ObjectTracking(object):
         black_lower = (0, 0, 0)
         black_upper = (180, 255, 25)
 
-        blue_lower = (100, 200, 150)
-        blue_upper = (120, 255, 255)
+        blue_lower = (104, 200, 150)
+        blue_upper = (116, 255, 255)
 
         hsv_image = cv2.cvtColor(color_img, cv2.COLOR_RGB2HSV)
         mask = cv2.inRange(hsv_image, blue_lower, blue_upper)
@@ -210,7 +210,7 @@ def main():
     # initial estimate 
     cable_length = 1
     num_points = 100
-    distance = 0.4
+    distance = 0.6
 
     x = np.ones(num_points)*distance
     y = cable_length*(np.arange(num_points)/num_points)-cable_length/2

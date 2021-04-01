@@ -83,7 +83,7 @@ def calcAbsoluteAndRelative(yumiGrippPoseR, yumiGrippPoseL, transformer):
     tfMatrixLeft = transformer.fromTranslationRotation(translation=translationLeftArm, rotation=rotationLeftArm)
     tfMatrixLeftInv = np.linalg.pinv(tfMatrixLeft)
 
-    translationRelativeLeftRight = tfMatrixLeftInv.dot(np.hstack([self.translationRightArm, 1]))[0:3]
+    translationRelativeLeftRight = tfMatrixLeftInv.dot(np.hstack([translationRightArm, 1]))[0:3]
     rotLeftRight = tfMatrixLeftInv.dot(tfMatrixRight)
     relativeOrientation = tf.transformations.quaternion_from_matrix(rotLeftRight)
 
@@ -91,9 +91,9 @@ def calcAbsoluteAndRelative(yumiGrippPoseR, yumiGrippPoseL, transformer):
     absoluteOrientation = averageQuaternions(avgQ)  
     absolutePosition = 0.5*(translationRightArm + translationLeftArm)
 
-    transformation1 = transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=self.absoluteOrientation)
+    transformation1 = transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=absoluteOrientation)
     transformationInv1 = np.linalg.pinv(transformation1)
-    transformation2 = transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=self.rotationLeftArm)
+    transformation2 = transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=rotationLeftArm)
 
     leftToAbsoluteFrameRot = transformationInv1.dot(transformation2)
     homogeneousLeftRelative = np.hstack([translationRelativeLeftRight,1])
@@ -103,16 +103,56 @@ def calcAbsoluteAndRelative(yumiGrippPoseR, yumiGrippPoseL, transformer):
     return absolutePosition, absoluteOrientation, realativPosition, relativeOrientation
 
 
+# taken (Modified) from https://github.com/christophhagen/averaging-quaternions/blob/master/averageQuaternions.py
+# Q is a Nx4 numpy matrix and contains the quaternions to average in the rows.
+# The quaternions are arranged as (x,y,z,w), with w being the scalar
+# The result will be the average quaternion of the input. Note that the signs
+# of the output quaternion can be reversed, since q and -q describe the same orientation
+def averageQuaternions(Q):
+    # from (x,y,z,w) to (w,x,y,z)
+    if Q[0].dot(Q[1]) < 0:
+        Q[0] = -Q[0]
+
+    Q = np.roll(Q,1,axis=1)
+    # Number of quaternions to average
+    M = Q.shape[0]
+    A = np.zeros(shape=(4,4))
+    for i in range(0,M):
+        q = Q[i,:]
+        # multiply q with its transposed version q' and add A
+        A = np.outer(q,q) + A
+    # scale
+    A = (1.0/M)*A
+    # compute eigenvalues and -vectors
+    eigenValues, eigenVectors = np.linalg.eig(A)
+    # Sort by largest eigenvalue
+    eigenVectors = eigenVectors[:,eigenValues.argsort()[::-1]]
+    # return the real part of the largest eigenvector (has only real part)
+    avgQ = np.real(eigenVectors[:,0])
+    # from (w,x,y,z) to (x,y,z,w) 
+    avgQ = np.roll(avgQ,-1)
+
+    return avgQ
+
+
 class FixtureObject(object):
     # cable goes through in y direction 
     # quaterniorn w,ix,iy,iz
-    def __init__(self, position, orientation):
+    def __init__(self, position, orientation, fixtureHeight):
         self.position = position
         self.orientation = orientation
         #self.index = index
-        self.fixtureHeight = 0.06
+        self.fixtureHeight = fixtureHeight
         self.previousCableLength = 0 # How much of the cable is already attached to fixtures 
 
+    def getPosition(self):
+        return np.copy(self.position)
+
+    def getOrientation(self):
+        return np.copy(self.orientation)
+
+    def getFixtureHeight(self):
+        return np.copy(self.fixtureHeight)
 
 def calcClipPoint(targetFixture, previousFixture, map_, cableSlack):
     # calculates the point on the rope (from right) that will be in target fixture
@@ -144,8 +184,8 @@ def getZRotationCable(length, DLO):
     return rotZ - np.pi/2
 
 
-def getPointTime(gripperRight, gripperLeft, posTargetLeft, posTargetRight,\
-                        rotTargetLeft, rotTargetRight, avgSpeed, avgRotVel, shortestTime):
+def getPointTime(gripperRight, gripperLeft, posTargetRight, posTargetLeft, \
+                        rotTargetRight, rotTargetLeft, avgSpeed, avgRotVel, shortestTime):
     # get max distance, for calc time 
     distRight = np.linalg.norm(posTargetRight - gripperRight.getPosition())
     distLeft = np.linalg.norm(posTargetLeft - gripperLeft.getPosition())
