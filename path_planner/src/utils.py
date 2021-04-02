@@ -249,3 +249,6 @@ def closesPointDLO(DLO, pos):
     minIndex = np.argmin(dist)
     point = DLO.lengthList[minIndex]
     return minDist, point
+
+def rotateX180(q):
+    return tf.transformations.quaternion_multiply(q, np.array([1,0,0,0]))

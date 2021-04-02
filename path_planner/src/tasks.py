@@ -97,11 +97,11 @@ class Task(object):
 class GrabCable(Task):
     def __init__(self, targetFixture, previousFixture, cableSlack):
         super(GrabCable, self).__init__('individual')   
-        goToHeight = subTasks.GoToHeight(np.array([0.2,0.2]), np.array([0,0])) 
-        overCable = subTasks.OverCable(np.array([0.2,0.2]), np.array([20,20]), 0.15)
+        goToHeight = subTasks.GoToHeight(np.array([0.1,0.1]), np.array([0,0])) 
+        overCable = subTasks.OverCable(np.array([0.1,0.1]), np.array([20,20]), 0.15)
         onCable = subTasks.OverCable(np.array([0.0,0.0]), np.array([20,20]), 0.15)
         grippCable = subTasks.HoldPosition(3, np.array([0,0]))
-        goToHeightWithCable = subTasks.GoToHeightWithCable(np.array([0.2,0.2]), np.array([0,0])) 
+        goToHeightWithCable = subTasks.GoToHeightWithCable(np.array([0.1,0.1]), np.array([0,0])) 
 
         self.subTasks = [goToHeight, overCable, onCable, grippCable, goToHeightWithCable]
         self.goToSubTask = [0,1,1,1,1]
@@ -131,7 +131,7 @@ class ClippIntoFixture(Task):
         lowerOverFixture = subTasks.OverFixture(np.array([0,0]), 0.15, -0.03)
         #clippIntoFixture = subTasks.ClipIntoFixture()
         openGrippers = subTasks.HoldPosition(3, np.array([20,20]))
-        goToHeight = subTasks.GoToHeight(np.array([0.15,0.15]), np.array([20,20])) 
+        goToHeight = subTasks.GoToHeight(np.array([0.10,0.10]), np.array([20,20])) 
 
         self.subTasks = [overFixture, lowerOverFixture, openGrippers, goToHeight]
         self.goToSubTask = [0,0,0,0]

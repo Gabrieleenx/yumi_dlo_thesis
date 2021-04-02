@@ -379,7 +379,7 @@ class OverFixture(object):
         self.gripperWidth = gripperWidth
         self.targetHeight = targetHeight # height over fixture, single float 
         self.avgVelocity = 0.02 # m/s
-        self.avgRotVel = 0.4 # rad/s 
+        self.avgRotVel = 0.2 # rad/s 
         self.shortestTime = 1
 
     def getTrajectoryPoint(self, inputs):
@@ -392,7 +392,8 @@ class OverFixture(object):
         targetFixtureObj = map_[targetFixture]
         absPos = targetFixtureObj.getPosition()
         absPos[2] = targetFixtureObj.getFixtureHeight() + self.targetHeight
-        absRot = np.array([1,0,0,0]) # TODO fix targetFixtureObj.getOrientation()
+        rot = targetFixtureObj.getOrientation()
+        absRot = utils.rotateX180(rot)
 
         relRot = np.array([0,0,0,1])
         relPos = np.array([0, self.gripperWidth, 0])

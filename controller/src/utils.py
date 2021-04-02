@@ -469,3 +469,4 @@ class FramePose(object):
         self.position = tfMatrix.dot(np.hstack([gripperLength, 1]))
 
 
+

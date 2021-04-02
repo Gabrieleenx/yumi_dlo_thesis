@@ -78,7 +78,9 @@ class PathPlanner(object):
 def main():
     rospy.init_node('pathPlanner', anonymous=True) 
     # objectes ----------------
-    obj0 = utils.FixtureObject(np.array([0.3, -0.1, 0]), np.array([1,0,0,0]), 0.06)
+    rot = tf.transformations.quaternion_from_euler(30*np.pi/180, 0, 0*np.pi/180, 'rzyx')
+
+    obj0 = utils.FixtureObject(np.array([0.3, -0.1, 0]), rot, 0.06)
     listOfObjects = [obj0]
     # tasks -------------------
     grabCable = tasks.GrabCable(0, -1, 0.15)
