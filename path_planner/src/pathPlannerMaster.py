@@ -77,10 +77,14 @@ class PathPlanner(object):
     
 def main():
     rospy.init_node('pathPlanner', anonymous=True) 
+    tfListener = tf.TransformListener()
+    rospy.sleep(0.5)
     # objectes ----------------
-    rot = tf.transformations.quaternion_from_euler(30*np.pi/180, 0, 0*np.pi/180, 'rzyx')
-
-    obj0 = utils.FixtureObject(np.array([0.3, -0.1, 0]), rot, 0.06)
+    (pos, rot) = tfListener.lookupTransform('/yumi_base_link', '/Fixture1', rospy.Time(0))
+    pos = np.asarray(pos)
+    rot = np.asarray(rot)
+    print(rot)
+    obj0 = utils.FixtureObject(pos, rot, 0.06)
     listOfObjects = [obj0]
     # tasks -------------------
     grabCable = tasks.GrabCable(0, -1, 0.15)

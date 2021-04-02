@@ -393,8 +393,9 @@ class OverFixture(object):
         absPos = targetFixtureObj.getPosition()
         absPos[2] = targetFixtureObj.getFixtureHeight() + self.targetHeight
         rot = targetFixtureObj.getOrientation()
+        print(rot)
         absRot = utils.rotateX180(rot)
-
+        print(absRot)
         relRot = np.array([0,0,0,1])
         relPos = np.array([0, self.gripperWidth, 0])
 
