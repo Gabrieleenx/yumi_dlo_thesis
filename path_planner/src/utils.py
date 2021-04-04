@@ -32,7 +32,6 @@ class DLO(object):
         #self.lengthList = np.zeros(100)
         self.totalLenght = 0 
         self.pointsRecived = 0
-        self.constrainLength = 0
 
     def update(self, points):
         numPoints = np.shape(points)[0]
@@ -61,6 +60,12 @@ class DLO(object):
         point = self.points[index0] + normalize(diff) * (length - self.lengthList[index0])
 
         return point
+    
+    def getPartLength(self, index):
+        if index < 0 or index > np.size(self.lengthList, axis=0):
+            return False
+
+        return self.lengthList[index]
 
     def getLength(self):
         return self.totalLenght
@@ -143,7 +148,6 @@ class FixtureObject(object):
         self.orientation = orientation
         #self.index = index
         self.fixtureHeight = fixtureHeight
-        self.previousCableLength = 0 # How much of the cable is already attached to fixtures 
 
     def getPosition(self):
         return np.copy(self.position)
@@ -154,14 +158,15 @@ class FixtureObject(object):
     def getFixtureHeight(self):
         return np.copy(self.fixtureHeight)
 
-def calcClipPoint(targetFixture, previousFixture, map_, cableSlack):
+def calcClipPoint(targetFixture, previousFixture, map_, cableSlack, DLO):
     # calculates the point on the rope (from right) that will be in target fixture
     length = 0
     if targetFixture >= 0 and previousFixture >= 0:
         fixture0 = map_[previousFixture]
         fixture1 = map_[targetFixture]
         length = np.linalg.norm(fixture1.position - fixture0.position)
-        length += fixture0.previousCableLength
+        minDist, point, minIndex = closesPointDLO(DLO, fixture0.position)
+        length += DLO.getPartLength(minIndex)
 
     length += cableSlack
 
@@ -213,13 +218,17 @@ def getTotalRadians(currentQ, targetQ):
     return norm
 
 
-def getOffestCableConstraint(map_, fixtrueIndex, gripperTargetPosition, DLO):
-    if fixtrueIndex >= 0:
-        cableAttachmentPostion = map_[fixtrueIndex].position 
-        cableAttachmentPostion[2] += map_[fixtrueIndex].fixtureHeight 
+def getOffestCableConstraint(map_, previousFixture, gripperTargetPosition, DLO, targetFixture, cableSlack):
+    if previousFixture >= 0:
+        cableAttachmentPostion = map_[previousFixture].position 
+        cableAttachmentPostion[2] += map_[previousFixture].fixtureHeight 
 
         dist = np.linalg.norm(gripperTargetPosition - cableAttachmentPostion)
-        cableLenght = DLO.constrainLength
+
+        fixture0 = map_[previousFixture]
+        fixture1 = map_[targetFixture]
+        length = np.linalg.norm(fixture1.position - fixture0.position)
+        cableLenght = length + cableSlack
         
         if dist < cableLenght:
             return np.zeros(3)
@@ -248,7 +257,7 @@ def closesPointDLO(DLO, pos):
     minDist = np.min(dist)
     minIndex = np.argmin(dist)
     point = DLO.lengthList[minIndex]
-    return minDist, point
+    return minDist, point, minIndex
 
 def rotateX180(q):
     return tf.transformations.quaternion_multiply(q, np.array([1,0,0,0]))

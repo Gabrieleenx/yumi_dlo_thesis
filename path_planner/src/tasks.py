@@ -70,7 +70,6 @@ class Task(object):
             self.time = rospy.Time.now().to_sec()
         if currentSubTask == self.numSubTasks-1:
             pointTime = self.subTasks[currentSubTask].pointTime 
-
             if pointTime < rospy.Time.now().to_sec() - self.time:
                 self.taskDone = 1
 
@@ -135,6 +134,7 @@ class ClippIntoFixture(Task):
 
         self.subTasks = [overFixture, lowerOverFixture, openGrippers, goToHeight]
         self.goToSubTask = [0,0,0,0]
+        self.numSubTasks = len(self.subTasks)
 
         self.targetFixture = targetFixture # int, starting from 0, which fixture is the target,
             # will be matched with map elements.

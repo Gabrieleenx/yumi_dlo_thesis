@@ -78,8 +78,8 @@ class ObjectTracking(object):
         black_lower = (0, 0, 0)
         black_upper = (180, 255, 25)
 
-        blue_lower = (104, 200, 150)
-        blue_upper = (116, 255, 255)
+        blue_lower = (100, 235, 100)
+        blue_upper = (120, 255, 255)
 
         hsv_image = cv2.cvtColor(color_img, cv2.COLOR_RGB2HSV)
         mask = cv2.inRange(hsv_image, blue_lower, blue_upper)
@@ -98,6 +98,10 @@ class ObjectTracking(object):
         p_homogeneous = np.transpose(K_inv.dot(np.asarray(self.pcd.points).T))
         p_homogeneous_offset = p_homogeneous + self.offset_xyz
 
+        cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
+        #cv2.imshow('RealSense', depth_img)
+        cv2.imshow('RealSense', mask)
+        cv2.waitKey(1)
         if np.shape(p_homogeneous)[0] > self.min_num_points: 
             # dynamic downsample
             down_samlpe = np.shape(p_homogeneous)[0] / self.target_num_points
@@ -200,10 +204,10 @@ def main():
         'normalize': True,
         'knn': 15,
         'tau': 500,
-        'beta': 2,
+        'beta': 1.5,
         'lambda': 3,
-        'tau_annealing_handle': lambda iter, max_it:  0.93 ** iter,
-        'lambda_annealing_handle': lambda iter, max_it: 0.93 ** iter
+        'tau_annealing_handle': lambda iter, max_it:  0.95 ** iter,
+        'lambda_annealing_handle': lambda iter, max_it: 0.95 ** iter
     }
 
 

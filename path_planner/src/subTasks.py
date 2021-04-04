@@ -134,13 +134,11 @@ class OverCable(object): # only for individual control
         #(worldToBase, _) = tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
         #targertHeightBase = self.targetHeight + worldToBase[2]
 
-        clipPoint = utils.calcClipPoint(targetFixture, previousFixture, map_, cableSlack)
+        clipPoint = utils.calcClipPoint(targetFixture, previousFixture, map_, cableSlack, DLO)
 
         self.point0 = clipPoint - self.grippWidth/2 
         self.point1 = clipPoint + self.grippWidth/2
-        
-        if previousFixture >= 0:
-            DLO.constrainLength = point0 - map_[previousFixture].previousCableLength
+
         # TODO which arm to which point 
         # get position 
         if self.point0 > 0 and self.point1 < DLO.getLength():
@@ -275,7 +273,8 @@ class HoldPosition(object):
 class GoToHeightWithCable(object):
     # Works for both comined and individual control, preservs orientation
     def __init__(self, targetHeight, grippers):
-        self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', 'self.mode', 'self.tfListener', 'self.map', 'self.previousFixture', 'self.DLO']
+        self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', 'self.mode', 'self.tfListener', 'self.map', 'self.previousFixture',\
+             'self.DLO', 'self.targetFixture', 'self.cableSlack']
         self.verificationArgs = ['self.DLO', 'self.gripperRight', 'self.gripperLeft']
         self.targetHeight = targetHeight # height from world frame (i.e. table) and not yumi_base_link
             # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
@@ -292,8 +291,10 @@ class GoToHeightWithCable(object):
         mode = inputs[2]
         tfListener = inputs[3]
         map_ = inputs[4]
-        fixtrueIndex = inputs[5]
+        previousFixture = inputs[5]
         DLO = inputs[6]
+        targetFixture = inputs[7]
+        cableSlack = inputs[8]
 
         (worldToBase, _) = tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
         targertHeightBase = self.targetHeight - worldToBase[2]
@@ -309,7 +310,7 @@ class GoToHeightWithCable(object):
             positionRight[2] = targertHeightBase[0]
             positionLeft[2] = targertHeightBase[1]
 
-            offsetPosition = utils.getOffestCableConstraint(map_, fixtrueIndex, positionRight, DLO)
+            offsetPosition = utils.getOffestCableConstraint(map_, previousFixture, positionRight, DLO, targetFixture, cableSlack)
             
             positionRight += offsetPosition
             positionLeft += offsetPosition
@@ -360,8 +361,8 @@ class GoToHeightWithCable(object):
         gripperRight = input_[1]
         gripperLeft = input_[2]
 
-        minDistRight, pointRight = utils.closesPointDLO(DLO, gripperRight.getPosition())
-        minDistLeft, pointLeft = utils.closesPointDLO(DLO, gripperLeft.getPosition())
+        minDistRight, pointRight, minIndex = utils.closesPointDLO(DLO, gripperRight.getPosition())
+        minDistLeft, pointLeft, minIndex = utils.closesPointDLO(DLO, gripperLeft.getPosition())
 
         if minDistLeft < self.tol and minDistRight < self.tol:
             return True
@@ -393,9 +394,7 @@ class OverFixture(object):
         absPos = targetFixtureObj.getPosition()
         absPos[2] = targetFixtureObj.getFixtureHeight() + self.targetHeight
         rot = targetFixtureObj.getOrientation()
-        print(rot)
         absRot = utils.rotateX180(rot)
-        print(absRot)
         relRot = np.array([0,0,0,1])
         relPos = np.array([0, self.gripperWidth, 0])
 

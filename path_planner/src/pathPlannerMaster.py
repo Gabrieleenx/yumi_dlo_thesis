@@ -9,8 +9,6 @@ import numpy as np
 import utils
 import tasks
 import threading
-# TODO thread safe
-# TODO Wait for first DLO
 
 class PathPlanner(object):
     def __init__(self, listOfObjects, listOfTasks):
@@ -80,17 +78,28 @@ def main():
     tfListener = tf.TransformListener()
     rospy.sleep(0.5)
     # objectes ----------------
-    (pos, rot) = tfListener.lookupTransform('/yumi_base_link', '/Fixture1', rospy.Time(0))
-    pos = np.asarray(pos)
-    rot = np.asarray(rot)
-    print(rot)
-    obj0 = utils.FixtureObject(pos, rot, 0.06)
-    listOfObjects = [obj0]
-    # tasks -------------------
-    grabCable = tasks.GrabCable(0, -1, 0.15)
-    clippIntoFixture = tasks.ClippIntoFixture(0, -1, 0.15)
+    fixtureList = ['/Fixture1','/Fixture2','/Fixture3','/Fixture4']
+    listOfObjects = []
+    for i in range(len(fixtureList)):
+        try:
+            (pos, rot) = tfListener.lookupTransform('/yumi_base_link', fixtureList[i], rospy.Time(0))
+            pos = np.asarray(pos)
+            rot = np.asarray(rot)
+            obj0 = utils.FixtureObject(pos, rot, 0.06)
 
-    listOfTasks = [grabCable, clippIntoFixture]
+            listOfObjects.extend([obj0])
+        except:
+            break
+
+    # tasks -------------------
+    slackList = [0.15, 0.05, 0.05, 0.05]
+    listOfTasks  = []
+    print(len(listOfObjects))
+    for i in range(len(listOfObjects)):
+        grabCable = tasks.GrabCable(i, i-1, slackList[i])
+        clippIntoFixture = tasks.ClippIntoFixture(i, i-1, [i])
+        listOfTasks.extend([grabCable, clippIntoFixture])
+
     pathPlanner = PathPlanner(listOfObjects, listOfTasks)
     rospy.Subscriber("/spr/dlo_estimation", PointCloud, pathPlanner.callback, queue_size=2)
     rospy.Subscriber("/controller/sub_task", Int64, pathPlanner.callbackCurrentSubTask, queue_size=2)
