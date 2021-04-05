@@ -112,7 +112,7 @@ int main(int argc, char** argv){
 
         broadcaster2.sendTransform(
             tf::StampedTransform(
-                tf::Transform(tf::Quaternion(0, 0, 0.7071, -0.7071), tf::Vector3(0.4, 0, 0)),
+                tf::Transform(tf::Quaternion(0, 0, 0.7071, -0.7071), tf::Vector3(0.3064, 0, -0.086)),
                 ros::Time::now(), "yumi_base_link", "world"));
 
         broadcaster_r_gripper.sendTransform(

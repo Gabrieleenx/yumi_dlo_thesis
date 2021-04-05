@@ -92,7 +92,7 @@ def main():
             break
 
     # tasks -------------------
-    slackList = [0.15, 0.05, 0.05, 0.05]
+    slackList = [0.10, 0.05, 0.05, 0.05]
     listOfTasks  = []
     print(len(listOfObjects))
     for i in range(len(listOfObjects)):

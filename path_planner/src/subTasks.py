@@ -374,7 +374,7 @@ class OverFixture(object):
     def __init__(self, grippers, gripperWidth, targetHeight):
         self.gripper = grippers # in mm, [Right, left]
         self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', 'self.map',\
-                 'self.previousFixture', 'self.targetFixture'] 
+                 'self.previousFixture', 'self.targetFixture', 'self.tfListener'] 
         self.verificationArgs = ['self.taskDone'] #  at least one variable for these even if nothing is used 
         self.pointTime = 1
         self.gripperWidth = gripperWidth
@@ -389,10 +389,12 @@ class OverFixture(object):
         map_ =  inputs[2]
         previousFixture = inputs[3]
         targetFixture = inputs[4]
+        tfListener = inputs[5]
 
+        (worldToBase, _) = tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
         targetFixtureObj = map_[targetFixture]
         absPos = targetFixtureObj.getPosition()
-        absPos[2] = targetFixtureObj.getFixtureHeight() + self.targetHeight
+        absPos[2] = targetFixtureObj.getFixtureHeight() + self.targetHeight - worldToBase[2]
         rot = targetFixtureObj.getOrientation()
         absRot = utils.rotateX180(rot)
         relRot = np.array([0,0,0,1])

@@ -53,7 +53,8 @@ class ObjectTracking(object):
         self.num_calibration_itter = 0
 
         # filter table
-        self.height_off = 0.003 # m offest for which all points under get filtered away
+        self.height_off = -0.086 + 0.003 # m offest for which all points under get filtered away
+
     def callback(self, depth_data, rgb_data):
         # TODO try infrared cameras 
         time_start = time.time()
@@ -98,10 +99,10 @@ class ObjectTracking(object):
         p_homogeneous = np.transpose(K_inv.dot(np.asarray(self.pcd.points).T))
         p_homogeneous_offset = p_homogeneous + self.offset_xyz
 
-        cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
+        #cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
         #cv2.imshow('RealSense', depth_img)
-        cv2.imshow('RealSense', mask)
-        cv2.waitKey(1)
+        #cv2.imshow('RealSense', mask)
+        #cv2.waitKey(1)
         if np.shape(p_homogeneous)[0] > self.min_num_points: 
             # dynamic downsample
             down_samlpe = np.shape(p_homogeneous)[0] / self.target_num_points
@@ -204,7 +205,7 @@ def main():
         'normalize': True,
         'knn': 15,
         'tau': 500,
-        'beta': 1.5,
+        'beta': 2,
         'lambda': 3,
         'tau_annealing_handle': lambda iter, max_it:  0.95 ** iter,
         'lambda_annealing_handle': lambda iter, max_it: 0.95 ** iter

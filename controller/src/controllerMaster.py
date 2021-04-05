@@ -195,8 +195,16 @@ class YmuiContoller(object):
         
         if self.controlInstructions.newIndex():
             try:
-                self.SetSGCommand(task="T_ROB_L", command=5, target_position=self.controlInstructions.gripperLeft[0])
-                self.SetSGCommand(task="T_ROB_R", command=5, target_position=self.controlInstructions.gripperRight[0])
+                if self.controlInstructions.gripperLeft[0] <= 1:
+                    self.SetSGCommand(task="T_ROB_L", command=6)
+                else:
+                    self.SetSGCommand(task="T_ROB_L", command=5, target_position=self.controlInstructions.gripperLeft[0])
+                
+                if self.controlInstructions.gripperRight[0] <= 1:
+                    self.SetSGCommand(task="T_ROB_R", command=6)
+                else:
+                    self.SetSGCommand(task="T_ROB_R", command=5, target_position=self.controlInstructions.gripperRight[0])
+
                 # sends of the commandes to the robot
                 self.RunSGRoutine()
             except:
