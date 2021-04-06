@@ -194,15 +194,13 @@ class YmuiContoller(object):
         # ----------------------
         
         if self.controlInstructions.newIndex():
+            tol = 1e-5
             try:
-                if self.controlInstructions.gripperLeft[0] <= 1:
-                    self.SetSGCommand(task="T_ROB_L", command=6)
-                else:
+                # not to sent same command twice. As the grippers might momentarly regripps if the same command is sent twice. 
+                if abs(self.controlInstructions.lastGripperLeft[0] - self.controlInstructions.gripperLeft[0] >= tol):
                     self.SetSGCommand(task="T_ROB_L", command=5, target_position=self.controlInstructions.gripperLeft[0])
-                
-                if self.controlInstructions.gripperRight[0] <= 1:
-                    self.SetSGCommand(task="T_ROB_R", command=6)
-                else:
+
+                if abs(self.controlInstructions.lastGripperRight[0] - self.controlInstructions.gripperRight[0] >= tol):
                     self.SetSGCommand(task="T_ROB_R", command=5, target_position=self.controlInstructions.gripperRight[0])
 
                 # sends of the commandes to the robot

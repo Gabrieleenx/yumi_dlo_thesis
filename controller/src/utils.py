@@ -221,6 +221,8 @@ class ControlInstructions(object): # generates target velocity in task space
         self.errorVelocities = np.zeros(12)
         self.gripperLeft = np.array([0.01,0.01])
         self.gripperRight = np.array([0.01,0.01])
+        self.lastGripperLeft = np.array([-1,-1])
+        self.lastGripperRight = np.array([-1,-1])
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
         self.ifForceControl = 0
         self.forceGain = 0.01

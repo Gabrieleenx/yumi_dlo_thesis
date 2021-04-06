@@ -94,7 +94,6 @@ def main():
     # tasks -------------------
     slackList = [0.10, 0.05, 0.05, 0.05]
     listOfTasks  = []
-    print(len(listOfObjects))
     for i in range(len(listOfObjects)):
         grabCable = tasks.GrabCable(i, i-1, slackList[i])
         clippIntoFixture = tasks.ClippIntoFixture(i, i-1, [i])

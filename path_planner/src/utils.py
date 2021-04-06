@@ -161,11 +161,12 @@ class FixtureObject(object):
 def calcClipPoint(targetFixture, previousFixture, map_, cableSlack, DLO):
     # calculates the point on the rope (from right) that will be in target fixture
     length = 0
+
     if targetFixture >= 0 and previousFixture >= 0:
         fixture0 = map_[previousFixture]
         fixture1 = map_[targetFixture]
-        length = np.linalg.norm(fixture1.position - fixture0.position)
-        minDist, point, minIndex = closesPointDLO(DLO, fixture0.position)
+        length = np.linalg.norm(fixture1.getPosition() - fixture0.getPosition())
+        minDist, point, minIndex = closesPointDLO(DLO, fixture0.getPosition())
         length += DLO.getPartLength(minIndex)
 
     length += cableSlack
@@ -220,14 +221,14 @@ def getTotalRadians(currentQ, targetQ):
 
 def getOffestCableConstraint(map_, previousFixture, gripperTargetPosition, DLO, targetFixture, cableSlack):
     if previousFixture >= 0:
-        cableAttachmentPostion = map_[previousFixture].position 
+        cableAttachmentPostion = map_[previousFixture].getPosition()
         cableAttachmentPostion[2] += map_[previousFixture].fixtureHeight 
 
         dist = np.linalg.norm(gripperTargetPosition - cableAttachmentPostion)
 
         fixture0 = map_[previousFixture]
         fixture1 = map_[targetFixture]
-        length = np.linalg.norm(fixture1.position - fixture0.position)
+        length = np.linalg.norm(fixture1.getPosition() - fixture0.getPosition())
         cableLenght = length + cableSlack
         
         if dist < cableLenght:
