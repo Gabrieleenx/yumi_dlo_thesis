@@ -98,7 +98,7 @@ class GrabCable(Task):
         super(GrabCable, self).__init__('individual')   
         goToHeight = subTasks.GoToHeight(np.array([0.15,0.15]), np.array([20,20])) 
         overCable = subTasks.OverCable(np.array([0.15,0.15]), np.array([20,20]), 0.15)
-        onCable = subTasks.OverCable(np.array([0.008,0.002]), np.array([20,20]), 0.15)
+        onCable = subTasks.OverCable(np.array([0.009,0.002]), np.array([20,20]), 0.15)
         grippCable = subTasks.HoldPosition(3, np.array([0,0]))
         goToHeightWithCable = subTasks.GoToHeightWithCable(np.array([0.15,0.15]), np.array([0,0])) 
 

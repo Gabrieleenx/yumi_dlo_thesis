@@ -188,7 +188,7 @@ class OverCable(object): # only for individual control
 
         else:
             print('Error, pickup points are outside the cable')
-            return []
+            return False
        
         # get  orientation
         rotZ0 = utils.getZRotationCable(self.point0, DLO)
@@ -281,7 +281,7 @@ class GoToHeightWithCable(object):
         self.avgVelocity = 0.02
         self.shortestTime = 1
         self.gripper = grippers # in mm, [Right, left]
-        self.tol = 0.04 # if cable gripp position is off more then 4 cm then task faild and also
+        self.tol = 0.06 # if cable gripp position is off more then 4 cm then task faild and also
                         # some margin for noise and delay
         self.pointTime = 1
 
@@ -367,7 +367,7 @@ class GoToHeightWithCable(object):
         if minDistLeft < self.tol and minDistRight < self.tol:
             return True
         else:
-            return True
+            return False
 
 
 class OverFixture(object):

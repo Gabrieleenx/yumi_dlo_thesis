@@ -92,7 +92,7 @@ def main():
             break
 
     # tasks -------------------
-    slackList = [0.10, 0.05, 0.05, 0.05]
+    slackList = [0.12, 0.08, 0.05, 0.05]
     listOfTasks  = []
     for i in range(len(listOfObjects)):
         grabCable = tasks.GrabCable(i, i-1, slackList[i])
