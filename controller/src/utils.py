@@ -6,7 +6,7 @@ import tf
 
 class JointState(object):
     def __init__(self,\
-            jointPosition=np.array([1.0, -2.0, -1.2, 0.5, -2.0, 1.0, 0.0, -1.0, -2.0, 1.2, 0.5, 2.0, 1.0, 0.0]),\
+            jointPosition=np.array([1.0, -2.0, -1.2, 0.6, -2.0, 1.0, 0.0, -1.0, -2.0, 1.2, 0.6, 2.0, 1.0, 0.0]),\
             jointVelocity=np.zeros(14),\
             gripperRightPosition=np.zeros(2),\
             gripperLeftPosition=np.zeros(2),\

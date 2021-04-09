@@ -13,7 +13,7 @@ class Simulator(object):
     def __init__(self):
         self.updateRate = 250 #hz
         self.dT = 1/self.updateRate
-        self.jointState = utils.JointState()
+        self.jointState = utils.JointState(jointPosition=np.array([1.0, -2.0, -1.2, 0.6, -2.0, 1.0, 0.0, -1.0, -2.0, 1.2, 0.6, 2.0, 1.0, 0.0]))
         self.lock = threading.Lock()
         upperArmLimit = np.array([168.5, 43.5, 168.5, 80, 290, 138, 229])*np.pi/(180)
         lowerArmLimit = np.array([-168.5, -143.5, -168.5, -123.5, -290, -88, -229])*np.pi/(180)
