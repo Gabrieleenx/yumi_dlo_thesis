@@ -14,6 +14,8 @@
 #include <mutex>
 #include <abb_egm_msgs/EGMState.h>
 
+#include <ros/package.h>
+
 // mutex 
 std::mutex mtx_reciving;
 
@@ -166,7 +168,9 @@ Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh ){
     velocity_pub = nh->advertise<std_msgs::Float64MultiArray>("/yumi/egm/joint_group_velocity_controller/command", 1);
 
     // get tree from urdf file for entire yumi
-    if (!kdl_parser::treeFromFile("/home/gabriel/catkin/src/yumi_dlo_thesis/yumi_description/urdf/yumi.urdf", yumi_tree)){
+    std::string const PATH = ros::package::getPath("yumi_description");
+    
+    if (!kdl_parser::treeFromFile(PATH + "/urdf/yumi.urdf", yumi_tree)){
         ROS_ERROR("Failed to construct kdl tree");
     }
     

@@ -217,3 +217,4 @@ include_directories(
 
 add_executable(kdl_jacobian src/kdl_jacobian.cpp)
 target_link_libraries(kdl_jacobian ${catkin_LIBRARIES})
+add_dependencies(kdl_jacobian controller_generate_messages_cpp)

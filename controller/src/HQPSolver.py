@@ -4,7 +4,6 @@
 
 import numpy as np
 import quadprog
-from cvxopt import matrix as cvxopt_matrix
 
 class HQPSolver(object):
     def __init__(self, stopEGM):

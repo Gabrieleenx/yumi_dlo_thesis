@@ -69,6 +69,7 @@ def main():
     trajectory.append(trajectoryPoint)
     # ---------------
     msg.trajectory = trajectory
+    
     pub.publish(msg)
     rospy.sleep(0.1)
     pub.publish(msg)
