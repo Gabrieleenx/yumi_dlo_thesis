@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  sensor_msgs
+  geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -204,3 +206,7 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+add_executable(ropeSim src/ropeSim.cpp)
+target_link_libraries(ropeSim ${catkin_LIBRARIES})
+#add_dependencies(ropeSim path_planner_generate_messages_cpp)
