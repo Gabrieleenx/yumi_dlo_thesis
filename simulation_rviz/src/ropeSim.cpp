@@ -4,71 +4,12 @@
 #include <vector>
 #include <sensor_msgs/PointCloud.h>
 #include <geometry_msgs/Point32.h>
+#include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
+#include <std_msgs/Float64MultiArray.h>
 
+#include "ropeSim.h"
 // this rope/chain verlet simulation is inspierd by https://stackoverflow.com/questions/42609279/how-to-simulate-chain-physics-game-design/42618200
-
-
-struct Parameters
-{
-    const double grav = -9.82;
-    double groundHeight = 0;
-    double airDrag = 0.97; // lower = more drag, 1 is no drag
-    double contactDrag = 0.8;
-    double stiffnes = 1; // stiffnes fo rope 
-    const double deltaTime = 0.01;
-    const double gravVelAdd = grav*deltaTime*deltaTime;
-    const double holdFrictionSquared = 0.000005; // no idea whats a resonable value
-};
-
-struct Point
-{
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
-};
-
-
-struct Vertex
-{
-    Point pos;
-    Point lastPos;
-    bool fixed = false;
-    double radius = 0.004;
-    bool inContact = false;
-};
-
-struct Link
-{
-    int pointIndex0 = 0;
-    int pointIndex1 = 1;
-    double lineLength = 0.01;
-};
-
-struct Fixture
-{
-    /* data */
-};
-
-struct RopeData
-{
-    std::vector<Point> points;
-    std::vector<int> fixedIndices;
-};
-
-
-struct SimData
-{
-    std::vector<Vertex> points;
-    std::vector<Link> links;
-};
-
-
-double calcNorm(Point* point0, Point* point1){
-    double dx = point0->x - point1->x;
-    double dy = point0->y - point1->y;
-    double dz = point0->z - point1->z;
-    return std::sqrt(dx*dx + dy*dy + dz*dz);
-}
 
 
 class RopeSim
@@ -80,28 +21,46 @@ private:
     SimData simDataTemp; 
     SimData simDataTemp2; 
     Parameters parameters;
+    Grippers grippers;
+    Fixture fixtures;
     ros::Publisher publish_rope;
+    ros::Subscriber grippers_sub;
+    tf::TransformBroadcaster broadcaster_fixtures;
+    tf::TransformListener listener;
+    tf::StampedTransform transformRightGripper;
+    tf::StampedTransform transformLeftGripper;
+    int grippedPointRight = 0;
+    int grippedPointLeft = 0;
     int case_ = 0;
 
 public:
     RopeSim(ros::NodeHandle *nh);
-    void updateInitial(RopeData* ropeData);
+    void updateInitial(RopeData* ropeData, Fixture* fixtureData);
     void runSim();
     void movePoints();
     void pointConstraints();
     void resetToInitial();
     void linkConsstraints();
-    void evaluate();
+    void grippers_callback(const std_msgs::Float64MultiArray::ConstPtr& gripperData);
 };
 
+// constructor
 RopeSim::RopeSim(ros::NodeHandle *nh)
 {
     /* constructor */
-    publish_rope = nh->advertise<sensor_msgs::PointCloud>("/PointCloud", 1);
+    publish_rope = nh->advertise<sensor_msgs::PointCloud>("/spr/dlo_estimation", 1);
+    grippers_sub = nh->subscribe("/sim/grippers", 2, &RopeSim::grippers_callback, this);
 
 }
 
-void RopeSim::updateInitial(RopeData* ropeData)
+// member functions 
+
+void RopeSim::grippers_callback(const std_msgs::Float64MultiArray::ConstPtr& gripperData){
+    grippers.gripperRight = gripperData->data[0];
+    grippers.gripperLeft = gripperData->data[1];
+}
+
+void RopeSim::updateInitial(RopeData* ropeData, Fixture* fixtureData)
 {
     /* update rope from DLO*/
     /* update map decribing the postiion of the fixtures */
@@ -133,11 +92,10 @@ void RopeSim::updateInitial(RopeData* ropeData)
             initialSimData.links[i] = link;
         }
     }
-
-
+    
+    fixtures = *fixtureData;
 }
 
-/*this might not be needed*/
 void RopeSim::resetToInitial()
 {
     /* resets the rope to DLO configuration */
@@ -327,7 +285,11 @@ void RopeSim::movePoints(){
 void RopeSim::pointConstraints(){
     /* constrainsts such as ground or fixtrues */
     int numOfPoints = simData.points.size();
-
+    double dist; 
+    Point point;
+    double dx;
+    double dy;
+    double factor;
     for(int i = 0; i < numOfPoints; i++){
         if (simData.points[i].pos.z <= 0.000001){
             simData.points[i].pos.z = 0;
@@ -335,6 +297,24 @@ void RopeSim::pointConstraints(){
         }
         else{
             simData.points[i].inContact = 0;
+        }
+        if (simData.points[i].pos.z < 0.05){
+            for (int j = 0; j < fixtures.numFixtures; j ++){
+                dx = simData.points[i].pos.x - fixtures.fixtureList[j].getOrigin().x();
+                dy = simData.points[i].pos.y - fixtures.fixtureList[j].getOrigin().y();
+                dist = std::sqrt(dx*dx + dy*dy);
+                if (dist <= fixtures.fixtureRadius){
+                    if (dist == 0){
+                        continue;
+                    }
+                    else{
+                        factor = fixtures.fixtureRadius/dist;
+                        simData.points[i].pos.x = fixtures.fixtureList[j].getOrigin().x() + dx*factor;
+                        simData.points[i].pos.y = fixtures.fixtureList[j].getOrigin().y() + dy*factor;
+                    }
+                    simData.points[i].inContact = 1;
+                }
+            }
         }
     }
 }
@@ -390,38 +370,82 @@ void RopeSim::linkConsstraints(){
     }
 }
 
-void RopeSim::evaluate(){
-    /* evaluates the endstate fo the simulation and returns a score */
-}
 
 void RopeSim::runSim(){
     /* runs one simulation given trajectories for the grippers and outputs a score */ 
-
-    simDataTemp = simData;
-    if (case_ == 0){
-        simData.points[30].pos.z += +0.0002;
-        simData.points[40].pos.z += +0.0002;
-        if(simData.points[30].pos.z > 0.1){
-            case_ = 1;
-        } 
-        
+    try
+    {
+        listener.lookupTransform("/yumi_base_link", "/yumi_gripp_r",  
+                                  ros::Time(0), transformRightGripper);
+        listener.lookupTransform("/yumi_base_link", "/yumi_gripp_l",  
+                                  ros::Time(0), transformLeftGripper);
     }
-    else if (case_ == 1){
-        simData.points[30].pos.y += +0.0002;
-        simData.points[40].pos.y += +0.0002;
-        if (simData.points[30].pos.y > 0.2){
-            case_ = 2;
+    catch(const std::exception& e)
+    {
+        std::cout << "Waiting for transform to ba available " << std::endl;
+        ros::Duration(0.5).sleep();
+
+    }
+    
+    
+    
+    double minDistRight;
+    int minIndexRight;
+    closestPoint(&transformRightGripper.getOrigin(), &simData, &minDistRight, &minIndexRight);
+    double minDistLeft;
+    int minIndexLeft;
+    closestPoint(&transformLeftGripper.getOrigin(), &simData, &minDistLeft, &minIndexLeft);
+
+    if(minDistRight < 0.015 && grippers.gripperRight <= 5.0){
+        simData.points[minIndexRight].fixed = true;
+        Point point;
+        point.x = transformRightGripper.getOrigin().x();
+        point.y = transformRightGripper.getOrigin().y();
+        point.z = transformRightGripper.getOrigin().z();
+        simData.points[minIndexRight].pos = point;
+        grippedPointRight = minIndexRight;
+    }
+    else if (minDistRight < 0.02 && grippers.gripperRight >= 6.0){
+        simData.points[grippedPointRight].fixed = false;
+    }
+
+    if(minDistLeft < 0.015 && grippers.gripperLeft <= 5.0){
+        simData.points[minIndexLeft].fixed = true;
+        Point point;
+        point.x = transformLeftGripper.getOrigin().x();
+        point.y = transformLeftGripper.getOrigin().y();
+        point.z = transformLeftGripper.getOrigin().z();
+        simData.points[minIndexLeft].pos = point;
+        grippedPointLeft = minIndexLeft;
+    }
+    else if (minDistLeft < 0.02 && grippers.gripperLeft >= 6.0){
+        simData.points[grippedPointLeft].fixed = false;
+    }
+
+    double minDistfixture;
+    int minIndexfixtue;
+    for (int i = 0; i<fixtures.numFixtures; i++){
+        tf::Vector3 fixtureClipp;
+        fixtureClipp.setX(fixtures.fixtureList[i].getOrigin().x());
+        fixtureClipp.setY(fixtures.fixtureList[i].getOrigin().y());
+        fixtureClipp.setZ(fixtures.fixtureList[i].getOrigin().z() + 0.06);
+
+        closestPoint(&fixtureClipp, &simData, &minDistfixture, &minIndexfixtue);
+        
+        if(minDistfixture < 0.015){
+            simData.points[minIndexfixtue].fixed = true;
+            simData.points[minIndexfixtue-1].fixed = true;
+            simData.points[minIndexfixtue+1].fixed = true;
         }
     }
-    else if (simData.points[30].pos.z > 0.0 && case_ == 2){
-        simData.points[30].pos.z += -0.0002;
-        simData.points[40].pos.z += -0.0002;
-    }
+
+    simDataTemp = simData;
+
     movePoints();
 
     pointConstraints();
 
-    for (int i = 0; i < 100 ; i++){
+    for (int i = 0; i < 200 ; i++){
         simDataTemp2 = simData;
         linkConsstraints();
     }
@@ -431,12 +455,12 @@ void RopeSim::runSim(){
     }
     
     sensor_msgs::PointCloud msg;
-    msg.header.frame_id = "/world";
+    msg.header.frame_id = "/yumi_base_link";
     msg.header.stamp = ros::Time::now();
 
     geometry_msgs::Point32 point32;
     
-    // PUBLISH MAP
+    // PUBLISH ROPE
     for(int i = 0; i < simData.points.size(); i++){
         point32.x = simData.points[i].pos.x;
         point32.y = simData.points[i].pos.y;
@@ -444,50 +468,70 @@ void RopeSim::runSim(){
         msg.points.push_back(point32);
     }
     publish_rope.publish(msg);
+
+    for (int i = 0; i < fixtures.numFixtures; i++){
+        if (fixtures.fixtureActive[i] == 1){
+            broadcaster_fixtures.sendTransform(
+                tf::StampedTransform(
+                    fixtures.fixtureList[i],
+                    ros::Time::now(), "yumi_base_link", fixtures.fixtureName[i]));
+            }
+    }
     
 }
 
 
-
-
 int main(int argc, char** argv){
-    // ROS
+    // ROS 
+    // sim works /yumi_base_link and not in \world frame! 
+
     ros::init(argc, argv, "ropeSim");
     ros::NodeHandle nh;
+
     RopeSim ropeSim(&nh);
+
     RopeData ropeData;
-    ropeData.points.resize(50);
-    double wa = 0;
-    for(int i = 0; i<50; i++){
-        ropeData.points[i].x = wa;
-        ropeData.points[i].y = 0;
+    ropeData.points.resize(70);
+    double wa = -0.5;
+    for(int i = 0; i<70; i++){
+        ropeData.points[i].x = 0.3;
+        ropeData.points[i].y = wa;
         ropeData.points[i].z = 0;
-        wa += 0.02;
+        wa += 0.014285;
     }
-    ropeData.fixedIndices.resize(2);
 
-    ropeData.fixedIndices[0] = 30;
-    ropeData.fixedIndices[1] = 40;
+    ropeData.fixedIndices.resize(0);
 
+    Fixture fixture;
 
-    ropeSim.updateInitial(&ropeData);
+    tf::Quaternion quaternion;
+    quaternion.setEulerZYX(0.0, 0.0, 0.0);
+    fixture.fixtureList[0] = tf::Transform(quaternion, tf::Vector3(0.2, -0.2, 0.0));
+    fixture.fixtureActive[0] = 1;
+
+    quaternion.setEulerZYX(-45.0/180*M_PI, 0.0, 0.0);
+    fixture.fixtureList[1] = tf::Transform(quaternion, tf::Vector3(0.2, -0.0, 0.0));
+    fixture.fixtureActive[1] = 1;
+
+    quaternion.setEulerZYX(-135.0/180*M_PI, 0.0, 0.0);
+    fixture.fixtureList[2] = tf::Transform(quaternion, tf::Vector3(0.40, -0.0, 0.0));
+    fixture.fixtureActive[2] = 1;
+
+    quaternion.setEulerZYX(-180.0/180*M_PI, 0.0, 0.0);
+    fixture.fixtureList[3] = tf::Transform(quaternion, tf::Vector3(0.4, -0.2, 0.0));
+    fixture.fixtureActive[3] = 1;
+
+    ropeSim.updateInitial(&ropeData, &fixture);
     ropeSim.resetToInitial();
+
     // multithreaded spinner 
     ros::AsyncSpinner spinner(0);
     spinner.start();
 
+    ros::Duration(0.5).sleep();
     ros::Rate loop_rate(100);
-    while (ros::ok()){
-        /*
-        for (int j = 0; j < 100 ; j++){
-            ropeSim.resetToInitial();
-            for (int i =0 ; i < 500 ; i++){
-                ropeSim.runSim();
 
-            }
-        }
-        std::cout << "100 sims 10 sec each " << std::endl; 
-        */
+    while (ros::ok()){
         ropeSim.runSim();
         loop_rate.sleep();
     }

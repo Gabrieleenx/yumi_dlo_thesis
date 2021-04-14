@@ -8,8 +8,8 @@ Panels:
         - /Status1
         - /RobotModel1
         - /TF1
+        - /TF1/Frames1
         - /SPRCable1
-        - /SPRCable1/Status1
       Splitter Ratio: 0.5
     Tree Height: 722
   - Class: rviz/Selection
@@ -30,7 +30,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: SPRCable
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -59,36 +59,193 @@ Visualization Manager:
     - Alpha: 0.5
       Class: rviz/RobotModel
       Collision Enabled: false
-      Enabled: false
+      Enabled: true
       Links:
         All Links Enabled: true
         Expand Joint Details: false
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
+        gripper_l_base:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        gripper_l_finger_l:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        gripper_l_finger_r:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        gripper_r_base:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        gripper_r_finger_l:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        gripper_r_finger_r:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        yumi_body:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_link_1_l:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_link_1_r:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_link_2_l:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_link_2_r:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_link_3_l:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_link_3_r:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_link_4_l:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_link_4_r:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_link_5_l:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_link_5_r:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_link_6_l:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_link_6_r:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_link_7_l:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        yumi_link_7_r:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
       Name: RobotModel
       Robot Description: robot_description
       TF Prefix: ""
       Update Interval: 0
-      Value: false
+      Value: true
       Visual Enabled: true
     - Class: rviz/TF
       Enabled: true
       Frame Timeout: 15
       Frames:
-        All Enabled: true
-        gripper_l_base:
+        All Enabled: false
+        Fixture1:
           Value: true
+        Fixture2:
+          Value: true
+        Fixture3:
+          Value: true
+        Fixture4:
+          Value: true
+        camera_link:
+          Value: true
+        gripper_l_base:
+          Value: false
+        gripper_l_finger_l:
+          Value: false
+        gripper_l_finger_r:
+          Value: false
         gripper_r_base:
+          Value: false
+        gripper_r_finger_l:
+          Value: false
+        gripper_r_finger_r:
+          Value: false
+        world:
           Value: true
         yumi_base_link:
           Value: true
         yumi_body:
-          Value: true
+          Value: false
+        yumi_gripp_l:
+          Value: false
+        yumi_gripp_r:
+          Value: false
+        yumi_link_1_l:
+          Value: false
+        yumi_link_1_r:
+          Value: false
+        yumi_link_2_l:
+          Value: false
+        yumi_link_2_r:
+          Value: false
+        yumi_link_3_l:
+          Value: false
+        yumi_link_3_r:
+          Value: false
+        yumi_link_4_l:
+          Value: false
+        yumi_link_4_r:
+          Value: false
+        yumi_link_5_l:
+          Value: false
+        yumi_link_5_r:
+          Value: false
+        yumi_link_6_l:
+          Value: false
+        yumi_link_6_r:
+          Value: false
         yumi_link_7_l:
-          Value: true
+          Value: false
         yumi_link_7_r:
-          Value: true
+          Value: false
       Marker Scale: 0.5
       Name: TF
       Show Arrows: true
@@ -96,8 +253,46 @@ Visualization Manager:
       Show Names: true
       Tree:
         yumi_base_link:
-          yumi_body:
+          Fixture1:
             {}
+          Fixture2:
+            {}
+          Fixture3:
+            {}
+          Fixture4:
+            {}
+          world:
+            camera_link:
+              {}
+          yumi_body:
+            yumi_link_1_l:
+              yumi_link_2_l:
+                yumi_link_3_l:
+                  yumi_link_4_l:
+                    yumi_link_5_l:
+                      yumi_link_6_l:
+                        yumi_link_7_l:
+                          gripper_l_base:
+                            gripper_l_finger_l:
+                              {}
+                            gripper_l_finger_r:
+                              {}
+                          yumi_gripp_l:
+                            {}
+            yumi_link_1_r:
+              yumi_link_2_r:
+                yumi_link_3_r:
+                  yumi_link_4_r:
+                    yumi_link_5_r:
+                      yumi_link_6_r:
+                        yumi_link_7_r:
+                          gripper_r_base:
+                            gripper_r_finger_l:
+                              {}
+                            gripper_r_finger_r:
+                              {}
+                          yumi_gripp_r:
+                            {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -158,25 +353,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.3894906044006348
+      Distance: 1.4926484823226929
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.06696052849292755
-        Y: 0.027259308844804764
-        Z: 0.3385336399078369
+        X: 0.05378405749797821
+        Y: 0.16436223685741425
+        Z: 0.2967316210269928
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.39039719104766846
+      Pitch: -0.08460243791341782
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 1.3335806131362915
+      Yaw: 6.16676139831543
     Saved: ~
 Window Geometry:
   Displays:
