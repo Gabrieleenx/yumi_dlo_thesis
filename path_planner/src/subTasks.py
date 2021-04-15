@@ -391,10 +391,10 @@ class OverFixture(object):
         targetFixture = inputs[4]
         tfListener = inputs[5]
 
-        (worldToBase, _) = tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
+        #(worldToBase, _) = tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
         targetFixtureObj = map_[targetFixture]
-        absPos = targetFixtureObj.getPosition()
-        absPos[2] = targetFixtureObj.getFixtureHeight() + self.targetHeight - worldToBase[2]
+        absPos = targetFixtureObj.getClippPosition()
+        absPos[2] +=  self.targetHeight
         rot = targetFixtureObj.getOrientation()
         absRot = utils.rotateX180(rot)
         relRot = np.array([0,0,0,1])

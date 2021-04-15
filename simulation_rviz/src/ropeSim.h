@@ -6,7 +6,7 @@ struct Fixture
     tf::Transform fixtureList[numFixtures] = {tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0.0, 0.0, 0.0))};
     int fixtureActive[numFixtures] = {0};
     std::string fixtureName[numFixtures] = {"Fixture1", "Fixture2", "Fixture3", "Fixture4"};
-    double fixtureRadius = 0.03; // for collission
+    double fixtureRadius = 0.015; // for collission
 };
 
 struct Parameters

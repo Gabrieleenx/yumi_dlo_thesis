@@ -58,9 +58,9 @@ class PathPlanner(object):
         self.gripperLeft.update(posLeft, orientationLeft)
         self.mtx_spr.acquire()
         self.mtx_subTask.acquire()
+        
         self.tasks[self.currentTask].updateAndTrackProgress(self.map, self.DLO, self.gripperLeft, self.gripperRight, self.currentSubTask)
-        self.mtx_subTask.release()
-        self.mtx_spr.release()
+
 
         if self.tasks[self.currentTask].getNewTrajectory() == 1:
             msg = self.tasks[self.currentTask].getTrajectory()
@@ -71,6 +71,9 @@ class PathPlanner(object):
             if self.currentTask < self.numOfTasks-1:
                 self.currentTask += 1 
                 self.tasks[self.currentTask].taskDone = 0 
+                
+        self.mtx_subTask.release()
+        self.mtx_spr.release()
 
     
 def main():
@@ -92,7 +95,7 @@ def main():
             break
 
     # tasks -------------------
-    slackList = [0.12, 0.08, 0.05, 0.05]
+    slackList = [0.12, 0.04, 0.04, 0.04]
     listOfTasks  = []
     for i in range(len(listOfObjects)):
         grabCable = tasks.GrabCable(i, i-1, slackList[i])
@@ -107,7 +110,9 @@ def main():
     rate = rospy.Rate(10)
 
     while not rospy.is_shutdown():
+
         pathPlanner.update()
+
         rate.sleep()
 
 
