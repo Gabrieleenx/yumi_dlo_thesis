@@ -14,7 +14,7 @@ class InitContoller(object):
         self.updateRate = 50 #Hz also defined in kdl_jacobian 
         self.dT = 1/self.updateRate
         self.jointState = utils.JointState()
-        self.finalJointPosition = np.array([1.0, -2.0, -0.8, 1.0, -2.2, 1.3, 0.0, -1.0, -2.0, 0.8, 1.0, 2.2, 1.3, 0.0]) # need to be tuned
+        self.finalJointPosition = np.array([0.7, -1.7, -0.8, 1.0, -2.2, 1.0, 0.0, -0.7, -1.7, 0.8, 1.0, 2.2, 1.0, 0.0]) # need to be tuned
         self.startJointPosition = np.zeros(14) 
         self.k = 0 # positon error gain  
         self.firstDataPoint = 0

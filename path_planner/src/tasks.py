@@ -54,6 +54,9 @@ class Task(object):
             trajectoryPoint = self.subTasks[i].getTrajectoryPoint(input_)
 
             trajectory.extend(trajectoryPoint)
+
+        # check trajectory, modify trajectory?
+
         msg.trajectory = trajectory
         return msg
 
@@ -79,8 +82,8 @@ class Task(object):
         for j in range(len(inputArgs)):
             input_.append(eval(inputArgs[j]))
 
-        verified = self.subTasks[currentSubTask].verification(input_)
-        if verified == True:
+        verified = self.subTasks[currentSubTask].verification(input_) # Do better verification 
+        if verified == True: 
             self.lastSubtask = currentSubTask
             return
         elif verified == False:
@@ -88,6 +91,8 @@ class Task(object):
             self.time = rospy.Time.now().to_sec()
             self.newTrajectory = 1
             self.newTrajectoryCheck = 1
+
+
 
     def getTaskDone(self):
         return self.taskDone
