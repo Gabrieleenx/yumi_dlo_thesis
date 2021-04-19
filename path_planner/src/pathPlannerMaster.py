@@ -10,6 +10,12 @@ import utils
 import tasks
 import threading
 
+# TODO 
+# 1 improve traj generation
+# 2 fix bugs
+# 3 detect problems
+
+
 class PathPlanner(object):
     def __init__(self, listOfObjects, listOfTasks):
         self.pub = rospy.Publisher('/Trajectroy', Trajectory_msg, queue_size=1)
@@ -95,7 +101,7 @@ def main():
             break
 
     # tasks -------------------
-    slackList = [0.12, 0.04, 0.04, 0.04]
+    slackList = [0.15, 0.04, 0.04, 0.04]
     listOfTasks  = []
     for i in range(len(listOfObjects)):
         grabCable = tasks.GrabCable(i, i-1, slackList[i])

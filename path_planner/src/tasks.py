@@ -23,6 +23,8 @@ class Task(object):
         self.lastSubtask = 0
         self.numSubTasks = 0
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
+        self.trajectory = []
+
 
     def getNewTrajectory(self):
         return self.newTrajectory
@@ -34,7 +36,7 @@ class Task(object):
         msg.mode = self.mode
         msg.forceControl = 0 # hardcoded for now
         msg.maxForce = 4.0
-        trajectory = []
+        self.trajectory = []
 
         gripperRightTemp = self.gripperRight.copyClass()
         gripperLeftTemp = self.gripperLeft.copyClass()
@@ -53,14 +55,15 @@ class Task(object):
                     
             trajectoryPoint = self.subTasks[i].getTrajectoryPoint(input_)
 
-            trajectory.extend(trajectoryPoint)
+            self.trajectory.extend(trajectoryPoint)
 
-        # check trajectory, modify trajectory?
+        # Check for imposible solutions
 
-        msg.trajectory = trajectory
+        msg.trajectory = self.trajectory
         return msg
 
     def trackProgress(self, currentSubTask):
+        # change this code 
 
         if currentSubTask != 0 and self.newTrajectoryCheck == 1:     
             return
@@ -103,7 +106,7 @@ class GrabCable(Task):
         super(GrabCable, self).__init__('individual')   
         goToHeight = subTasks.GoToHeight(np.array([0.10,0.10]), np.array([20,20])) 
         overCable = subTasks.OverCable(np.array([0.10,0.10]), np.array([20,20]), 0.15)
-        onCable = subTasks.OverCable(np.array([0.009,0.002]), np.array([20,20]), 0.15)
+        onCable = subTasks.OverCable(np.array([0.01,-0.005]), np.array([20,20]), 0.15)
         grippCable = subTasks.HoldPosition(3, np.array([0,0]))
         goToHeightWithCable = subTasks.GoToHeightWithCable(np.array([0.1,0.1]), np.array([0,0])) 
 

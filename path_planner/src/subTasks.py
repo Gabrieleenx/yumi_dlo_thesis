@@ -152,8 +152,9 @@ class OverCable(object): # only for individual control
             return []
        
         # get  orientation
-        rotZ0 = utils.getZRotationCable(self.point0, DLO)
-        rotZ1 = utils.getZRotationCable(self.point1, DLO)
+        rotZ0 = utils.getZRotationCable(self.point0, DLO) - np.pi/2
+        rotZ1 = utils.getZRotationCable(self.point1, DLO) - np.pi/2
+        print("rotZ0", rotZ0)
         quat0 = tf.transformations.quaternion_from_euler(rotZ0, 0, np.pi, 'rzyx')
         quat1 = tf.transformations.quaternion_from_euler(rotZ1, 0, np.pi, 'rzyx')
 
@@ -191,8 +192,8 @@ class OverCable(object): # only for individual control
             return False
        
         # get  orientation
-        rotZ0 = utils.getZRotationCable(self.point0, DLO)
-        rotZ1 = utils.getZRotationCable(self.point1, DLO)
+        rotZ0 = utils.getZRotationCable(self.point0, DLO)  - np.pi/2
+        rotZ1 = utils.getZRotationCable(self.point1, DLO)  - np.pi/2
         quat0 = tf.transformations.quaternion_from_euler(rotZ0, 0, np.pi, 'rzyx')
         quat1 = tf.transformations.quaternion_from_euler(rotZ1, 0, np.pi, 'rzyx')
 

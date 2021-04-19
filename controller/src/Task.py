@@ -114,7 +114,7 @@ class IndividualControl(Task):
         self.constraintType = 0
 
     def compute(self, controlInstructions, jacobian):
-        effectorVelocities = controlInstructions.getIndividualTargetVelocity(k=2) # k is the gain for vel = vel + k*error
+        effectorVelocities = controlInstructions.getIndividualTargetVelocity(k=1) # k is the gain for vel = vel + k*error
         self.constraintMatrix = jacobian
         self.constraintVector = effectorVelocities
 
@@ -210,9 +210,11 @@ class JointPositionPotential(Task):
         vec = (self.defaultPose - jointState.jointPosition)
         vec[0] = vec[0]/200
         vec[1] = vec[1]/200
-        vec[2:7] = vec[2:7]/200
+        vec[2:6] = vec[2:6]/200
+        vec[6] = vec[6]/400
         vec[7] = vec[7]/200
         vec[8] = vec[8]/200
-        vec[9:14] = vec[2:7]/200
+        vec[9:13] = vec[9:13]/200
+        vec[13] = vec[13]/400
 
         self.constraintVector = vec

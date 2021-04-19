@@ -191,7 +191,7 @@ def getZRotationCable(length, DLO):
     dy = point1[1] - point0[1]
     dx = point1[0] - point0[0]
     rotZ = np.arctan2(dy,dx)
-    return rotZ - np.pi/2
+    return rotZ #  - np.pi/2
 
 
 def getPointTime(gripperRight, gripperLeft, posTargetRight, posTargetLeft, \
@@ -266,3 +266,23 @@ def closesPointDLO(DLO, pos):
 
 def rotateX180(q):
     return tf.transformations.quaternion_multiply(q, np.array([1,0,0,0]))
+
+
+def calcGrippPoints(targetFixture, map_, DLO, grippWidth, clipPoint):
+
+    DLO.getCoord(self.point0)
+    rotZClippPoint = utils.getZRotationCable(clipPoint, DLO)
+    fixtrueQuat = map_[targetFixture].getOrientation()
+    fixtureEuler = tf.transformations.euler_from_quaternion(fixtureQuat, axis='sxyz')
+
+    # 0 to Left along, x axis. 
+    rotSlack = 20 * np.pi /180 
+    if rotZClippPoint > -np.pi-rotSlack and rotZClippPoint < np.pi+rotSlack:
+        pass
+    else:
+        pass
+
+
+
+
+    return leftGrippPoint, rightGrippPoint

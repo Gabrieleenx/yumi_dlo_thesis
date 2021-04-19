@@ -35,15 +35,16 @@ def main():
     # ---------------
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.35, -0.1, 0.2]
-    trajectoryPoint.positionLeft = [0.35, 0.15, 0.03]
+    trajectoryPoint.positionRight = [0.35, -0.1, 0.03]
+    trajectoryPoint.positionLeft = [0.35, 0.1, 0.03]
     trajectoryPoint.orientationLeft = [1,0,0,0]
     trajectoryPoint.orientationRight = [1,0,0,0]
-    trajectoryPoint.gripperLeft = [20,20]
-    trajectoryPoint.gripperRight = [20,20]
+    trajectoryPoint.gripperLeft = [0,0]
+    trajectoryPoint.gripperRight = [0,0]
     trajectoryPoint.pointTime = 8.0
 
     trajectory.append(trajectoryPoint)
+    '''
     # ---------------
     trajectoryPoint = Trajectory_point()
     trajectoryPoint.positionRight = [0.35, -0.1, 0.03]
@@ -68,6 +69,7 @@ def main():
 
     trajectory.append(trajectoryPoint)
     # ---------------
+    '''
     msg.trajectory = trajectory
     
     pub.publish(msg)
@@ -78,6 +80,7 @@ def main():
     rospy.sleep(31)
 
     # --------------------------------------------
+    '''
     msg = Trajectory_msg()
     msg.header.stamp = rospy.Time.now()
     msg.mode = 'combined'
@@ -308,6 +311,8 @@ def main():
 
     pub.publish(msg)
     print('sent msg 2, combined ')
+    '''
+
     '''
     rospy.sleep(30)
 
