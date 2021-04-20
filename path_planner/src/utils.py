@@ -270,19 +270,92 @@ def rotateX180(q):
 
 def calcGrippPoints(targetFixture, map_, DLO, grippWidth, clipPoint):
 
-    DLO.getCoord(self.point0)
-    rotZClippPoint = utils.getZRotationCable(clipPoint, DLO)
-    fixtrueQuat = map_[targetFixture].getOrientation()
-    fixtureEuler = tf.transformations.euler_from_quaternion(fixtureQuat, axis='sxyz')
+    rotZClippPoint = getZRotationCable(clipPoint, DLO)
+    fixtureQuat = map_[targetFixture].getOrientation()
+    fixtureEuler = tf.transformations.euler_from_quaternion(fixtureQuat, 'sxyz')
+
 
     # 0 to Left along, x axis. 
     rotSlack = 20 * np.pi /180 
-    if rotZClippPoint > -np.pi-rotSlack and rotZClippPoint < np.pi+rotSlack:
-        pass
+    if rotZClippPoint > 0-rotSlack and rotZClippPoint < np.pi+rotSlack:
+        if fixtureEuler[2] > rotSlack and  fixtureEuler[2] > np.pi - rotSlack:
+            leftGrippPoint = clipPoint + grippWidth/2
+            rightGrippPoint = clipPoint - grippWidth/2
+
+        elif rotZClippPoint > 0+rotSlack and rotZClippPoint < np.pi-rotSlack:
+            leftGrippPoint = clipPoint + grippWidth/2
+            rightGrippPoint = clipPoint - grippWidth/2
+        
+        elif fixtureEuler[2] > 0 and  fixtureEuler[2] > np.pi:
+            leftGrippPoint = clipPoint + grippWidth/2
+            rightGrippPoint = clipPoint - grippWidth/2
+        else:
+            leftGrippPoint = clipPoint - grippWidth/2
+            rightGrippPoint = clipPoint + grippWidth/2
+        
     else:
-        pass
-
-
-
+        leftGrippPoint = clipPoint - grippWidth/2
+        rightGrippPoint = clipPoint + grippWidth/2
 
     return leftGrippPoint, rightGrippPoint
+
+def closestDistLineToLineSegment(pointA0, pointA1, pointB0, pointB1):
+    #Input endpoints for to line segments A and B, assumes constant movment along line in direction they are defined
+
+    #Lines redefined to LA = pointA0 + s*u and LB = pointB0 + t*v
+    u = pointA1 - pointA0
+    v = pointB1 - pointB0  
+    w0 = pointA0 - pointB0
+    a = u.dot(u)
+    b = u.dot(v)
+    c = v.dot(v)
+    d = u.dot(w0)
+    e = v.dot(w0)    
+
+    # check if boh linesegment is points
+    if not np.any(u) and not np.any(v):
+        return np.linalg.norm(w0)
+
+    # if either are a point
+    elif not np.any(u):
+        sc = 0
+        tc = d/b
+        if tc < 0:
+            tc  = 0
+        elif tc > 1:
+            tc = 1 
+        pA = pointA0 + sc*u
+        pB = pointB0 + tc*v
+        return np.linalg.norm(pA - pB)
+
+    elif not np.any(v):
+        tc  = 0
+        sc = -d/a
+        if sc < 0:
+            sc  = 0
+        elif sc > 1:
+            sc = 1 
+        pA = pointA0 + sc*u
+        pB = pointB0 + tc*v
+        return np.linalg.norm(pA - pB)
+    
+    elif np.linalg.norm(u-v) <= 1e-10:
+        # moving in same direction at same speed
+        t_cpa = 0
+
+    else:
+        t_cpa = -w0.dot(u-v)/(np.linalg.norm(u-v)**2)
+
+    if t_cpa < 0:
+        t_cpa = 0
+    elif t_cpa > 1:
+        t_cpa = 1
+
+    pA = pointA0 + t_cpa*u
+    pB = pointB0 + t_cpa*v
+    dist = np.linalg.norm(pA - pB)
+
+    return dist
+
+
+

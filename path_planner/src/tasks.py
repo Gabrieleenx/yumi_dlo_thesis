@@ -2,7 +2,7 @@
 
 import numpy as np
 import rospy
-import subTasks, utils
+import subTasks, utils, constraintsCheck
 from controller.msg import Trajectory_point, Trajectory_msg
 import tf
 
@@ -24,6 +24,7 @@ class Task(object):
         self.numSubTasks = 0
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
         self.trajectory = []
+        self.checkConstraints = constraintsCheck.CheckConstraints()
 
 
     def getNewTrajectory(self):
@@ -58,6 +59,8 @@ class Task(object):
             self.trajectory.extend(trajectoryPoint)
 
         # Check for imposible solutions
+        self.checkConstraints.check(self.map, self.trajectory, self.DLO, self.mode,\
+             self.tfListener, self.targetFixture, self.previousFixture, self.cableSlack)
 
         msg.trajectory = self.trajectory
         return msg
