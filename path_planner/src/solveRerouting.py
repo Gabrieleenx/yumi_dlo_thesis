@@ -91,7 +91,7 @@ class Solve(object):
         # check solution is feasible  
         # return solution 
 
-    def generateInitIndividual(self):
+    def generateInitIndividual(self, posMSTD, rotDegSTD):
         individual = Individual(self.mode)
         low = self.leftPickupRange[0]
         high = leftPickupRange[1]
@@ -101,49 +101,73 @@ class Solve(object):
         high = rightPickupRange[1]
         individual.rightPickupPoint = np.random.default_rng().uniform(low=low, high=high)
 
-        if self.previousFixture < 0:
-            # check if pickup point is in reach
-            pointRight = self.DLO.getCoord(individual.rightPickupPoint)
-            pointRight += self.Link7ToGripperRight
-            if np.linalg.norm(pointRight - self.reachRightCentrum) >= self.reach:
-                individual.rightPickupInReach = 0
-            else: 
-                individual.rightPickupInReach = 1
+        # check if pickup point is in reach
+        pointRight = self.DLO.getCoord(individual.rightPickupPoint)
+        pointRight += self.Link7ToGripperRight
+        if np.linalg.norm(pointRight - self.reachRightCentrum) >= self.reach:
+            individual.rightPickupInReach = 0
+        else: 
+            individual.rightPickupInReach = 1
 
-            pointLeft = self.DLO.getCoord(individual.leftPickupPoint)
-            pointLeft += self.Link7ToGripperLeft
-            if np.linalg.norm(pointLeft - self.reachLeftCentrum) >= self.reach:
-                individual.leftPickupInReach = 0
-            else: 
-                individual.leftPickupInReach = 1
+        pointLeft = self.DLO.getCoord(individual.leftPickupPoint)
+        pointLeft += self.Link7ToGripperLeft
+        if np.linalg.norm(pointLeft - self.reachLeftCentrum) >= self.reach:
+            individual.leftPickupInReach = 0
+        else: 
+            individual.leftPickupInReach = 1
 
-            if individual.leftPickupInReach == 1 and individual.rightPickupInReach == 1:
-                if np.random.random() <0.5:
-                    newRightX = np.random.normal(pointRight[0], 0.4)
-                    newRightY = np.random.normal(pointRight[1], 0.4)
-                    newRightZ = 0.03    
-                    individual.rightEndPosition = np.array([newRightX, newRightY, newRightZ])
-                    pickupDist = abs(individual.rightPickupPoint - individual.leftPickupPoint) 
-                    
-                    
-                    individual.leftEndPosition =
-                else:
-                    pass 
-            elif individual.leftPickupInReach == 1:
-                pass
-            elif individual.rightPickupInReach == 1:
-                pass
+        # if both pickup points are in reach 
+        if individual.leftPickupInReach == 1 and individual.rightPickupInReach == 1:
+            dy = pointLeft[1] - pointRight[1]
+            dx = pointLeft[0] - pointRight[0]
+            angle = np.arctan2(dy, dx)
+            if np.random.random() <0.5:
+                newRightX = np.random.normal(pointRight[0], posMSTD)
+                newRightY = np.random.normal(pointRight[1], posMSTD)
+                newZ = 0.03    
+                individual.rightEndPosition = np.array([newRightX, newRightY, newZ])
+                pickupDist = abs(individual.rightPickupPoint - individual.leftPickupPoint) 
+                angleNew = np.random.normal(angle, rotDegSTD * np.pi/180)
+                newLeftX = newRightX + pickupDist*np.cos(angleNew) 
+                newLeftY = newRightY + pickupDist*np.sin(angleNew)
+                individual.leftEndPosition = np.array([newLeftX, newLeftY, newZ])
+                
+            else:
+                newLeftX = np.random.normal(pointLeft[0], posMSTD)
+                newLeftY = np.random.normal(pointLeft[1], posMSTD)
+                newZ = 0.03    
+                individual.leftEndPosition = np.array([newLeftX, newLeftY, newZ])
+                pickupDist = abs(individual.rightPickupPoint - individual.leftPickupPoint) 
+                angleNew = np.random.normal(angle + np.pi, rotDegSTD * np.pi/180)
+                newRightX = newLeftX + pickupDist*np.cos(angleNew) 
+                newRightY = newLeftY + pickupDist*np.sin(angleNew)
+                individual.rightEndPosition = np.array([newRightX, newRightY, newZ])
 
-        else:
-            pass
+            individual.rightEndOrientation = angle
+            individual.leftEndOrientation = angle
 
+        # if Left pickup points are in reach 
+        elif individual.leftPickupInReach == 1:
+            newLeftX = np.random.normal(pointLeft[0], posMSTD)
+            newLeftY = np.random.normal(pointLeft[1], posMSTD)
+            newZ = 0.03    
+            individual.leftEndPosition = np.array([newLeftX, newLeftY, newZ])
+            #  TODO fix orientation, same as rope?
+        # if right pickup points are in reach 
+        elif individual.rightPickupInReach == 1:
+            newRightX = np.random.normal(pointRight[0], posMSTD)
+            newRightY = np.random.normal(pointRight[1], posMSTD)
+            newZ = 0.03    
+            individual.rightEndPosition = np.array([newRightX, newRightY, newZ])
+            #  TODO fix orientation
         return individual
-
 
     def generateSample(self, base):
         pass
         # return new individual
 
     def resample(self):
+        pass
 
     def evaluate(self):
+        pass
