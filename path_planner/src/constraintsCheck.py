@@ -15,10 +15,8 @@ class CheckConstraints(object):
 
     def check(self, map_, traj, DLO, mode, tfListener, targetFixture, previousFixture, cableSlack, grippWidth=0.15):
 
-        (baseToJoint2R, _) = tfListener.lookupTransform('/yumi_base_link', '/yumi_link_2_r', rospy.Time(0))
-        (baseToJoint2L, _) = tfListener.lookupTransform('/yumi_base_link', '/yumi_link_2_l', rospy.Time(0))
-        baseToJoint2R = np.asarray(baseToJoint2R)
-        baseToJoint2L = np.asarray(baseToJoint2L)
+        reachLeftCentrum = np.array([0.138, 0.106, 0.462])
+        reachRightCentrum = np.array([0.138, -0.106, 0.462])
 
         (baseToGripperRight, _) = tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
         (Link7ToGripperRight, _) = tfListener.lookupTransform('/yumi_link_7_r', '/yumi_gripp_r', rospy.Time(0))
@@ -38,11 +36,11 @@ class CheckConstraints(object):
             leftGrippPointCoordHigh = leftGrippPointCoord + Link7ToGripperLeft
             rightGrippPointCoordHigh = rightGrippPointCoord + Link7ToGripperRight
 
-            if np.linalg.norm(rightGrippPointCoordHigh - baseToJoint2R) >= self.reach:
-                print(' pickup point for right arm is out of reach, dist = ', np.linalg.norm(rightGrippPointCoordHigh - baseToJoint2R))
+            if np.linalg.norm(rightGrippPointCoordHigh - reachRightCentrum) >= self.reach:
+                print(' pickup point for right arm is out of reach, dist = ', np.linalg.norm(rightGrippPointCoordHigh - reachRightCentrum))
 
-            if np.linalg.norm(leftGrippPointCoordHigh - baseToJoint2L) >= self.reach:
-                print(' pickup point for left arm is out of reach, dist = ',  np.linalg.norm(leftGrippPointCoordHigh - baseToJoint2L))
+            if np.linalg.norm(leftGrippPointCoordHigh - reachLeftCentrum) >= self.reach:
+                print(' pickup point for left arm is out of reach, dist = ',  np.linalg.norm(leftGrippPointCoordHigh - reachLeftCentrum))
 
 
             if np.linalg.norm(leftGrippPointCoord - rightGrippPointCoord) < self.minGripperDistance:
