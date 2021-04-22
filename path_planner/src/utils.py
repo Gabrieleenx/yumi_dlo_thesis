@@ -8,12 +8,13 @@ class FramePose(object):
     def __init__(self):
         self.position = np.zeros(3)
         self.quaternion = np.zeros(4)
+        self.flipped = -1
 
     def getQuaternion(self):
-        return self.quaternion
+        return np.copy(self.quaternion)
 
     def getPosition(self):
-        return self.position
+        return np.copy(self.position)
 
     def update(self, position, orientation):
         self.position = np.copy(np.asarray(position))
@@ -23,6 +24,7 @@ class FramePose(object):
         classCopy = FramePose()
         classCopy.quaternion = np.copy(self.quaternion)
         classCopy.position = np.copy(self.position) 
+        classCopy.flipped = self.flipped
         return classCopy
 
 
@@ -274,7 +276,6 @@ def calcGrippPoints(targetFixture, map_, DLO, grippWidth, clipPoint):
     fixtureQuat = map_[targetFixture].getOrientation()
     fixtureEuler = tf.transformations.euler_from_quaternion(fixtureQuat, 'sxyz')
 
-
     # 0 to Left along, x axis. 
     rotSlack = 20 * np.pi /180 
     if rotZClippPoint > 0-rotSlack and rotZClippPoint < np.pi+rotSlack:
@@ -297,7 +298,40 @@ def calcGrippPoints(targetFixture, map_, DLO, grippWidth, clipPoint):
         leftGrippPoint = clipPoint - grippWidth/2
         rightGrippPoint = clipPoint + grippWidth/2
 
+    if leftGrippPoint < 0 or leftGrippPoint > DLO.getLength():
+        print('Error, pickup points are outside the cable')
+        return -1, -1
+    if rightGrippPoint < 0 or rightGrippPoint > DLO.getLength():
+        print('Error, pickup points are outside the cable')
+        return -1, -1
+
     return leftGrippPoint, rightGrippPoint
+
+def calcGrippPosRot(DLO, leftGrippPoint, rightGrippPoint, targetHeightRight, targetHeightLeft):
+    if leftGrippPoint < 0 or leftGrippPoint > DLO.getLength():
+        return np.zeros(3), np.zeros(3), np.zeros(4), np.zeros(4), False
+    if rightGrippPoint < 0 or rightGrippPoint > DLO.getLength():
+        return np.zeros(3), np.zeros(3), np.zeros(4), np.zeros(4), False
+    
+    positionRight = DLO.getCoord(rightGrippPoint)
+    positionLeft = DLO.getCoord(leftGrippPoint)
+    positionRight[2] += targetHeightRight
+    positionLeft[2] += targetHeightLeft
+
+    # get  orientation
+    if leftGrippPoint > rightGrippPoint:
+        rotZRight = getZRotationCable(rightGrippPoint, DLO) - np.pi/2
+        rotZLeft = getZRotationCable(leftGrippPoint, DLO) - np.pi/2
+        quatRight = tf.transformations.quaternion_from_euler(rotZRight, 0, np.pi, 'rzyx')
+        quatLeft = tf.transformations.quaternion_from_euler(rotZLeft, 0, np.pi, 'rzyx')
+    else:
+        rotZRight = getZRotationCable(rightGrippPoint, DLO) + np.pi/2
+        rotZLeft = getZRotationCable(leftGrippPoint, DLO) + np.pi/2
+        quatRight = tf.transformations.quaternion_from_euler(rotZRight, 0, np.pi, 'rzyx')
+        quatLeft = tf.transformations.quaternion_from_euler(rotZLeft, 0, np.pi, 'rzyx')
+    return positionRight, positionLeft, quatRight, quatLeft, True
+
+
 
 def closestDistLineToLineSegment(pointA0, pointA1, pointB0, pointB1):
     #Input endpoints for to line segments A and B, assumes constant movment along line in direction they are defined

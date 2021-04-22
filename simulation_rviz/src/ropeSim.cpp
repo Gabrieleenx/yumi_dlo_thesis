@@ -492,12 +492,12 @@ int main(int argc, char** argv){
 
     RopeData ropeData;
     ropeData.points.resize(70);
-    double wa = -0.5;
+    double wa = 0.5;
     for(int i = 0; i<70; i++){
         ropeData.points[i].x = 0.4;
         ropeData.points[i].y = wa;
         ropeData.points[i].z = 0;
-        wa += 0.014285;
+        wa -= 0.014285;
     }
 
     ropeData.fixedIndices.resize(0);
