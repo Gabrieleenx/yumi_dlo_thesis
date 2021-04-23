@@ -14,6 +14,7 @@ class CheckConstraints(object):
 
 
     def check(self, map_, traj, DLO, mode, tfListener, targetFixture, previousFixture, cableSlack, grippWidth=0.15):
+        instruction = 0
 
         reachLeftCentrum = np.array([0.138, 0.106, 0.462])
         reachRightCentrum = np.array([0.138, -0.106, 0.462])
@@ -38,10 +39,10 @@ class CheckConstraints(object):
 
             if np.linalg.norm(rightGrippPointCoordHigh - reachRightCentrum) >= self.reach:
                 print(' pickup point for right arm is out of reach, dist = ', np.linalg.norm(rightGrippPointCoordHigh - reachRightCentrum))
-
+                instruction = 1
             if np.linalg.norm(leftGrippPointCoordHigh - reachLeftCentrum) >= self.reach:
                 print(' pickup point for left arm is out of reach, dist = ',  np.linalg.norm(leftGrippPointCoordHigh - reachLeftCentrum))
-
+                instruction = 1
 
             if np.linalg.norm(leftGrippPointCoord - rightGrippPointCoord) < self.minGripperDistance:
                 print(' Pickup points too close, dist = ', np.linalg.norm(leftGrippPointCoord - rightGrippPointCoord))
@@ -84,6 +85,9 @@ class CheckConstraints(object):
                 absoluteEuler = tf.transformations.euler_from_quaternion(quat, 'sxyz')
                 if absoluteEuler[2] < -np.pi/2 - 20 * np.pi /180 or absoluteEuler[2] > np.pi/2 + 20 * np.pi /180:
                     print('cross over, angle = ',absoluteEuler[2]*180/np.pi)
+
+        return instruction
+
 
         # if individal
         # is pickup point outside of reach, identifyed

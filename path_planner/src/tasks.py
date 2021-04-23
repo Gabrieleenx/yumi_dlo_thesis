@@ -2,7 +2,7 @@
 
 import numpy as np
 import rospy
-import subTasks, utils, constraintsCheck
+import subTasks, utils, constraintsCheck, solveRerouting
 from controller.msg import Trajectory_point, Trajectory_msg
 import tf
 
@@ -25,7 +25,8 @@ class Task(object):
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
         self.trajectory = []
         self.checkConstraints = constraintsCheck.CheckConstraints()
-
+        self.solve = solveRerouting.Solve()
+        self.grippWidth = 0.15
 
     def getNewTrajectory(self):
         return self.newTrajectory
@@ -65,8 +66,15 @@ class Task(object):
             self.trajectory.extend(trajectoryPoint)
 
         # Check for imposible solutions
-        self.checkConstraints.check(self.map, self.trajectory, self.DLO, self.mode,\
+        instruction = self.checkConstraints.check(self.map, self.trajectory, self.DLO, self.mode,\
              self.tfListener, self.targetFixture, self.previousFixture, self.cableSlack)
+
+        if instruction == 0:
+            pass
+        elif instruction == 1:
+            self.solve.updateInit(self.DLO, self.map, self.mode, self.grippWidth,\
+                 self.targetFixture, self.previousFixture, self.tfListener, self.cableSlack)
+            self.solve.solve(50, 20)
 
         msg.trajectory = self.trajectory
         return msg
