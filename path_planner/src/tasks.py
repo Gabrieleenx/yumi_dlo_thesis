@@ -56,6 +56,23 @@ class Task(object):
             absoluteTemp.update(absolutePosition, absoluteOrientation)
             relativeTemp.update(relativePosition, relativeOrientation)
             absoluteTemp.flipped = -1
+            # TODO change this 
+            absPrevQuat = absoluteTemp.getQuaternion()
+            minDist, length, minIndex = utils.closesPointDLO(self.DLO, absoluteTemp.getPosition())
+            cableRotZ = utils.getZRotationCable(length, self.DLO) - np.pi/2 
+            startAbsEuler = tf.transformations.euler_from_quaternion(absPrevQuat, 'sxyz')
+            angleDiff = cableRotZ - startAbsEuler[2]
+            if angleDiff > np.pi:
+                angleDiff -= 2*np.pi
+            if angleDiff < - np.pi:
+                angleDiff += 2*np.pi
+            
+            print('angleDiff', angleDiff, ' cableRotZ ', cableRotZ, ' startAbsEuler[2] ',startAbsEuler[2])
+
+            if abs(angleDiff) > np.pi/2:
+                print('is flipped')
+                absoluteTemp.flipped = 1
+
         else:
             gripperRightTemp = self.gripperRight.copyClass()
             gripperLeftTemp = self.gripperLeft.copyClass()
@@ -70,8 +87,6 @@ class Task(object):
             trajectoryPoint = self.subTasks[i].getTrajectoryPoint(input_)
 
             self.trajectory.extend(trajectoryPoint)
-
-        
 
         msg.trajectory = self.trajectory
         return msg
@@ -127,7 +142,7 @@ class GrabCable(Task):
         super(GrabCable, self).__init__('individual')   
         goToHeight = subTasks.GoToHeightIndividual(np.array([0.10,0.10]), np.array([20,20])) 
         overCable = subTasks.OverCableIndividual(np.array([0.10,0.10]), np.array([20,20]), 0.15)
-        onCable = subTasks.OverCableIndividual(np.array([0.01,-0.005]), np.array([20,20]), 0.15)
+        onCable = subTasks.OverCableIndividual(np.array([0.0,-0.00]), np.array([20,20]), 0.15)
         grippCable = subTasks.HoldPositionIndividual(3, np.array([0,0]))
         goToHeightWithCable = subTasks.GoToHeightWithCableIndividual(np.array([0.1,0.1]), np.array([0,0])) 
 
@@ -189,7 +204,7 @@ class Rerouting(Task):
     def __init__(self): 
         super(Rerouting, self).__init__('individual')   
     
-    def initilize(self, mode, individual):
+    def initilize(self, mode, individual, grippWidth):
         self.mode = mode
 
         if self.mode == 'individual':
@@ -226,8 +241,21 @@ class Rerouting(Task):
             self.numSubTasks = len(self.subTasks)
 
         elif self.mode == 'combined':
-            self.nextTaskStep -= 1
-            pass
+            self.nextTaskStep = -1
+            self.grippWidth = grippWidth
+
+            absPosXY = individual.parametersCombined[0:2]
+            absRotZ = individual.parametersCombined[2]
+            moveTo = subTasks.ReroutingCombined(absPosXY, absRotZ, 0.10, np.array([0,0]), self.grippWidth)
+            moveDown = subTasks.GoToHeightCombined(np.array([0.03,0.03]), np.array([0,0])) 
+            releaseCable = subTasks.HoldPositionCombined(3, np.array([20,20]))
+            goToHeight = subTasks.GoToHeightCombined(np.array([0.10,0.10]), np.array([20,20])) 
+            absRotZ = 0 - 0.3*absRotZ
+            rotateToNetural = subTasks.ReroutingCombined(absPosXY, absRotZ, 0.10, np.array([20,20]), self.grippWidth)
+            self.subTasks = [moveTo, moveDown, releaseCable, goToHeight, rotateToNetural]
+            self.goToSubTask = [0,0,0,0,0]
+            self.numSubTasks = len(self.subTasks)
+
        
 
     def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask):

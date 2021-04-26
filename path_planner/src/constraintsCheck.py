@@ -38,7 +38,8 @@ class CheckConstraints(object):
             rightGrippPointCoordHigh = rightGrippPointCoord + Link7ToGripperRight
 
             if np.linalg.norm(rightGrippPointCoordHigh - reachRightCentrum) >= self.reach:
-                print(' pickup point for right arm is out of reach, dist = ', np.linalg.norm(rightGrippPointCoordHigh - reachRightCentrum))
+                print(' pickup point for right arm is out of reach, dist = ', np.linalg.norm(rightGrippPointCoordHigh - reachRightCentrum), '\n',\
+                    'rightGrippPointCoordHigh, ', rightGrippPointCoordHigh ,' reachRightCentrum ', reachRightCentrum)
                 instruction = 1
             if np.linalg.norm(leftGrippPointCoordHigh - reachLeftCentrum) >= self.reach:
                 print(' pickup point for left arm is out of reach, dist = ',  np.linalg.norm(leftGrippPointCoordHigh - reachLeftCentrum))

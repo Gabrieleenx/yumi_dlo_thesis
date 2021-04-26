@@ -475,14 +475,6 @@ class OverFixtureCombinded(object):
         absPos[2] +=  self.targetHeight
         rot = targetFixtureObj.getOrientation()
 
-        if absolute.flipped == -1:
-            absPrevQuat = absolute.getQuaternion()
-            minDist, length, minIndex = utils.closesPointDLO(DLO, absolute.getPosition())
-            cableRotZ = utils.getZRotationCable(length, DLO) - np.pi/2 
-            startAbsEuler = tf.transformations.euler_from_quaternion(absPrevQuat, 'sxyz')
-            if abs(cableRotZ - startAbsEuler[2]) > np.pi/2:
-                absolute.flipped = 1
-
         if absolute.flipped == 1:
             # rotate z 180
             rot = tf.transformations.quaternion_multiply(rot, np.array([0,0,1,0]))
@@ -657,3 +649,50 @@ class CableReroutingEndPosIndividual(object): # only for individual control
 
         return True
 
+
+class ReroutingCombined(object):
+    def __init__(self, absPosXY, absRotZ, targetHeight, grippers, gripperWidth):
+        self.gripper = grippers # in mm, [Right, left]
+        self.inputArgs = ['relativeTemp', 'absoluteTemp', 'self.tfListener'] 
+        self.verificationArgs = ['self.taskDone'] #  at least one variable for these even if nothing is used 
+        self.pointTime = 1
+        self.gripperWidth = gripperWidth
+        self.targetHeight = targetHeight # height over world, single float 
+        self.avgVelocity = 0.02 # m/s
+        self.avgRotVel = 0.2 # rad/s 
+        self.shortestTime = 1
+        self.absPosXY = absPosXY
+        self.absRotZ = absRotZ
+
+    def getTrajectoryPoint(self, inputs):
+        relative = inputs[0]
+        absolute = inputs[1]
+        tfListener = inputs[2]
+
+        (worldToBase, _) = tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
+        absPos = np.zeros(3)
+        absPos[0] = self.absPosXY[0]
+        absPos[1] = self.absPosXY[1]
+        absPos[2] = self.targetHeight- worldToBase[2]
+        absRot = tf.transformations.quaternion_from_euler(self.absRotZ, 0, 180*np.pi/180, 'rzyx')
+        relRot = np.array([0,0,0,1])
+        relPos = np.array([0, self.gripperWidth, 0])
+
+        self.pointTime = utils.getPointTime(absolute, relative, absPos, relPos,\
+                        absRot, relRot, self.avgVelocity, self.avgRotVel, self.shortestTime)
+        trajectoryPoint = Trajectory_point()
+
+        trajectoryPoint.positionRight = absPos.tolist()
+        trajectoryPoint.positionLeft = relPos.tolist()
+        trajectoryPoint.orientationLeft = relRot.tolist()
+        trajectoryPoint.orientationRight = absRot.tolist()
+        trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
+        trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+        trajectoryPoint.pointTime = self.pointTime
+
+        relative.update(relPos, relRot)
+        absolute.update(absPos, absRot)
+        return [trajectoryPoint]
+
+    def verification(self, input_):
+        return True

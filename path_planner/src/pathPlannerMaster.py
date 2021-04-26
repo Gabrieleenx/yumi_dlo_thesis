@@ -90,7 +90,7 @@ class PathPlanner(object):
                     targetFixture, previousFixture, self.tfListener, cableSlack)
                 individual = self.solve.solve(100, 20)
                 self.rerouting.resetTask()
-                self.rerouting.initilize(mode, individual)
+                self.rerouting.initilize(mode, individual, grippWidth)
                 task = self.rerouting
                 task.updateAndTrackProgress(self.map, self.DLO, self.gripperLeft, self.gripperRight, self.currentSubTask)
                 msg = task.getMsg()
@@ -103,14 +103,16 @@ class PathPlanner(object):
             print('task done')
             if self.instruction == 0:
                 if self.currentTask < self.numOfTasks-1:
-                    self.currentTask += self.tasks.nextTaskStep()
+                    self.currentTask += task.getNextTaskStep()
                     self.tasks[self.currentTask].resetTask() 
+                    print('currentTask ', self.currentTask)
                     
             elif self.instruction == 1:
                 self.instruction = 0
-                self.currentTask += self.tasks.nextTaskStep()
+                self.currentTask += task.getNextTaskStep()
                 task = self.tasks[self.currentTask]
                 self.tasks[self.currentTask].resetTask() 
+                print('currentTask ', self.currentTask)
 
         self.mtx_subTask.release()
         self.mtx_spr.release()
