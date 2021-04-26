@@ -46,15 +46,18 @@ class CheckConstraints(object):
 
             if np.linalg.norm(leftGrippPointCoord - rightGrippPointCoord) < self.minGripperDistance:
                 print(' Pickup points too close, dist = ', np.linalg.norm(leftGrippPointCoord - rightGrippPointCoord))
+                instruction = 1
 
             for i in range(len(map_)):
                 fixturePos = map_[i].getBasePosition()
                 if np.linalg.norm(fixturePos - leftGrippPointCoord) <= self.fixtureRadius:
                     print('pickup point Left to close to fixture, dist= ', np.linalg.norm(fixturePos - leftGrippPointCoord))
-                
+                    instruction = 1
+
                 if np.linalg.norm(fixturePos - rightGrippPointCoord) <= self.fixtureRadius:
                     print('pickup point Right to close to fixture, dist= ', np.linalg.norm(fixturePos - rightGrippPointCoord))
-                
+                    instruction = 1
+
             for i in range(len(traj)):
                 if i == 0:
                     pointA0 = baseToGripperRight
@@ -85,6 +88,7 @@ class CheckConstraints(object):
                 absoluteEuler = tf.transformations.euler_from_quaternion(quat, 'sxyz')
                 if absoluteEuler[2] < -np.pi/2 - 20 * np.pi /180 or absoluteEuler[2] > np.pi/2 + 20 * np.pi /180:
                     print('cross over, angle = ',absoluteEuler[2]*180/np.pi)
+                    instruction = 1
 
         return instruction
 

@@ -6,7 +6,7 @@ from sensor_msgs.msg import PointCloud
 from std_msgs.msg import Int64
 import tf
 import numpy as np
-import utils
+import utils, constraintsCheck, solveRerouting
 import tasks
 import threading
 
@@ -29,8 +29,13 @@ class PathPlanner(object):
         self.gripperRight = utils.FramePose()
         self.gripperLeft = utils.FramePose()
         self.currentSubTask = 1
+        self.instruction = 0
         self.mtx_spr = threading.Lock()
         self.mtx_subTask = threading.Lock()
+        self.checkConstraints = constraintsCheck.CheckConstraints()
+        self.solve = solveRerouting.Solve()
+        self.rerouting = tasks.Rerouting()
+
 
     def callback(self, data):
         # update self.DLOEstiamtion
@@ -64,20 +69,49 @@ class PathPlanner(object):
         self.gripperLeft.update(posLeft, orientationLeft)
         self.mtx_spr.acquire()
         self.mtx_subTask.acquire()
-        
-        self.tasks[self.currentTask].updateAndTrackProgress(self.map, self.DLO, self.gripperLeft, self.gripperRight, self.currentSubTask)
+
+        if self.instruction == 0:
+            task = self.tasks[self.currentTask]
+        elif self.instruction == 1:
+            task = self.rerouting
 
 
-        if self.tasks[self.currentTask].getNewTrajectory() == 1:
-            msg = self.tasks[self.currentTask].getTrajectory()
+        if task.getNewTrajectory() == 1:
+            task = self.tasks[self.currentTask]
+            task.updateAndTrackProgress(self.map, self.DLO, self.gripperLeft, self.gripperRight, self.currentSubTask)
+            msg = task.getMsg()
+            # Check for imposible solutions
+            trajectory, mode, targetFixture, previousFixture, cableSlack, grippWidth = task.getInfo()
+            self.instruction = self.checkConstraints.check(self.map, trajectory, self.DLO, mode,\
+                        self.tfListener, targetFixture, previousFixture, cableSlack)
+
+            if self.instruction == 1:
+                self.solve.updateInit(self.DLO, self.map, mode, grippWidth,\
+                    targetFixture, previousFixture, self.tfListener, cableSlack)
+                individual = self.solve.solve(100, 20)
+                self.rerouting.resetTask()
+                self.rerouting.initilize(mode, individual)
+                task = self.rerouting
+                task.updateAndTrackProgress(self.map, self.DLO, self.gripperLeft, self.gripperRight, self.currentSubTask)
+                msg = task.getMsg()
+
             self.pub.publish(msg)
+  
+        task.updateAndTrackProgress(self.map, self.DLO, self.gripperLeft, self.gripperRight, self.currentSubTask)
 
-        if self.tasks[self.currentTask].getTaskDone() == 1:
+        if task.getTaskDone() == 1:
             print('task done')
-            if self.currentTask < self.numOfTasks-1:
-                self.currentTask += 1 
-                self.tasks[self.currentTask].taskDone = 0 
-                
+            if self.instruction == 0:
+                if self.currentTask < self.numOfTasks-1:
+                    self.currentTask += self.tasks.nextTaskStep()
+                    self.tasks[self.currentTask].resetTask() 
+                    
+            elif self.instruction == 1:
+                self.instruction = 0
+                self.currentTask += self.tasks.nextTaskStep()
+                task = self.tasks[self.currentTask]
+                self.tasks[self.currentTask].resetTask() 
+
         self.mtx_subTask.release()
         self.mtx_spr.release()
 

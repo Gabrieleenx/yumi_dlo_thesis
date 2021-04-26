@@ -176,7 +176,7 @@ class OverCableIndividual(object): # only for individual control
         
         # calc time
         self.pointTime = utils.getPointTime(gripperRight, gripperLeft, positionRight, positionLeft,\
-                        quatRight, quatLeft, self.avgVelocity, 0.4, self.shortestTime)
+                        quatRight, quatLeft, self.avgVelocity, 0.2, self.shortestTime)
 
         trajectoryPoint = Trajectory_point()
         trajectoryPoint.positionRight = positionRight.tolist()
@@ -509,3 +509,151 @@ class OverFixtureCombinded(object):
 
     def verification(self, input_):
         return True
+
+
+class CableReroutingOverIndividual(object): # only for individual control 
+    def __init__(self, individual, targetHeight, grippers):
+        self.inputArgs = ['self.DLO', 'gripperLeftTemp', 'gripperRightTemp']
+        self.verificationArgs = ['self.DLO']
+        self.gripper = grippers # in mm, [Right, left]
+        self.targetHeight = targetHeight # height from cable
+        self.individal = individual
+
+        self.avgVelocity = 0.02
+        self.shortestTime = 1
+        self.avgRotVel = 0.4 # it will use which ever is slower between avgRotVel and avgVelocity 
+        self.currentTarget = [0]
+        self.pointTime = 1
+        self.leftGrippPoint = 0
+        self.rightGrippPoint = 0
+
+    def getTrajectoryPoint(self, inputs):
+        DLO = inputs[0]
+        gripperLeft = inputs[1]
+        gripperRight = inputs[2]
+        pickupPoints = self.individal.getPickupPoints()
+        self.rightGrippPoint = pickupPoints[0]
+        self.leftGrippPoint = pickupPoints[1]
+        positionRight, positionLeft,quatRight, quatLeft, inRange = utils.calcGrippPosRot(DLO,\
+                        self.leftGrippPoint, self.rightGrippPoint, self.targetHeight[0], self.targetHeight[1])
+
+        if inRange == False:
+            return []
+        
+        if self.individal.pickupRightValid == 0:
+            positionRight = gripperRight.getPosition()
+            quatRight = gripperRight.getQuaternion()
+
+        if self.individal.pickupLeftValid == 0:
+            positionLeft = gripperLeft.getPosition()
+            quatLeft = gripperLeft.getQuaternion()
+
+        self.currentTarget = [positionRight, quatRight, positionLeft, quatLeft]
+        
+        # calc time
+        self.pointTime = utils.getPointTime(gripperRight, gripperLeft, positionRight, positionLeft,\
+                        quatRight, quatLeft, self.avgVelocity, 0.2, self.shortestTime)
+
+        trajectoryPoint = Trajectory_point()
+        trajectoryPoint.positionRight = positionRight.tolist()
+        trajectoryPoint.positionLeft = positionLeft.tolist()
+        trajectoryPoint.orientationLeft = quatLeft.tolist()
+        trajectoryPoint.orientationRight = quatRight.tolist()
+        trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
+        trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+        trajectoryPoint.pointTime = self.pointTime
+
+        gripperRight.update(positionRight, quatRight)
+        gripperLeft.update(positionLeft, quatLeft)
+    
+        return [trajectoryPoint]
+
+    def verification(self, input_):
+        DLO = input_[0]
+        positionRight, positionLeft,quatRight, quatLeft, inRange = utils.calcGrippPosRot(DLO,\
+                        self.leftGrippPoint, self.rightGrippPoint, self.targetHeight[0], self.targetHeight[1])
+        
+        if inRange == False:
+            print('Error, pickup points are outside the cable')
+            return False
+
+        if self.individal.pickupRightValid == 1:
+            checkRight = utils.checkIfWithinTol(positionRight, self.currentTarget[0], 0.02,\
+                                                quatRight, self.currentTarget[1], 0.4)
+        else: 
+            checkRight = True
+
+        if self.individal.pickupLeftValid == 1:
+            checkLeft = utils.checkIfWithinTol(positionLeft, self.currentTarget[2], 0.02,\
+                                                quatLeft, self.currentTarget[3], 0.4)
+        else: 
+            checkLeft = True
+
+    
+        if checkRight == True and checkLeft == True:
+            return True
+        else:
+            return False
+
+
+class CableReroutingEndPosIndividual(object): # only for individual control 
+    def __init__(self, individual, targetHeight, grippers):
+        self.inputArgs = ['self.DLO', 'gripperLeftTemp', 'gripperRightTemp', 'self.tfListener']
+        self.verificationArgs = ['self.DLO', 'self.gripperRight', 'self.gripperLeft']
+        self.gripper = grippers # in mm, [Right, left]
+        self.targetHeight = targetHeight # height from cable
+        self.individual = individual
+
+        self.avgVelocity = 0.02
+        self.shortestTime = 1
+        self.avgRotVel = 0.4 # it will use which ever is slower between avgRotVel and avgVelocity 
+        self.pointTime = 1
+        
+
+    def getTrajectoryPoint(self, inputs):
+        DLO = inputs[0]
+        gripperLeft = inputs[1]
+        gripperRight = inputs[2]
+        tfListener = inputs[3]
+
+        (worldToBase, _) = tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
+        targertHeightBase = self.targetHeight - worldToBase[2]
+
+        rightPos, leftPos, quatRight, quatLeft = self.individual.getRightLeftPosQuat(np.array([0.03, 0.03]))
+
+        if self.individual.pickupRightValid == 1:
+            positionRight = rightPos
+            positionRight[2] = targertHeightBase[0]
+        else:
+            positionRight = gripperRight.getPosition()
+            quatRight = gripperRight.getQuaternion()
+
+        if self.individual.pickupLeftValid == 1:
+            positionLeft = leftPos
+            positionLeft[2] = targertHeightBase[1]
+        else:
+            positionLeft = gripperLeft.getPosition()
+            quatLeft = gripperLeft.getQuaternion()
+
+        # calc time
+        self.pointTime = utils.getPointTime(gripperRight, gripperLeft, positionRight, positionLeft,\
+                        quatRight, quatLeft, self.avgVelocity, 0.2, self.shortestTime)
+
+        trajectoryPoint = Trajectory_point()
+        trajectoryPoint.positionRight = positionRight.tolist()
+        trajectoryPoint.positionLeft = positionLeft.tolist()
+        trajectoryPoint.orientationLeft = quatLeft.tolist()
+        trajectoryPoint.orientationRight = quatRight.tolist()
+        trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
+        trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+        trajectoryPoint.pointTime = self.pointTime
+
+        gripperRight.update(positionRight, quatRight)
+        gripperLeft.update(positionLeft, quatLeft)
+    
+        return [trajectoryPoint]
+
+    def verification(self, input_):
+
+        return True
+

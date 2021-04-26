@@ -2,7 +2,7 @@
 
 import numpy as np
 import rospy
-import subTasks, utils, constraintsCheck, solveRerouting
+import subTasks, utils
 from controller.msg import Trajectory_point, Trajectory_msg
 import tf
 
@@ -18,20 +18,26 @@ class Task(object):
         self.startSubTaskIdx = 0
         self.mode = mode
         self.tfListener = tf.TransformListener()
-        self.subTaskCheck = 1
         self.time = rospy.Time.now()
         self.lastSubtask = 0
         self.numSubTasks = 0
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
         self.trajectory = []
-        self.checkConstraints = constraintsCheck.CheckConstraints()
-        self.solve = solveRerouting.Solve()
-        self.grippWidth = 0.15
+        self.targetFixture = 0
+        self.previousFixture = -1
+        self.cableSlack = 0
+        self.nextTaskStep = 1 # when task don how to progress
 
     def getNewTrajectory(self):
         return self.newTrajectory
 
-    def getTrajectory(self):
+    def getNextTaskStep(self):
+        return self.nextTaskStep
+
+    def getInfo(self):
+        return self.trajectory, self.mode, self.targetFixture, self.previousFixture, self.cableSlack, self.grippWidth
+
+    def getMsg(self):
         self.newTrajectory = 0
         msg = Trajectory_msg()
         msg.header.stamp = rospy.Time.now()
@@ -65,16 +71,7 @@ class Task(object):
 
             self.trajectory.extend(trajectoryPoint)
 
-        # Check for imposible solutions
-        instruction = self.checkConstraints.check(self.map, self.trajectory, self.DLO, self.mode,\
-             self.tfListener, self.targetFixture, self.previousFixture, self.cableSlack)
-
-        if instruction == 0:
-            pass
-        elif instruction == 1:
-            self.solve.updateInit(self.DLO, self.map, self.mode, self.grippWidth,\
-                 self.targetFixture, self.previousFixture, self.tfListener, self.cableSlack)
-            self.solve.solve(50, 20)
+        
 
         msg.trajectory = self.trajectory
         return msg
@@ -112,14 +109,21 @@ class Task(object):
             self.newTrajectory = 1
             self.newTrajectoryCheck = 1
 
-
-
     def getTaskDone(self):
         return self.taskDone
 
+    def resetTask(self):
+        self.newTrajectory = 1
+        self.newTrajectoryCheck = 1
+        self.taskDone = 0
+        self.startSubTaskIdx = 0
+        self.time = rospy.Time.now()
+        self.lastSubtask = 0
+        self.trajectory = []
+
 
 class GrabCable(Task):
-    def __init__(self, targetFixture, previousFixture, cableSlack):
+    def __init__(self, targetFixture, previousFixture, cableSlack, grippWidth=0.15):
         super(GrabCable, self).__init__('individual')   
         goToHeight = subTasks.GoToHeightIndividual(np.array([0.10,0.10]), np.array([20,20])) 
         overCable = subTasks.OverCableIndividual(np.array([0.10,0.10]), np.array([20,20]), 0.15)
@@ -138,7 +142,8 @@ class GrabCable(Task):
         self.cableSlack = cableSlack # float in meters, if no previous it defines how much the cable 
             # should stick out from the fixture, and if previous it defines how much longer the cable should
             # be then the closest distance between the current and target fixture.  
-            
+        self.grippWidth = grippWidth
+   
     def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask):
 
         self.map = map_ 
@@ -149,7 +154,7 @@ class GrabCable(Task):
 
 
 class ClippIntoFixture(Task):
-    def __init__(self, targetFixture, previousFixture, cableSlack):
+    def __init__(self, targetFixture, previousFixture, cableSlack, grippWidth=0.15):
         super(ClippIntoFixture, self).__init__('combined')    
         overFixture = subTasks.OverFixtureCombinded(np.array([0,0]), 0.16, 0.05)
         lowerOverFixture = subTasks.OverFixtureCombinded(np.array([0,0]), 0.16, -0.02)
@@ -168,6 +173,8 @@ class ClippIntoFixture(Task):
         self.cableSlack = cableSlack # float in meters, if no previous it defines how much the cable 
             # should stick out from the fixture, and if previous it defines how much longer the cable should
             # be then the closest distance between the current and target fixture.  
+        self.grippWidth = grippWidth
+
 
     def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask):
 
@@ -178,6 +185,55 @@ class ClippIntoFixture(Task):
         self.trackProgress(currentSubTask)
 
  
+class Rerouting(Task):
+    def __init__(self): 
+        super(Rerouting, self).__init__('individual')   
+    
+    def initilize(self, mode, individual):
+        self.mode = mode
 
+        if self.mode == 'individual':
+            self.nextTaskStep = 0
+            goToHeight = subTasks.GoToHeightIndividual(np.array([0.10,0.10]), np.array([20,20])) 
+            overCable = subTasks.CableReroutingOverIndividual(individual, np.array([0.10,0.10]), np.array([20,20]))
+            onCable = subTasks.CableReroutingOverIndividual(individual, np.array([0.0,0.0]), np.array([20,20]))
+            gotToEndPosition = subTasks.CableReroutingEndPosIndividual(individual, np.array([0.10,0.10]), np.array([0,0]))
 
+            if individual.pickupRightValid == 1 and individual.pickupLeftValid == 1:
+                goDown = subTasks.GoToHeightIndividual(np.array([0.03,0.03]), np.array([0,0]))
+                grippCable = subTasks.HoldPositionIndividual(3, np.array([0,0]))
+                goToHeightWithCable = subTasks.GoToHeightIndividual(np.array([0.10,0.10]), np.array([0,0])) 
+
+            elif individual.pickupRightValid == 1:
+                goDown = subTasks.GoToHeightIndividual(np.array([0.03,0.1]), np.array([0,20]))
+                grippCable = subTasks.HoldPositionIndividual(3, np.array([0,20])) 
+                goToHeightWithCable = subTasks.GoToHeightIndividual(np.array([0.10,0.10]), np.array([0,20])) 
+
+            elif individual.pickupLeftValid == 1:
+                goDown = subTasks.GoToHeightIndividual(np.array([0.1,0.03]), np.array([20,0]))
+                grippCable = subTasks.HoldPositionIndividual(3, np.array([20,0])) 
+                goToHeightWithCable = subTasks.GoToHeightIndividual(np.array([0.10,0.10]), np.array([20,0])) 
+
+            else:
+                goDown = subTasks.GoToHeightIndividual(np.array([0.10,0.10]), np.array([20,20]))  
+                grippCable = subTasks.HoldPositionIndividual(3, np.array([20,20]))
+                goToHeightWithCable = subTasks.GoToHeightIndividual(np.array([0.10,0.10]), np.array([20,20])) 
+
+            releaseCable = subTasks.HoldPositionIndividual(3, np.array([20,20]))
+ 
+            self.subTasks = [goToHeight, overCable, onCable, grippCable, goToHeightWithCable, gotToEndPosition, goDown, releaseCable, goToHeight]
+            self.goToSubTask = [0,1,1,1,1,1,1]
+            self.numSubTasks = len(self.subTasks)
+
+        elif self.mode == 'combined':
+            self.nextTaskStep -= 1
+            pass
+       
+
+    def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask):
+        self.map = map_ 
+        self.DLO = DLO
+        self.gripperLeft = gripperLeft
+        self.gripperRight = gripperRight
+        self.trackProgress(currentSubTask)
 
