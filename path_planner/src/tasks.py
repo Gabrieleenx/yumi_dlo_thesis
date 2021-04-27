@@ -42,8 +42,7 @@ class Task(object):
         msg = Trajectory_msg()
         msg.header.stamp = rospy.Time.now()
         msg.mode = self.mode
-        msg.forceControl = 0 # hardcoded for now
-        msg.maxForce = 4.0
+
         self.trajectory = []
 
 
@@ -204,8 +203,9 @@ class Rerouting(Task):
     def __init__(self): 
         super(Rerouting, self).__init__('individual')   
     
-    def initilize(self, mode, individual, grippWidth):
+    def initilize(self, targetFixture, previousFixture, mode, individual, grippWidth):
         self.mode = mode
+        self.grippWidth = grippWidth
 
         if self.mode == 'individual':
             self.nextTaskStep = 0
@@ -242,8 +242,7 @@ class Rerouting(Task):
 
         elif self.mode == 'combined':
             self.nextTaskStep = -1
-            self.grippWidth = grippWidth
-
+            
             absPosXY = individual.parametersCombined[0:2]
             absRotZ = individual.parametersCombined[2]
             moveTo = subTasks.ReroutingCombined(absPosXY, absRotZ, 0.10, np.array([0,0]), self.grippWidth)

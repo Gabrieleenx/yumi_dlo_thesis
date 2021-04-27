@@ -262,10 +262,17 @@ class YmuiContoller(object):
         trajectory = [currentPoint]
         # append trajectory points
         for i in range(len(data.trajectory)):
-            positionRight = np.asarray(data.trajectory[i].positionRight)
-            positionLeft  = np.asarray(data.trajectory[i].positionLeft)
-            orientationRight = np.asarray(data.trajectory[i].orientationRight)
-            orientationLeft = np.asarray(data.trajectory[i].orientationLeft)
+            if data.mode == 'combined':
+                positionRight = np.asarray(data.trajectory[i].positionAbsolute)
+                positionLeft  = np.asarray(data.trajectory[i].positionRelative)
+                orientationRight = np.asarray(data.trajectory[i].orientationAbsolute)
+                orientationLeft = np.asarray(data.trajectory[i].orientationRelative)
+            else:
+                positionRight = np.asarray(data.trajectory[i].positionRight)
+                positionLeft  = np.asarray(data.trajectory[i].positionLeft)
+                orientationRight = np.asarray(data.trajectory[i].orientationRight)
+                orientationLeft = np.asarray(data.trajectory[i].orientationLeft)
+
             gripperLeft = np.asarray(data.trajectory[i].gripperLeft)
             gripperRight = np.asarray(data.trajectory[i].gripperRight)
             pointTime = np.asarray(data.trajectory[i].pointTime)
@@ -299,8 +306,8 @@ class YmuiContoller(object):
             
         # set mode
         self.controlInstructions.mode = data.mode
-        self.controlInstructions.ifForceControl = data.forceControl
-        self.controlInstructions.maxForce = data.maxForce
+        self.controlInstructions.ifForceControl = 0
+        self.controlInstructions.maxForce = 4
 
         # update the trajectroy 
         self.controlInstructions.trajectory.updatePoints(trajectory, velLeftInit, velRightInit)

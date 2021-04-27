@@ -2,100 +2,7 @@ import numpy as np
 import rospy
 from controller.msg import Trajectory_point
 import tf
-import utils
-
-
-class Individual(object):
-    def __init__(self, mode):
-        # Non Tuneable values ------------------------------- 
-        self.mode = mode
-        self.combinedValid = 0
-        self.pickupLeftValid = 0       
-        self.pickupRightValid = 0
-        self.score = 0
-        self.grippWidth = 0 # combined 
-
-        # Tuneable parameters -----------------------------------
-        
-        # parametersIndividual = [pickupR,  pickupL, absPosX, absPosY, absRotZ]
-        self.parametersIndividual = np.zeros(5)
-
-        # parametersCombined = [absPosX, absPosY, absRotZ]
-        self.parametersCombined = np.zeros(3)
-
-
-
-    def getPickupPoints(self):
-        return self.parametersIndividual[0:2]
-    
-    def getRightLeftPosQuat(self, targetHeight):
-        # targetHeight is in [right, left]
-        if self.mode == 'individual':
-            grippWidth = abs(self.parametersIndividual[0] - self.parametersIndividual[1])        
-            angle = self.parametersIndividual[4] + np.pi / 2
-            dx = grippWidth * np.cos(angle) / 2
-            dy = grippWidth * np.sin(angle) / 2
-
-            leftPos = np.zeros(3)
-
-            leftPos[0] = self.parametersIndividual[2] + dx
-            leftPos[1] = self.parametersIndividual[3] + dy
-            leftPos[2] = targetHeight[1]
-
-            rightPos = np.zeros(3)
-            rightPos[0] = self.parametersIndividual[2] - dx
-            rightPos[1] = self.parametersIndividual[3] - dy
-            rightPos[2] = targetHeight[0]
-
-            quatRight = tf.transformations.quaternion_from_euler(self.parametersIndividual[4], 0, 180*np.pi/180, 'rzyx')
-            quatLeft = quatRight
-        else:
-            angle = self.parametersCombined[2] + np.pi / 2
-            dx = self.grippWidth * np.cos(angle) / 2
-            dy = self.grippWidth * np.sin(angle) / 2
-            rightPos = np.zeros(3)
-            rightPos[0] = self.parametersCombined[0] - dx
-            rightPos[1] = self.parametersCombined[1] - dy
-            rightPos[2] = targetHeight[0]
-
-            leftPos = np.zeros(3)
-            leftPos[0] = self.parametersCombined[0] + dx
-            leftPos[1] = self.parametersCombined[1] + dy
-            leftPos[2] = targetHeight[0]
-
-            quatRight = tf.transformations.quaternion_from_euler(self.parametersCombined[2], 0, 180*np.pi/180, 'rzyx')
-            quatLeft = quatRight
-
-
-        return rightPos, leftPos, quatRight, quatLeft
-
-def sampleIndex(populationSize, scores):
-    value = np.random.random()
-    sumValue = 0
-    seedIndex = 0
-    for k in range(populationSize):
-        sumValue += scores[k]
-        if sumValue > value:
-            seedIndex = k   
-            break
-    return seedIndex
-
-def fixturePenalty(position, map_, minDist):
-    valid = 1
-    score = 0
-    for i in range(len(map_)):
-        posFixture = map_[i].getBasePosition()
-        dist = np.linalg.norm(posFixture[0:2]-position[0:2]) # only distance in xy plane thats relevant
-        if dist < minDist:
-            score += -3
-            score += dist - minDist
-            valid = 0
-    return score, valid
-
-
-def distanceMovedPenalty(initPose, endPose):
-    dist = np.linalg.norm(initPose[0:2] - endPose[0:2])
-    return - dist*3
+import utils, utilsSolve
 
 class Solve(object):
     def __init__(self):
@@ -127,68 +34,38 @@ class Solve(object):
         self.initPosLeft = np.zeros(3)
         self.initAbsPos = np.zeros(3)
 
-    def updateInit(self, DLO, map_, mode, grippWidth, targetFixture, previousFixture, tfListener, cableSlack):
-        self.DLO = DLO
-        self.mode = mode
-        self.grippWidth = grippWidth
-        self.targetFixture = targetFixture
-        self.previousFixture = previousFixture
-        self.map = map_
-        self.cableSlack = cableSlack
+    def updateInit(task):
+        self.task = task
+        self.mode = self.task.mode # for convinience
+        self.DLO = task.DLO # for convinience 
+        if task.mode == 'individual':
+            clipPoint = utils.calcClipPoint(targetFixture=task.targetFixture,\
+                                            previousFixture=task.previousFixture,\
+                                            map_=task.map,\
+                                            cableSlack=task.DLO,\
+                                            DLO=task.DLO)
+                
+            self.leftGrippPoint, self.rightGrippPoint = utils.calcGrippPoints(targetFixture=task.targetFixture,\
+                                                                            map_=task.map,\
+                                                                            DLO=task.DLO,\
+                                                                            grippWidth=task.grippWidth,\
+                                                                            clipPoint)
+                                                                        
+            self.rightPickupRange, self.leftPickupRange, self.initAngle = \
+                                    utilsSolve.pickupRangeAndAngle(task=task,\
+                                                                    rightGrippPoint=self.rightGrippPoint,\
+                                                                    leftGrippPoint=self.leftGrippPoint)
+    
+        else:
+            self.rightGrippPoint, self.leftGrippPoint, self.initAbsPos, self.initAngle = \
+                                                utilsSolve.absPosAngleGrippPoints(task=task)
 
-        if mode == 'individual':
-            clipPoint = utils.calcClipPoint(targetFixture, previousFixture, map_, cableSlack, DLO)
-            self.leftGrippPoint, self.rightGrippPoint = utils.calcGrippPoints(targetFixture, map_, DLO, grippWidth, clipPoint)
-            
-            if self.previousFixture < 0:
-                start = 0.05
-            else:
-                minDist, point, minIndex = utils.closesPointDLO(self.DLO, self.map[previousFixture].getClippPosition())
-                start = point
-                self.previousFixtureDLOLength = point
-
-            if self.leftGrippPoint > self.rightGrippPoint:
-                leftStart = self.leftGrippPoint 
-                leftEnd = DLO.getLength()-0.05
-                rightStart = start
-                rightEnd = self.rightGrippPoint 
-            else:
-                rightStart = self.rightGrippPoint 
-                rightEnd = DLO.getLength()- 0.05
-                leftStart = start
-                leftEnd = self.leftGrippPoint 
-
-            pointRight = self.DLO.getCoord(self.rightGrippPoint)
-            pointLeft =  self.DLO.getCoord(self.leftGrippPoint)    
-            dy = pointLeft[1] - pointRight[1]
-            dx = pointLeft[0] - pointRight[0]
-            angle = np.arctan2(dy, dx) - np.pi/2    
-
-            self.initAngle = angle
-
-            self.rightPickupRange = np.array([rightStart, rightEnd])
-            self.leftPickupRange = np.array([leftStart, leftEnd])
         
-        elif self.mode == 'combined':
-            (baseToGripperRight, _) = tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
-            (baseToGripperLeft, _) = tfListener.lookupTransform('/yumi_base_link', '/yumi_gripp_r', rospy.Time(0))
-            self.initPosRight = np.asarray(baseToGripperRight)
-            self.initPosLeft = np.asarray(baseToGripperLeft)
-            dy = self.initPosLeft[1] - self.initPosRight[1]
-            dx = self.initPosLeft[0] - self.initPosRight[0]
-            self.initAngle = np.arctan2(dy, dx) - np.pi/2    
-            self.initAbsPos = 0.5 * (self.initPosRight  + self.initPosLeft)
-            minDist, point, minIndex = utils.closesPointDLO(self.DLO, baseToGripperRight)
-            self.rightGrippPoint = point
-            minDist, point, minIndex = utils.closesPointDLO(self.DLO, baseToGripperLeft)
-            self.leftGrippPoint = point
-
-
         (Link7ToGripperRight, _) = tfListener.lookupTransform('/yumi_link_7_r', '/yumi_gripp_r', rospy.Time(0))
         self.Link7ToGripperRight = np.asarray(Link7ToGripperRight)
         (Link7ToGripperLeft, _) = tfListener.lookupTransform('/yumi_link_7_l', '/yumi_gripp_l', rospy.Time(0))
         self.Link7ToGripperLeft = np.asarray(Link7ToGripperLeft)
-
+    
   
     def solve(self, populationSize, numGenerations):
 
@@ -199,24 +76,22 @@ class Solve(object):
             individual = self.generateInitIndividual()
             self.population.append(individual)
 
+        # main loop over generations 
         for i in range(numGenerations):
+
+            # evaluate population
             for j in range(populationSize):
-                # evaluate
                 if self.mode == 'individual':
                     score = self.evaluateIndividual(self.population[j])
                 else:
                     score = self.evaluateCombined(self.population[j])
-
                 scores[j] = score
-            # normalize scores
             print('generation ', i ,' scores max' , np.max(scores))
-            maxIndex = np.argmax(scores)
-            #print('generation ', i ,' scores ', scores)
 
-            scores = scores + abs(np.min(scores)) + 1e-3
-            scores = scores/np.sum(scores)
+            # normalize scores
+            scores, maxIndex = utilsSolve.normalizeSumScores(scores)
+
             # resample 
-
             tempPopulation = []
 
             for j in range(populationSize):
@@ -236,24 +111,14 @@ class Solve(object):
 
                 tempPopulation.append(individual)
 
+            # save best individual from previous generation 
             tempPopulation[0] = self.population[maxIndex]
+
+            # update population
             self.population = tempPopulation.copy()
 
-            rightPos, leftPos, quatRight, quatLeft = self.population[0].getRightLeftPosQuat(np.array([0.03, 0.03]))
-            scoreFixtureLeft, validFixtureLeft = fixturePenalty(leftPos, self.map, self.fixtureRadius)
-            '''
-            print('rightPickupPoint = ', self.population[0].parametersIndividual[0], '\n', \
-                'leftPickupPoint = ', self.population[0].parametersIndividual[1], '\n',\
-                'rightEndPosition = ', rightPos, '\n',\
-                'leftEndPosition = ', leftPos, '\n',\
-                'angle = ', self.population[0].parametersIndividual[4], '\n',\
-                'scoreFixtureLeft = ', scoreFixtureLeft, '\n',\
-                'Valid ', self.population[0].pickupRightValid, ' ', self.population[0].pickupLeftValid)
-            '''
-        
-        # check solution is feasible
-
         return self.population[0] 
+
 
     def generateInitIndividual(self):
 
@@ -285,9 +150,10 @@ class Solve(object):
             individual.parametersIndividual[2] = newAbsX
             individual.parametersIndividual[3] = newAbsY
             individual.parametersIndividual[4] = newAbsAgnle
+
         elif self.mode == 'combined':
 
-            individual.grippWidth = self.grippWidth
+            individual.grippWidth = self.task.grippWidth
             if np.random.random() < 0.5:
                 angle = np.random.normal(np.pi/2, 4*self.combinedSTD[2])
             else:
@@ -304,6 +170,7 @@ class Solve(object):
     def mutateIndividual(self, seedIndividual):
         individual = Individual(self.mode)
         if self.mode == 'individual':
+
             pickupPoints = seedIndividual.getPickupPoints()
             low = self.leftPickupRange[0]
             high = self.leftPickupRange[1]

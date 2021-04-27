@@ -145,11 +145,11 @@ def averageQuaternions(Q):
 class FixtureObject(object):
     # cable goes through in y direction 
     # quaterniorn w,ix,iy,iz
-    def __init__(self, position, orientation, fixtureHeight):
+    def __init__(self, position, orientation, fixtureHeight, fixtureRadius):
         self.position = position
         self.orientation = orientation
-        #self.index = index
         self.fixtureHeight = fixtureHeight
+        self.fixtureRadius = fixtureRadius
 
     def getBasePosition(self):
         return np.copy(self.position)
@@ -162,7 +162,11 @@ class FixtureObject(object):
         return np.copy(self.orientation)
 
     def getFixtureHeight(self):
-        return np.copy(self.fixtureHeight)
+        return self.fixtureHeight
+
+    def getFixtureRadious(self):
+        return self.fixtureRadius
+
 
 def calcClipPoint(targetFixture, previousFixture, map_, cableSlack, DLO):
     # calculates the point on the rope (from right) that will be in target fixture
