@@ -400,12 +400,12 @@ class CableReroutingOverIndividual(object): # only for individual control
             return []
         
         if self.individal.pickupRightValid == 0:
-            positionRight = gripperRight.getPosition()
-            quatRight = gripperRight.getQuaternion()
+            positionRight = np.array([0.2, -0.3, 0.1]) # gripperRight.getPosition()
+            quatRight = np.array([1,0,0,0])#gripperRight.getQuaternion()
 
         if self.individal.pickupLeftValid == 0:
-            positionLeft = gripperLeft.getPosition()
-            quatLeft = gripperLeft.getQuaternion()
+            positionLeft = np.array([0.2, 0.3, 0.1]) # gripperLeft.getPosition()
+            quatLeft = np.array([1,0,0,0])#gripperLeft.getQuaternion()
 
         self.currentTarget = [positionRight, quatRight, positionLeft, quatLeft]
         
@@ -487,15 +487,15 @@ class CableReroutingEndPosIndividual(object): # only for individual control
             positionRight = rightPos
             positionRight[2] = targertHeightBase[0]
         else:
-            positionRight = gripperRight.getPosition()
-            quatRight = gripperRight.getQuaternion()
+            positionRight = np.array([0.2, -0.3, 0.1]) # gripperRight.getPosition()
+            quatRight = np.array([1,0,0,0])#gripperRight.getQuaternion()
 
         if self.individual.pickupLeftValid == 1:
             positionLeft = leftPos
             positionLeft[2] = targertHeightBase[1]
         else:
-            positionLeft = gripperLeft.getPosition()
-            quatLeft = gripperLeft.getQuaternion()
+            positionLeft = np.array([0.2, 0.3, 0.1]) # gripperLeft.getPosition()
+            quatLeft = np.array([1,0,0,0])#gripperLeft.getQuaternion()
 
         # calc time
         self.pointTime = utils.getPointTime(gripperRight=gripperRight,\

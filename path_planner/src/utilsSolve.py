@@ -154,6 +154,14 @@ def checkCloseToFixtures(task):
 
 # Evaluation functions ---------------------------------
 
+def minXposPenalty(position):
+    valid = True
+    score = 0
+    if position[0] < 0.13:
+        valid = False
+        score = -1 + position[0] - 0.1
+    return score, valid
+
 def fixturePenalty(position, map_):
     valid = 1
     score = 0
@@ -247,6 +255,8 @@ def ropeConstraintCombined(task, individual, rightGrippPoint, leftGrippPoint):
             
     return score, valid
 
+# Help classes and functions for solver ----------------
+
 def predictRope(task, individual, leftGrippPoint, rightGrippPoint):
     initRightPos = task.DLO.getCoord(rightGrippPoint)
     initLeftPos = task.DLO.getCoord(leftGrippPoint)
@@ -300,7 +310,7 @@ def predictRope(task, individual, leftGrippPoint, rightGrippPoint):
     return rightEndPickupPoint, leftEndPickupPoint
 
 
-# Help classes and functions for solver ----------------
+
 
 class Individual(object):
     def __init__(self, mode):
@@ -334,26 +344,7 @@ class Individual(object):
             quatLeft = quatRight
             rightPos, leftPos = calcAbsolutToIndividualPos(posAbsolut=posAbsolut,\
                                                      quatAbsolute=quatRight, posRelative=posRelative)   
-            #print('rightPos ', rightPos, ' leftPos ', leftPos, ' posAbsolut ', posAbsolut)
-            '''     
-            angle = self.parametersIndividual[4] + np.pi / 2
-            dx = grippWidth * np.cos(angle) / 2
-            dy = grippWidth * np.sin(angle) / 2
 
-            leftPos = np.zeros(3)
-
-            leftPos[0] = self.parametersIndividual[2] + dx
-            leftPos[1] = self.parametersIndividual[3] + dy
-            leftPos[2] = targetHeight[1]
-
-            rightPos = np.zeros(3)
-            rightPos[0] = self.parametersIndividual[2] - dx
-            rightPos[1] = self.parametersIndividual[3] - dy
-            rightPos[2] = targetHeight[0]
-
-            quatRight = tf.transformations.quaternion_from_euler(self.parametersIndividual[4], 0, 180*np.pi/180, 'rzyx')
-            quatLeft = quatRight
-            '''
         else:
             posAbsolut = np.array([self.parametersCombined[0], self.parametersCombined[1], targetHeight[0]])
             posRelative = np.array([0, self.grippWidth, 0])
@@ -361,23 +352,7 @@ class Individual(object):
             quatLeft = quatRight
             rightPos, leftPos = calcAbsolutToIndividualPos(posAbsolut=posAbsolut,\
                                                      quatAbsolute=quatRight, posRelative=posRelative)   
-            '''
-            angle = self.parametersCombined[2] + np.pi / 2
-            dx = self.grippWidth * np.cos(angle) / 2
-            dy = self.grippWidth * np.sin(angle) / 2
-            rightPos = np.zeros(3)
-            rightPos[0] = self.parametersCombined[0] - dx
-            rightPos[1] = self.parametersCombined[1] - dy
-            rightPos[2] = targetHeight[0]
 
-            leftPos = np.zeros(3)
-            leftPos[0] = self.parametersCombined[0] + dx
-            leftPos[1] = self.parametersCombined[1] + dy
-            leftPos[2] = targetHeight[0]
-
-            quatRight = tf.transformations.quaternion_from_euler(self.parametersCombined[2], 0, 180*np.pi/180, 'rzyx')
-            quatLeft = quatRight
-            '''
         return rightPos, leftPos, quatRight, quatLeft
 
 
@@ -395,7 +370,7 @@ def sampleIndex(populationSize, scores):
 
 
 def pickupRangeAndAngle(task, rightGrippPoint, leftGrippPoint):
-    endDLOMargin = 0.05
+    endDLOMargin = 0.02
     if task.previousFixture < 0:
         start = endDLOMargin
     else:

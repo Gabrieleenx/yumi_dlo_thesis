@@ -181,6 +181,14 @@ class Solve(object):
         score += score_
         individual.pickupLeftValid = individual.pickupLeftValid and valid_
         
+        # penalty for crossing to far on x axis
+        score_, valid_ = utilsSolve. minXposPenalty(position=rightPos)
+        score += score_
+        individual.pickupRightValid = individual.pickupRightValid and valid_
+
+        score_, valid_ = utilsSolve. minXposPenalty(position=leftPos)
+        score += score_
+        individual.pickupLeftValid = individual.pickupLeftValid and valid_
         
         # penalty for crossing
         angle = individual.parametersIndividual[4]
@@ -213,6 +221,11 @@ class Solve(object):
         if np.linalg.norm(rightEndPickupPoint - leftEndPickupPoint) < 0.12:
             score += -2
         
+        if np.linalg.norm(tempPickupRight - tempPickupLeft) < 0.12:
+            score += -2
+            individual.pickupRightValid = False
+            individual.pickupLeftValid = False
+
         # penalty for end pickup out of reach 
         
         score_, valid_ = utilsSolve.outsideReachPenalty(position=rightEndPickupPoint,\
@@ -240,6 +253,10 @@ class Solve(object):
         score += score_
         score_, valid_ = utilsSolve.distanceMovedPenalty(self.initLeftGrippPos, leftEndPickupPoint)
         score += score_
+
+        # if both not valid
+        if not (individual.pickupRightValid or individual.pickupLeftValid):
+            score += -5
         
         return score
     

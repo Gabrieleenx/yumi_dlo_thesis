@@ -31,6 +31,7 @@ class PathPlanner(object):
         # detect and solve problems
         self.solve = solveRerouting.Solve()
         self.rerouting = tasks.Rerouting()
+        self.holdPosition = tasks.HoldPosition()
         # mutex
         self.mtx_spr = threading.Lock()
         self.mtx_subTask = threading.Lock()
@@ -60,7 +61,7 @@ class PathPlanner(object):
 
     def genetateNewTrajectory(self, task):
         # alway tries to generate new trajectory in normal state
-        print('new traj = ', self.currentTask)                 
+        print('Generate new trajectory = ', self.currentTask)                 
 
         task = self.tasks[self.currentTask]
         task.updateAndTrackProgress(map_=self.map,\
@@ -72,25 +73,40 @@ class PathPlanner(object):
         msg = task.getMsg() 
         # Check for imposible solutions
         self.instruction = constraintsCheck.check(task=task)
-        print('instruction = ', self.instruction)                 
         # if problem detected
         if self.instruction == 1:
-            print('instruction 1')
+            self.holdPosition.resetTask()
+            self.holdPosition.updateAndTrackProgress(map_=self.map,\
+                                            DLO=self.DLO,\
+                                            gripperLeft=self.gripperLeft,\
+                                            gripperRight=self.gripperRight,\
+                                            currentSubTask=0)   
+            msg = self.holdPosition.getMsg()
+            self.pub.publish(msg)
             nonValidSolution = 1
             numAttempts = 0 # keep track of how many attempts of findin valid solution
             
             while nonValidSolution != 0: 
-                print('instruction 1, while')
+                print('Searching for solution')
 
                 numAttempts += 1
                 if numAttempts > 3:
                     print('Number of attempts exceded 3')
+                    print('Non recoverable problem detected in path planning!')
                     self.instruction = 2
-                    break
+                    return
                 # setup solver
                 self.solve.updateInit(task=task)
                 # solve optim problem, evolution based stochastic solver. 
                 individual = self.solve.solve(populationSize=100, numGenerations=20)
+
+                if not (individual.pickupRightValid or individual.pickupLeftValid):
+                    print('Non valid solution')
+                    continue
+
+                if not individual.combinedValid:
+                    print('Non valid solution')
+                    continue
                 # setup new task 
                 self.rerouting.resetTask()
                 self.rerouting.initilize(targetFixture=task.targetFixture,\

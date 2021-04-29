@@ -50,6 +50,7 @@ class DLO(object):
 
     def getCoord(self, length):
         if length < 0 or length > self.totalLenght:
+            print('Length outside rope dimentions!')
             return False
 
         index1 = np.argwhere(self.lengthList >= length)[0,0]
@@ -180,7 +181,6 @@ def calcClipPoint(targetFixture, previousFixture, map_, cableSlack, DLO):
         length += DLO.getPartLength(minIndex)
 
     length += cableSlack
-    print('calcClipPoint, length', length)
     return length
 
 
@@ -286,7 +286,7 @@ def calcGrippPoints(targetFixture, map_, DLO, grippWidth, clipPoint):
 
     rotZClippPoint = getZRotationCable(clipPoint, DLO)
     point0 = DLO.getCoord(clipPoint-grippWidth/2)
-    point1 = DLO.getCoord(clipPoint+grippWidth/2)
+    point1 = DLO.getCoord(clipPoint+grippWidth/2) 
     dy = point1[1] - point0[1]
     dx = point1[0] - point0[0]
     rotZ = np.arctan2(dy,dx)
@@ -297,29 +297,23 @@ def calcGrippPoints(targetFixture, map_, DLO, grippWidth, clipPoint):
     rotSlack = 20 * np.pi /180 
 
     angleDiff = calcAngleDiff(rotZ, np.pi/2)
-    print('rotZClippPoint ', rotZClippPoint, ' rotZ ', rotZ, ' fixtureEuler ', fixtureEuler[2], ' angleDiff ', angleDiff)
 
     if abs(angleDiff) < np.pi/2 + rotSlack:
         if fixtureEuler[2] > np.pi/2 + rotSlack and  fixtureEuler[2] < np.pi/2 - rotSlack:
             leftGrippPoint = clipPoint + grippWidth/2
             rightGrippPoint = clipPoint - grippWidth/2
-            print('1')
         elif abs(angleDiff) < np.pi/2 - rotSlack:
             leftGrippPoint = clipPoint + grippWidth/2
             rightGrippPoint = clipPoint - grippWidth/2
-            print('2')
         elif fixtureEuler[2] > -np.pi/2 and  fixtureEuler[2] < np.pi/2:
             leftGrippPoint = clipPoint + grippWidth/2
             rightGrippPoint = clipPoint - grippWidth/2
-            print('3')
         else:
             leftGrippPoint = clipPoint - grippWidth/2
             rightGrippPoint = clipPoint + grippWidth/2
-            print('4')
     else:
         leftGrippPoint = clipPoint - grippWidth/2
         rightGrippPoint = clipPoint + grippWidth/2
-        print('5')
 
     if leftGrippPoint < 0 or leftGrippPoint > DLO.getLength():
         print('Error, pickup points are outside the cable')

@@ -19,7 +19,7 @@ class Task(object):
         self.mode = mode
         self.tfListener = tf.TransformListener()
         self.time = rospy.Time.now()
-        self.lastSubtask = 0
+        self.lastSubtask = -1
         self.numSubTasks = 0
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
         self.trajectory = []
@@ -119,7 +119,7 @@ class Task(object):
         self.taskDone = 0
         self.startSubTaskIdx = 0
         self.time = rospy.Time.now()
-        self.lastSubtask = 0
+        self.lastSubtask = -1
         self.trajectory = []
 
 
@@ -252,3 +252,29 @@ class Rerouting(Task):
         self.gripperRight = gripperRight
         self.trackProgress(currentSubTask)
 
+
+class HoldPosition(Task):
+    def __init__(self, targetFixture=0, previousFixture=-1, cableSlack=0.05, grippWidth=0.15):
+        super(HoldPosition, self).__init__('individual')   
+        holdPosition = subTasks.HoldPositionIndividual(3, np.array([0,0]))
+
+        self.subTasks = [holdPosition]
+        self.goToSubTask = [0]
+        self.numSubTasks = len(self.subTasks)
+
+        self.targetFixture = targetFixture # int, starting from 0, which fixture is the target,
+            # will be matched with map elements.
+        self.previousFixture = previousFixture # # int, starting from -1 (-1 means no previous fixture),
+            # which fixture is the current fixture the cable is attached to.
+        self.cableSlack = cableSlack # float in meters, if no previous it defines how much the cable 
+            # should stick out from the fixture, and if previous it defines how much longer the cable should
+            # be then the closest distance between the current and target fixture.  
+        self.grippWidth = grippWidth
+   
+    def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask):
+
+        self.map = map_ 
+        self.DLO = DLO
+        self.gripperLeft = gripperLeft
+        self.gripperRight = gripperRight
+        self.trackProgress(currentSubTask)
