@@ -60,6 +60,8 @@ class PathPlanner(object):
 
     def genetateNewTrajectory(self, task):
         # alway tries to generate new trajectory in normal state
+        print('new traj = ', self.currentTask)                 
+
         task = self.tasks[self.currentTask]
         task.updateAndTrackProgress(map_=self.map,\
                                     DLO=self.DLO,\
@@ -70,21 +72,23 @@ class PathPlanner(object):
         msg = task.getMsg() 
         # Check for imposible solutions
         self.instruction = constraintsCheck.check(task=task)
-                                
+        print('instruction = ', self.instruction)                 
         # if problem detected
         if self.instruction == 1:
+            print('instruction 1')
             nonValidSolution = 1
             numAttempts = 0 # keep track of how many attempts of findin valid solution
             
             while nonValidSolution != 0: 
+                print('instruction 1, while')
+
                 numAttempts += 1
                 if numAttempts > 3:
                     print('Number of attempts exceded 3')
                     self.instruction = 2
                     break
                 # setup solver
-                self.solve.updateInit(self.DLO, self.map, task.mode, grippWidth,\
-                    targetFixture, previousFixture, self.tfListener, cableSlack)
+                self.solve.updateInit(task=task)
                 # solve optim problem, evolution based stochastic solver. 
                 individual = self.solve.solve(populationSize=100, numGenerations=20)
                 # setup new task 
@@ -93,20 +97,23 @@ class PathPlanner(object):
                                         previousFixture=task.previousFixture,\
                                         mode=task.mode,\
                                         individual=individual,\
-                                        task=task.grippWidth)
-                task = self.rerouting
-                task.updateAndTrackProgress(map_=self.map,\
+                                        grippWidth=task.grippWidth)
+                task_ = self.rerouting
+                task_.updateAndTrackProgress(map_=self.map,\
                                             DLO=self.DLO,\
                                             gripperLeft=self.gripperLeft,\
                                             gripperRight=self.gripperRight,\
                                             currentSubTask=self.currentSubTask)               
                 # replace message from new task with solution
-                msg = task.getMsg()
+                msg = task_.getMsg()
                 # Check for imposible solutions
-                nonValidSolution = constraintsCheck.check(task=task)
-            
-        elif self.instruction == 2:
+                nonValidSolution = constraintsCheck.check(task=task_)
+            task = task_
+
+        if self.instruction == 2:
             print('Non recoverable problem detected in path planning!')
+            return
+            
         self.pub.publish(msg)
 
     def update(self):
@@ -132,12 +139,14 @@ class PathPlanner(object):
         elif self.instruction == 1:
             task = self.rerouting
         else:
+            # unlock mutex 
+            self.mtx_subTask.release()
+            self.mtx_spr.release()
             return
 
         # if a new trajectory is called for
         if task.getNewTrajectory() == 1:
             self.genetateNewTrajectory(task=task)
-
         # update task variables and call for veriication on subtasks
         task.updateAndTrackProgress(map_=self.map,\
                                     DLO=self.DLO,\
@@ -208,7 +217,7 @@ def main():
     rospy.Subscriber("/controller/sub_task", Int64, pathPlanner.callbackCurrentSubTask, queue_size=2)
 
     # sleep for everthing to initilize
-    rospy.sleep(0.15)
+    rospy.sleep(0.45)
 
     # rate at which the pathplanner checks and validated in Hz
     rate = rospy.Rate(10)

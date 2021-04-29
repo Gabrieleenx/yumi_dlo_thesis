@@ -37,5 +37,5 @@ def check(task):
             print('Crossing combined ')
             instruction = 1
         
-
+    return instruction
 

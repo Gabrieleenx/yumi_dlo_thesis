@@ -432,7 +432,7 @@ void RopeSim::runSim(){
 
         closestPoint(&fixtureClipp, &simData, &minDistfixture, &minIndexfixtue);
         
-        if(minDistfixture < 0.015){
+        if(minDistfixture < 0.010){
             simData.points[minIndexfixtue].fixed = true;
             simData.points[minIndexfixtue-1].fixed = true;
             simData.points[minIndexfixtue+1].fixed = true;

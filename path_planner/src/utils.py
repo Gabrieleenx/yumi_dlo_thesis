@@ -2,7 +2,7 @@
 
 import numpy as np
 import tf
-
+import utilsSolve
 
 class FramePose(object):
     def __init__(self):
@@ -164,7 +164,7 @@ class FixtureObject(object):
     def getFixtureHeight(self):
         return self.fixtureHeight
 
-    def getFixtureRadious(self):
+    def getFixtureRadius(self):
         return self.fixtureRadius
 
 
@@ -180,7 +180,7 @@ def calcClipPoint(targetFixture, previousFixture, map_, cableSlack, DLO):
         length += DLO.getPartLength(minIndex)
 
     length += cableSlack
-
+    print('calcClipPoint, length', length)
     return length
 
 
@@ -201,7 +201,8 @@ def getZRotationCable(length, DLO):
 
 
 def getPointTime(gripperRight, gripperLeft, posTargetRight, posTargetLeft, \
-                        rotTargetRight, rotTargetLeft, avgSpeed, avgRotVel, shortestTime):
+                        rotTargetRight, rotTargetLeft, avgSpeed=0.02, avgRotVel=0.1, shortestTime=2):
+
     # get max distance, for calc time 
     distRight = np.linalg.norm(posTargetRight - gripperRight.getPosition())
     distLeft = np.linalg.norm(posTargetLeft - gripperLeft.getPosition())
@@ -284,14 +285,19 @@ def rotateX180(q):
 def calcGrippPoints(targetFixture, map_, DLO, grippWidth, clipPoint):
 
     rotZClippPoint = getZRotationCable(clipPoint, DLO)
+    point0 = DLO.getCoord(clipPoint-grippWidth/2)
+    point1 = DLO.getCoord(clipPoint+grippWidth/2)
+    dy = point1[1] - point0[1]
+    dx = point1[0] - point0[0]
+    rotZ = np.arctan2(dy,dx)
     fixtureQuat = map_[targetFixture].getOrientation()
     fixtureEuler = tf.transformations.euler_from_quaternion(fixtureQuat, 'sxyz')
 
     # 0 to Left along, x axis. 
     rotSlack = 20 * np.pi /180 
 
-    angleDiff = calcAngleDiff(rotZClippPoint, np.pi/2)
-    print('rotZClippPoint ', rotZClippPoint, ' fixtureEuler ', fixtureEuler[2], ' angleDiff ', angleDiff)
+    angleDiff = calcAngleDiff(rotZ, np.pi/2)
+    print('rotZClippPoint ', rotZClippPoint, ' rotZ ', rotZ, ' fixtureEuler ', fixtureEuler[2], ' angleDiff ', angleDiff)
 
     if abs(angleDiff) < np.pi/2 + rotSlack:
         if fixtureEuler[2] > np.pi/2 + rotSlack and  fixtureEuler[2] < np.pi/2 - rotSlack:
@@ -407,6 +413,3 @@ def closestDistLineToLineSegment(pointA0, pointA1, pointB0, pointB1):
     dist = np.linalg.norm(pA - pB)
 
     return dist
-
-
-
