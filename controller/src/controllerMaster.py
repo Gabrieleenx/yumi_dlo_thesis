@@ -90,7 +90,6 @@ class YmuiContoller(object):
         
         # mutex
         self.lock = threading.Lock()
-        self.lockForce = threading.Lock()
         
         # publish velocity comands
         self.pub = rospy.Publisher('/yumi/egm/joint_group_velocity_controller/command', Float64MultiArray, queue_size=1)
@@ -164,11 +163,9 @@ class YmuiContoller(object):
 
         elif self.controlInstructions.mode == 'combined':
             # combined task update
-            self.lockForce.acquire()
             self.relativeControl.compute(controlInstructions=self.controlInstructions,\
                                         jacobian=jacobianCombined,\
                                         transformer=self.transformer)
-            self.lockForce.release()
             SoT.append(self.relativeControl) 
 
             self.absoluteControl.compute(controlInstructions=self.controlInstructions,\
@@ -178,12 +175,20 @@ class YmuiContoller(object):
         else:
             print('Non valid control mode, stopping')
             self.jointState.jointVelocity = np.zeros(14)
-            self.jointState.gripperLeftVelocity = np.zeros(2)
-            self.jointState.gripperRightVelocity = np.zeros(2)
+            self.lock.release()
+            # publish velocity comands
+            self.publishVelocity()
             return
-        
+
         self.lock.release()
 
+        # check so devation is not to big, stop if it is 
+        if not self.controlInstructions.checkDevation():
+            print('Deveation from trajectory too large, stopping')
+            self.jointState.jointVelocity = np.zeros(14)
+            self.publishVelocity()
+            return
+     
         self.jointPositionPotential.compute(jointState=self.jointState)
         SoT.append(self.jointPositionPotential)
         
@@ -251,8 +256,8 @@ class YmuiContoller(object):
             print('Error, mode not matching combined or individual')
             return
         # current gripper position # 
-        gripperLeft = np.copy(self.jointState.gripperLeftPosition)
-        gripperRight = np.copy(self.jointState.gripperRightPosition)
+        gripperLeft = self.controlInstructions.lastGripperLeft
+        gripperRight = self.controlInstructions.lastGripperRight
         currentPoint =utils.TrajectoryPoint(positionRight=positionRight,\
                                                     positionLeft=positionLeft,\
                                                     orientationRight=orientationRight,\
@@ -306,18 +311,12 @@ class YmuiContoller(object):
             
         # set mode
         self.controlInstructions.mode = data.mode
-        self.controlInstructions.ifForceControl = 0
-        self.controlInstructions.maxForce = 4
 
         # update the trajectroy 
         self.controlInstructions.trajectory.updatePoints(trajectory, velLeftInit, velRightInit)
         self.controlInstructions.trajIndex = 0
         self.lock.release()
 
-    def callbackForce(self, data):
-        self.lockForce.acquire()
-        self.controlInstructions.force = data.data
-        self.lockForce.release()
 
 def main():
 
@@ -326,7 +325,6 @@ def main():
 
     ymuiContoller = YmuiContoller()
     rospy.sleep(0.05)
-    rospy.Subscriber("/CableForce", Float64, ymuiContoller.callbackForce, queue_size=1)
     rospy.Subscriber("/Jacobian_R_L", Jacobian_msg, ymuiContoller.callback, queue_size=3)
     rospy.Subscriber("/Trajectroy", Trajectory_msg, ymuiContoller.callbackTrajectory, queue_size=1)
 

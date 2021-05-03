@@ -90,7 +90,7 @@ rosrun robot_setup_tf tf_broadcaster
 ``` 
 * for simulation ()
 ``` 
-rosrun controller yumi_simulator.py
+rosrun simulation_rviz yumi_simulator.py
 ``` 
 * for robot or robotstudio (warning: this activates egm and joint controllers and also closes egm and rapid when set_yumi_settings_and_start.py is closed)
 ```

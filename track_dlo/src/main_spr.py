@@ -56,7 +56,6 @@ class ObjectTracking(object):
         self.height_off = -0.086 + 0.003 # m offest for which all points under get filtered away
 
     def callback(self, depth_data, rgb_data):
-        # TODO try infrared cameras 
         time_start = time.time()
 
         try:

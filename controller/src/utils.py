@@ -7,36 +7,22 @@ import tf
 class JointState(object):
     def __init__(self,\
             jointPosition=np.array([1.0, -2.0, -1.2, 0.6, -2.0, 1.0, 0.0, -1.0, -2.0, 1.2, 0.6, 2.0, 1.0, 0.0]),\
-            jointVelocity=np.zeros(14),\
-            gripperRightPosition=np.zeros(2),\
-            gripperLeftPosition=np.zeros(2),\
-            gripperRightVelocity=np.zeros(2),\
-            gripperLeftVelocity=np.zeros(2)):
-
+            jointVelocity=np.zeros(14)):
         self.jointPosition = jointPosition # only arm not gripper
         self.jointVelocity = jointVelocity # only arm not gripper
-        self.gripperRightPosition = gripperRightPosition
-        self.gripperLeftPosition = gripperLeftPosition
-        self.gripperRightVelocity = gripperRightVelocity
-        self.gripperLeftVelocity = gripperLeftVelocity
+
     
     def GetJointVelocity(self):
-        return np.hstack([self.jointVelocity, \
-            self.gripperRightVelocity, self.gripperLeftVelocity])
+        return np.hstack([self.jointVelocity])
     
     def GetJointPosition(self):
-        return np.hstack([self.jointPosition, \
-            self.gripperRightPosition, self.gripperLeftPosition])
+        return np.hstack([self.jointPosition])
 
     def UpdatePose(self, pose):
         self.jointPosition = pose[0:14]
-        self.gripperRightPosition = pose[14:16]
-        self.gripperLeftPosition = pose[16:18]
 
     def UpdateVelocity(self, vel):
         self.jointVelocity = vel[0:14]
-        self.gripperRightVelocity = vel[14:16]
-        self.gripperLeftVelocity = vel[16:18]
 
 
 class TrajectoryPoint(object):
@@ -218,19 +204,13 @@ class ControlInstructions(object): # generates target velocity in task space
         self.mode = 'individual'
         self.trajectory = Trajectory(deltaTime)
         self.velocities = np.zeros(12)
-        self.errorVelocities = np.zeros(12)
+        self.error = np.zeros(12)
+        self.maxDeviation = np.array([0.01,0.01,0.01, 0.05,0.05,0.05, 0.01,0.01,0.01, 0.05,0.05,0.05])
         self.gripperLeft = np.array([0.01,0.01])
         self.gripperRight = np.array([0.01,0.01])
         self.lastGripperLeft = np.array([-1,-1])
         self.lastGripperRight = np.array([-1,-1])
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
-        self.ifForceControl = 0
-        self.forceGain = 0.01
-        self.forceControlCurrent = 0
-        self.force = 0
-        self.distanceForceActivation = 0
-        self.maxForce = 4 # in N
-        self.errorThreshold = 1.0 # meters allowed to devate from path before velocity commands are ignored 
         self.trajIndex = 0
 
     def getIndividualTargetVelocity(self, k):
@@ -238,19 +218,16 @@ class ControlInstructions(object): # generates target velocity in task space
         if len(self.trajectory.trajectory) < 2: 
             return np.zeros(12)
 
-        self.errorVelocities[0:3] = PositionToVelocity(self.translationRightArm,\
+        self.error[0:3] = PositionError(self.translationRightArm,\
             self.targetPosition[0:3], 0.1)
-        self.errorVelocities[6:9] = PositionToVelocity(self.translationLeftArm,\
+        self.error[6:9] = PositionError(self.translationLeftArm,\
             self.targetPosition[3:6], 0.1)
-        self.errorVelocities[3:6]= QuaternionToRotVel(self.rotationRightArm, \
+        self.error[3:6]= RotationError(self.rotationRightArm, \
             self.targetOrientation[0:4], 0.2)
-        self.errorVelocities[9:12]= QuaternionToRotVel(self.rotationLeftArm, \
+        self.error[9:12]= RotationError(self.rotationLeftArm, \
             self.targetOrientation[4:8], 0.2)
 
-        if np.linalg.norm(self.errorVelocities) <= self.errorThreshold:
-            self.velocities = self.targetVelocity + k*self.errorVelocities
-        else:
-            self.velocities = k*self.errorVelocities
+        self.velocities = self.targetVelocity + k*self.error
 
         return self.velocities
 
@@ -258,16 +235,13 @@ class ControlInstructions(object): # generates target velocity in task space
 
         if len(self.trajectory.trajectory) < 2: 
             return np.zeros(12)
-        self.errorVelocities[0:3] = PositionToVelocity(self.absolutePosition,\
+        self.error[0:3] = PositionError(self.absolutePosition,\
             self.targetPosition[0:3], 0.1)
-        self.errorVelocities[3:6]= QuaternionToRotVel(self.absoluteOrientation, \
+        self.error[3:6]= RotationError(self.absoluteOrientation, \
             self.targetOrientation[0:4], 0.2)
 
-        if np.linalg.norm(self.errorVelocities[0:6]) <= self.errorThreshold:
-            self.velocities[0:6] = self.targetVelocity[0:6] + k*self.errorVelocities[0:6]
-        else:
-            self.velocities[0:6] = k*self.errorVelocities[0:6]
-        
+        self.velocities[0:6] = self.targetVelocity[0:6] + k*self.error[0:6]
+
         return self.velocities[0:6]
 
     def getRelativeTargetVelocity(self, k):
@@ -276,34 +250,13 @@ class ControlInstructions(object): # generates target velocity in task space
         
         relativePosTarget = self.targetPosition[3:6]
 
-       # simple force control 
-        if self.ifForceControl == 1:
-            if self.force > self.maxForce and self.forceControlCurrent == 0:
-                self.distanceForceActivation = np.linalg.norm(self.realativPosition)
-                self.forceControlCurrent = 1
-
-            elif self.distanceForceActivation > np.linalg.norm(self.targetPosition[3:6]):
-                self.forceControlCurrent = 0
-
-            if self.forceControlCurrent == 1:
-                errorForce = self.maxForce - self.force
-
-                maxRelativeNorm = self.distanceForceActivation + self.forceGain * errorForce
-
-                relativePosNormalized = normalize(relativePosTarget)
-                relativePosTarget = relativePosNormalized * maxRelativeNorm
-
-
-        self.errorVelocities[6:9] = PositionToVelocity(self.realativPosition ,\
+        self.error[6:9] = PositionError(self.realativPosition ,\
             relativePosTarget, 0.1)
 
-        self.errorVelocities[9:12]= QuaternionToRotVel(self.rotationRelative, \
+        self.error[9:12]= RotationError(self.rotationRelative, \
             self.targetOrientation[4:8], 0.2)
 
-        if np.linalg.norm(self.errorVelocities[6:12]) <= self.errorThreshold:
-            self.velocities[6:12] = self.targetVelocity[6:12]  + k*self.errorVelocities[6:12]
-        else:
-            self.velocities[6:12] = k*self.errorVelocities[6:12]
+        self.velocities[6:12] = self.targetVelocity[6:12]  + k*self.error[6:12]
 
         return self.velocities[6:12], self.translationRightArm, self.translationLeftArm, self.absoluteOrientation
 
@@ -346,17 +299,22 @@ class ControlInstructions(object): # generates target velocity in task space
         homogeneousLeftRelative = np.hstack([self.translationRelativeLeftRight,1])
         self.homogeneousAbsouluteRelative = leftToAbsoluteFrameRot.dot(homogeneousLeftRelative)
         self.realativPosition = self.homogeneousAbsouluteRelative[0:3]
-        
+
+    def checkDevation(self):
+        devation = np.max(np.abs(self.error[0:3]) - self.maxDeviation[0:3])
+        if devation > 0:
+            return False
+        return True
 
 # used to calculate error
-def PositionToVelocity(currentPositionXYZ, targetPositionXYZ, maxVelocity):
-    positionDiff = (targetPositionXYZ - currentPositionXYZ)/10
+def PositionError(currentPositionXYZ, targetPositionXYZ, maxVelocity):
+    positionDiff = (targetPositionXYZ - currentPositionXYZ) # /10
     norm = np.linalg.norm(positionDiff)
     positionDiffNormalized = normalize(positionDiff)        
     return positionDiffNormalized*min([maxVelocity, norm])
 
 # used to calculate error
-def QuaternionToRotVel(currentQ, targetQ, maxRotVel):
+def RotationError(currentQ, targetQ, maxRotVel):
 
     if currentQ.dot(targetQ) < 0:
         currentQ = -currentQ
@@ -370,7 +328,7 @@ def QuaternionToRotVel(currentQ, targetQ, maxRotVel):
 
     errorOrientationNormalized = normalize(errorOrientation)     
     #errorOrientationNormalized*min([maxRotVel, norm])   
-    return errorOrientationNormalized*min([maxRotVel, 4*norm])
+    return errorOrientationNormalized*min([maxRotVel, norm])
 
 
 def CalcJacobianCombined(data, gripperLengthRight, gripperLengthLeft, transformer, yumiGrippPoseR, yumiGrippPoseL):

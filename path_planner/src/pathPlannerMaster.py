@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
-from controller.msg import Trajectory_point, Trajectory_msg
+from controller.msg import Trajectory_point, Trajectory_msg, Jacobian_msg
 from sensor_msgs.msg import PointCloud
 from std_msgs.msg import Int64
 import tf
@@ -9,7 +9,6 @@ import numpy as np
 import utils, constraintsCheck, solveRerouting
 import tasks
 import threading
-
 
 class PathPlanner(object):
     def __init__(self, listOfObjects, listOfTasks):
@@ -22,6 +21,7 @@ class PathPlanner(object):
         self.tfListener = tf.TransformListener()        
         self.gripperRight = utils.FramePose()
         self.gripperLeft = utils.FramePose() 
+        self.jointPosition = np.zeros(14)
         # rope representation 
         self.DLO = utils.DLO()
         # keep track of state
@@ -32,9 +32,11 @@ class PathPlanner(object):
         self.solve = solveRerouting.Solve()
         self.rerouting = tasks.Rerouting()
         self.holdPosition = tasks.HoldPosition()
+        self.resetOrientation = tasks.ResetOrientation()
         # mutex
         self.mtx_spr = threading.Lock()
         self.mtx_subTask = threading.Lock()
+        self.mtx_jointPos = threading.Lock()
         # ros publisher for trajectory 
         self.pub = rospy.Publisher('/Trajectroy', Trajectory_msg, queue_size=1)
 
@@ -59,6 +61,11 @@ class PathPlanner(object):
         self.currentSubTask = data.data
         self.mtx_subTask.release()
 
+    def callbackJointPosition(self, data):
+        self.mtx_jointPos.acquire()
+        self.jointPosition = np.asarray(data.jointPosition)[0:14]
+        self.mtx_jointPos.release()
+
     def genetateNewTrajectory(self, task):
         # alway tries to generate new trajectory in normal state
         print('Generate new trajectory = ', self.currentTask)                 
@@ -68,7 +75,8 @@ class PathPlanner(object):
                                     DLO=self.DLO,\
                                     gripperLeft=self.gripperLeft,\
                                     gripperRight=self.gripperRight,\
-                                    currentSubTask=self.currentSubTask)
+                                    currentSubTask=self.currentSubTask,\
+                                    jointPosition=self.jointPosition)
         # generates message
         msg = task.getMsg() 
         # Check for imposible solutions
@@ -80,13 +88,14 @@ class PathPlanner(object):
                                             DLO=self.DLO,\
                                             gripperLeft=self.gripperLeft,\
                                             gripperRight=self.gripperRight,\
-                                            currentSubTask=0)   
+                                            currentSubTask=self.currentSubTask,\
+                                            jointPosition=self.jointPosition)   
             msg = self.holdPosition.getMsg()
             self.pub.publish(msg)
             nonValidSolution = 1
             numAttempts = 0 # keep track of how many attempts of findin valid solution
             
-            while nonValidSolution != 0: 
+            while nonValidSolution == 1: 
                 print('Searching for solution')
 
                 numAttempts += 1
@@ -100,13 +109,10 @@ class PathPlanner(object):
                 # solve optim problem, evolution based stochastic solver. 
                 individual = self.solve.solve(populationSize=100, numGenerations=20)
 
-                if not (individual.pickupRightValid or individual.pickupLeftValid):
+                if not (individual.pickupRightValid or individual.pickupLeftValid or individual.combinedValid):
                     print('Non valid solution')
                     continue
 
-                if not individual.combinedValid:
-                    print('Non valid solution')
-                    continue
                 # setup new task 
                 self.rerouting.resetTask()
                 self.rerouting.initilize(targetFixture=task.targetFixture,\
@@ -119,17 +125,41 @@ class PathPlanner(object):
                                             DLO=self.DLO,\
                                             gripperLeft=self.gripperLeft,\
                                             gripperRight=self.gripperRight,\
-                                            currentSubTask=self.currentSubTask)               
+                                            currentSubTask=self.currentSubTask,\
+                                            jointPosition=self.jointPosition)   
+            
                 # replace message from new task with solution
                 msg = task_.getMsg()
                 # Check for imposible solutions
                 nonValidSolution = constraintsCheck.check(task=task_)
+                if nonValidSolution == 3:
+                    self.instruction = 3
             task = task_
 
         if self.instruction == 2:
             print('Non recoverable problem detected in path planning!')
+            self.holdPosition.resetTask()
+            self.holdPosition.updateAndTrackProgress(map_=self.map,\
+                                            DLO=self.DLO,\
+                                            gripperLeft=self.gripperLeft,\
+                                            gripperRight=self.gripperRight,\
+                                            currentSubTask=self.currentSubTask,\
+                                            jointPosition=self.jointPosition)   
+            msg = self.holdPosition.getMsg()
+            self.pub.publish(msg)
             return
-            
+
+        if self.instruction == 3:
+            # reset orientation 
+            print('reseting orientation')
+            self.resetOrientation.resetTask()     
+            self.resetOrientation.updateAndTrackProgress(map_=self.map,\
+                                            DLO=self.DLO,\
+                                            gripperLeft=self.gripperLeft,\
+                                            gripperRight=self.gripperRight,\
+                                            currentSubTask=self.currentSubTask,\
+                                            jointPosition=self.jointPosition)   
+            msg = self.resetOrientation.getMsg()
         self.pub.publish(msg)
 
     def update(self):
@@ -154,21 +184,27 @@ class PathPlanner(object):
             task = self.tasks[self.currentTask]
         elif self.instruction == 1:
             task = self.rerouting
+        elif self.instruction == 3:
+            task = self.resetOrientation
         else:
             # unlock mutex 
             self.mtx_subTask.release()
             self.mtx_spr.release()
             return
 
+        self.mtx_jointPos.acquire()
         # if a new trajectory is called for
         if task.getNewTrajectory() == 1:
             self.genetateNewTrajectory(task=task)
         # update task variables and call for veriication on subtasks
+                
         task.updateAndTrackProgress(map_=self.map,\
                                     DLO=self.DLO,\
                                     gripperLeft=self.gripperLeft,\
                                     gripperRight=self.gripperRight,\
-                                    currentSubTask=self.currentSubTask)
+                                    currentSubTask=self.currentSubTask,\
+                                    jointPosition=self.jointPosition)
+        self.mtx_jointPos.release()
 
         # if a task is finished 
         if task.getTaskDone() == 1:
@@ -180,7 +216,7 @@ class PathPlanner(object):
                     self.currentTask += task.getNextTaskStep()
                     self.tasks[self.currentTask].resetTask() 
             # if problem task is solved then same or prevous task is selected
-            elif self.instruction == 1:
+            elif self.instruction == 1 or self.instruction == 3:
                 # return to normal task
                 self.instruction = 0 
                 self.currentTask += task.getNextTaskStep()
@@ -219,7 +255,7 @@ def main():
 
     # tasks -------------------
     # how much cable slack there should be between current and previous fixture
-    slackList = [0.15, 0.04, 0.04, 0.04]
+    slackList = [0.11, 0.04, 0.04, 0.04]
     listOfTasks  = []
     for i in range(len(listOfObjects)):
         grabCable = tasks.GrabCable(targetFixture=i, previousFixture=i-1, cableSlack=slackList[i])
@@ -231,6 +267,7 @@ def main():
     # Ros subscribers 
     rospy.Subscriber("/spr/dlo_estimation", PointCloud, pathPlanner.callback, queue_size=2)
     rospy.Subscriber("/controller/sub_task", Int64, pathPlanner.callbackCurrentSubTask, queue_size=2)
+    rospy.Subscriber("/Jacobian_R_L", Jacobian_msg, pathPlanner.callbackJointPosition, queue_size=2)
 
     # sleep for everthing to initilize
     rospy.sleep(0.45)

@@ -201,7 +201,7 @@ def getZRotationCable(length, DLO):
 
 
 def getPointTime(gripperRight, gripperLeft, posTargetRight, posTargetLeft, \
-                        rotTargetRight, rotTargetLeft, avgSpeed=0.02, avgRotVel=0.1, shortestTime=2):
+                        rotTargetRight, rotTargetLeft, avgSpeed=0.02, avgRotVel=0.07, shortestTime=2):
 
     # get max distance, for calc time 
     distRight = np.linalg.norm(posTargetRight - gripperRight.getPosition())
@@ -233,7 +233,6 @@ def getTotalRadians(currentQ, targetQ):
 def getOffestCableConstraint(map_, previousFixture, gripperTargetPosition, DLO, targetFixture, cableSlack):
     if previousFixture >= 0:
         cableAttachmentPostion = map_[previousFixture].getClippPosition()
-        #cableAttachmentPostion[2] += map_[previousFixture].fixtureHeight 
 
         dist = np.linalg.norm(gripperTargetPosition - cableAttachmentPostion)
 
@@ -363,34 +362,7 @@ def closestDistLineToLineSegment(pointA0, pointA1, pointB0, pointB1):
     d = u.dot(w0)
     e = v.dot(w0)    
 
-    # check if boh linesegment is points
-    if not np.any(u) and not np.any(v):
-        return np.linalg.norm(w0)
-
-    # if either are a point
-    elif not np.any(u):
-        sc = 0
-        tc = d/b
-        if tc < 0:
-            tc  = 0
-        elif tc > 1:
-            tc = 1 
-        pA = pointA0 + sc*u
-        pB = pointB0 + tc*v
-        return np.linalg.norm(pA - pB)
-
-    elif not np.any(v):
-        tc  = 0
-        sc = -d/a
-        if sc < 0:
-            sc  = 0
-        elif sc > 1:
-            sc = 1 
-        pA = pointA0 + sc*u
-        pB = pointB0 + tc*v
-        return np.linalg.norm(pA - pB)
-    
-    elif np.linalg.norm(u-v) <= 1e-10:
+    if np.linalg.norm(u-v) <= 1e-10:
         # moving in same direction at same speed
         t_cpa = 0
 

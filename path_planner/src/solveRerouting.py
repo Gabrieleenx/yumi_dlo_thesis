@@ -23,7 +23,8 @@ class Solve(object):
         self.reach = 0.559 - 0.03 
         self.individualSTD = np.array([0.05, 0.05, 0.05, 0.05, 15 * np.pi/180])
         self.combinedSTD = np.array([0.05, 0.05, 10 * np.pi/180])
-
+        self.currentGrippPositionRight = np.zeros(3)
+        self.currentGrippPositionLeft = np.zeros(3)
         self.crossOverProbability = 0.4
         self.mutationProbabiliy = 0.8
         self.flippProbability = 0.05
@@ -53,9 +54,10 @@ class Solve(object):
                                     utilsSolve.pickupRangeAndAngle(task=task,\
                                                     rightGrippPoint=self.rightGrippPoint,\
                                                     leftGrippPoint=self.leftGrippPoint)
-            print('self.rightPickupRange ' , self.rightPickupRange, ' self.leftPickupRange ', self.leftPickupRange)
             self.initRightGrippPos = self.DLO.getCoord(self.rightGrippPoint)
             self.initLeftGrippPos = self.DLO.getCoord(self.leftGrippPoint)
+            self.currentGrippPositionRight = task.gripperRight.getPosition()
+            self.currentGrippPositionLeft = task.gripperLeft.getPosition()
 
         else:
             self.rightGrippPoint, self.leftGrippPoint, self.initAbsPos, self.initAngle = \
@@ -123,7 +125,7 @@ class Solve(object):
 
             # update population
             population = tempPopulation.copy()
-            
+
         return population[0] 
 
 
@@ -136,9 +138,10 @@ class Solve(object):
         rightPos, leftPos, quatRight, quatLeft = individual.getRightLeftPosQuat(np.array([0.00, 0.00]))
         pickupPoints = individual.getPickupPoints()
         
-        #
+        # pickup points 
         tempPickupRight = self.DLO.getCoord(pickupPoints[0])
         tempPickupLeft = self.DLO.getCoord(pickupPoints[1])
+
         # To close to fixture, for end points, penalty 
         
         scoreFixtureRight, validFixtureRight = utilsSolve.fixturePenalty(position=rightPos, map_=self.map)
@@ -190,10 +193,15 @@ class Solve(object):
         score += score_
         individual.pickupLeftValid = individual.pickupLeftValid and valid_
         
-        # penalty for crossing
+        # penalty for crossing to far on y axis
         angle = individual.parametersIndividual[4]
         if angle < -(np.pi/2 + (20*np.pi/180)) or angle > (np.pi/2 + (20*np.pi/180)):
             score += - 5 
+
+        # penalty for crossing pickup 
+        if not utilsSolve.checkCrossing(pointR=tempPickupRight, pointL=tempPickupLeft):
+            score += - 3 
+
 
         # penalty for outside side rope constraint 
         score_, valid_  = utilsSolve.ropeConstraint(task=self.task, individual=individual)
@@ -216,6 +224,18 @@ class Solve(object):
         individual.pickupRightValid = individual.pickupRightValid and validFixtureRight
         individual.pickupLeftValid = individual.pickupLeftValid and validFixtureLeft
         
+        # penalty for end pickup out of reach 
+        
+        score_, valid_ = utilsSolve.outsideReachPenalty(position=rightEndPickupPoint,\
+                                quat=np.array([1,0,0,0]), reachCentrum=self.reachRightCentrum, reach=self.reach-0.02)
+        score += score_
+        individual.pickupRightValid = individual.pickupRightValid and valid_
+
+        score_, valid_ = utilsSolve.outsideReachPenalty(position=leftEndPickupPoint, quat=quatLeft,\
+                                         reachCentrum=self.reachLeftCentrum, reach=self.reach-0.02)
+        score += score_
+        individual.pickupLeftValid = individual.pickupLeftValid and valid_
+        
         # penalty for pickup points too close 
         
         if np.linalg.norm(rightEndPickupPoint - leftEndPickupPoint) < 0.12:
@@ -223,21 +243,10 @@ class Solve(object):
         
         if np.linalg.norm(tempPickupRight - tempPickupLeft) < 0.12:
             score += -2
-            individual.pickupRightValid = False
-            individual.pickupLeftValid = False
+            if individual.pickupRightValid and individual.pickupLeftValid:
+                individual.pickupRightValid = False
+                individual.pickupLeftValid = False
 
-        # penalty for end pickup out of reach 
-        
-        score_, valid_ = utilsSolve.outsideReachPenalty(position=rightEndPickupPoint,\
-                                quat=np.array([1,0,0,0]), reachCentrum=self.reachRightCentrum, reach=self.reach-0.03)
-        score += score_
-        individual.pickupRightValid = individual.pickupRightValid and valid_
-
-        score_, valid_ = utilsSolve.outsideReachPenalty(position=leftEndPickupPoint, quat=quatLeft,\
-                                         reachCentrum=self.reachLeftCentrum, reach=self.reach-0.03)
-        score += score_
-        individual.pickupLeftValid = individual.pickupLeftValid and valid_
-        
         # penalty for distance from target pickup
         
         score += -abs(pickupPoints[0] - self.rightGrippPoint)
@@ -253,6 +262,18 @@ class Solve(object):
         score += score_
         score_, valid_ = utilsSolve.distanceMovedPenalty(self.initLeftGrippPos, leftEndPickupPoint)
         score += score_
+
+        if not (individual.pickupRightValid or individual.pickupLeftValid):
+            score_, valid_ = utilsSolve.penaltyForPathsToClose(rightStart= self.currentGrippPositionRight ,\
+                                                RightEnd=tempPickupRight,\
+                                                leftStart=self.currentGrippPositionLeft,\
+                                                leftEnd=tempPickupLeft)
+            score += score_
+            score_, valid_ = utilsSolve.penaltyForPathsToClose(rightStart=tempPickupRight,\
+                                                RightEnd=rightPos,\
+                                                leftStart=tempPickupLeft,\
+                                                leftEnd=leftPos)
+            score += score_
 
         # if both not valid
         if not (individual.pickupRightValid or individual.pickupLeftValid):

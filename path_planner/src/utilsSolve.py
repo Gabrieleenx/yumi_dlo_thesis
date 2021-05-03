@@ -117,15 +117,38 @@ def checkIfNotLeftRightArmCross(task):
         if task.mode == 'individual':
             pointA1 = np.asarray(traj[i].positionRight)
             pointB1 = np.asarray(traj[i].positionLeft)
+            if not checkCrossing(pointR=pointA1, pointL=pointB1):
+                return False
         else:
+            if i == 0:
+                posAbsolut0, quatAbsolute0, posRelative0, _ = \
+                        utils.calcAbsoluteAndRelative(yumiGrippPoseR=task.gripperRight,\
+                                                     yumiGrippPoseL=task.gripperLeft,\
+                                                     transformer=transformer)
+            else:
+                posAbsolut0 =  np.asarray(traj[i-1].positionAbsolute)
+                quatAbsolute0 =  np.asarray(traj[i-1].orientationAbsolute)
+                posRelative0 =  np.asarray(traj[i-1].positionRelative)
+                
             posAbsolut =  np.asarray(traj[i].positionAbsolute)
             quatAbsolute =  np.asarray(traj[i].orientationAbsolute)
             posRelative =  np.asarray(traj[i].positionRelative)
+
+            posAbsolutAvg = 0.5*(posAbsolut+posAbsolut0)
+            posRelativeAvg = 0.5*(posRelative+posRelative0)
+            quatStack = np.vstack([quatAbsolute, quatAbsolute0])
+            quatAbsoluteAvg = utils.averageQuaternions(Q=quatStack)
+
             pointA1, pointB1 = calcAbsolutToIndividualPos(posAbsolut=posAbsolut,\
                                 quatAbsolute=quatAbsolute, posRelative=posRelative)
-
-        if not checkCrossing(pointR=pointA1, pointL=pointB1):
-            return False
+            pointA0, pointB0 = calcAbsolutToIndividualPos(posAbsolut=posAbsolutAvg,\
+                                            quatAbsolute=quatAbsoluteAvg, posRelative=posRelativeAvg)
+                
+            if not checkCrossing(pointR=pointA1, pointL=pointB1):
+                return False
+            if not checkCrossing(pointR=pointA0, pointL=pointB0):
+                print('loop hole crossing')
+                return False
 
     return True
 
@@ -150,7 +173,49 @@ def checkCloseToFixtures(task):
     return True
 
 
+def checkOverRotation(task):
+    traj = task.trajectory
+    jointR = task.jointPosition[6]
+    jointL = task.jointPosition[13]
+    jointMax = (229-5)*np.pi/180
+    jointMin = -(229-5)*np.pi/180
 
+
+    for i in range(len(traj)):
+        if i == 0:
+            rotA0 = task.gripperRight.getQuaternion()
+            rotA1 = np.asarray(traj[i].orientationRight)
+            rotB0 = task.gripperLeft.getQuaternion()
+            rotB1 = np.asarray(traj[i].orientationLeft)
+        else:
+            rotA0 = np.asarray(traj[i-1].orientationRight)
+            rotA1 = np.asarray(traj[i].orientationRight)
+            rotB0 = np.asarray(traj[i-1].orientationLeft)
+            rotB1 = np.asarray(traj[i].orientationLeft)
+
+        Euler0R = tf.transformations.euler_from_quaternion(rotA0, 'sxyz')
+        Euler1R = tf.transformations.euler_from_quaternion(rotA1, 'sxyz')
+        Euler0L = tf.transformations.euler_from_quaternion(rotB0, 'sxyz')
+        Euler1L = tf.transformations.euler_from_quaternion(rotB1, 'sxyz')
+        closestAngleDiffR = utils.calcAngleDiff(Euler0R[2], Euler1R[2])
+        closestAngleDiffL = utils.calcAngleDiff(Euler0L[2], Euler1L[2])
+        jointR += closestAngleDiffR 
+        jointL += closestAngleDiffL
+        if jointR  > jointMax:
+            print('Over rotation Right + ', jointR)
+            return False
+        elif jointR  < jointMin:
+            print('Over rotation Right - ', jointR)
+            return False
+        if jointL  > jointMax:
+            print('Over rotation Left + ', jointL)
+            return False
+        elif jointL  < jointMin:
+            print('Over rotation Left - ', jointL)
+            return False
+
+    return True
+        
 
 # Evaluation functions ---------------------------------
 
@@ -173,6 +238,16 @@ def fixturePenalty(position, map_):
             score += -2
             score += dist - minDist
             valid = 0
+    return score, valid
+
+def penaltyForPathsToClose(rightStart, RightEnd, leftStart, leftEnd):
+    score = 0
+    valid = True
+    closestDist = utils.closestDistLineToLineSegment(pointA0=rightStart,\
+                            pointA1=RightEnd, pointB0=leftStart, pointB1=leftEnd)
+    if closestDist < 0.12:
+        score = -2
+        valid = False
     return score, valid
 
 
@@ -274,8 +349,9 @@ def predictRope(task, individual, leftGrippPoint, rightGrippPoint):
         leftEndPickupPoint = rightPos + vec * (l1 + l2)
 
     elif individual.pickupLeftValid == 1:
-
-        dist = np.linalg.norm(leftPos - initLeftPos)
+        leftPosHigh = np.copy(leftPos)
+        leftPosHigh[2] = 0.1
+        dist = np.linalg.norm(leftPosHigh - initLeftPos)
         if dist > l3:
             vec = utils.normalize(leftPos - initLeftPos)
             leftEndPickupPoint = initLeftPos + vec * (dist-l3)
@@ -290,8 +366,9 @@ def predictRope(task, individual, leftGrippPoint, rightGrippPoint):
             rightEndPickupPoint = initRightPos
 
     elif individual.pickupRightValid == 1:
-
-        dist = np.linalg.norm(rightPos - initRightPos)
+        rightPosHigh = np.copy(rightPos)
+        rightPosHigh[2] = 0.1
+        dist = np.linalg.norm(rightPosHigh - initRightPos)
         if dist > l1:
             vec = utils.normalize(rightPos - initRightPos)
             rightEndPickupPoint = initRightPos + vec * (dist-l1)

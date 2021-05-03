@@ -29,6 +29,67 @@ class subTask(object):
     def verification(self, input_):
         return bool 
 '''
+class GoToHeightIndividualResetOrientatin(object):
+    # Works for both comined and individual control, preservs orientation
+    def __init__(self, targetHeight, grippers):
+        self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', 'self.mode', 'self.tfListener', 'self.jointPosition']
+        self.verificationArgs = ['self.taskDone']
+        self.targetHeight = targetHeight # height from world frame (i.e. table) and not yumi_base_link
+            # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
+        self.gripper = grippers # in mm, [Right, left]
+        self.pointTime = 1
+
+    def getTrajectoryPoint(self, inputs):
+        gripperLeft = inputs[0]
+        gripperRight = inputs[1]
+        mode = inputs[2]
+        tfListener = inputs[3]
+        jointPosition = inputs[4]
+
+        (worldToBase, _) = tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
+        targertHeightBase = self.targetHeight - worldToBase[2]
+        trajectoryPoint = Trajectory_point()
+
+        if mode == 'individual':
+            positionLeft = gripperLeft.getPosition()
+            positionRight = gripperRight.getPosition()
+            
+            if abs(jointPosition[6]) > np.pi/0.7 or abs(jointPosition[13]) > np.pi/0.7: 
+                orientationRight = tf.transformations.quaternion_from_euler(-jointPosition[6]/2, 0, np.pi, 'rzyx')
+                orientationLeft = tf.transformations.quaternion_from_euler(-jointPosition[13]/2, 0, np.pi, 'rzyx')
+            else: 
+                orientationLeft = np.array([1,0,0,0])
+                orientationRight = np.array([1,0,0,0])
+
+            positionRight[2] = targertHeightBase[0]
+            positionLeft[2] = targertHeightBase[1]
+
+            self.pointTime = utils.getPointTime(gripperRight=gripperRight,\
+                                        gripperLeft=gripperLeft,\
+                                        posTargetRight=positionRight,\
+                                        posTargetLeft=positionLeft, \
+                                        rotTargetRight=orientationRight,\
+                                        rotTargetLeft=orientationLeft)
+            trajectoryPoint.positionRight = positionRight.tolist()
+            trajectoryPoint.positionLeft = positionLeft.tolist()
+            trajectoryPoint.orientationLeft = orientationLeft.tolist()
+            trajectoryPoint.orientationRight = orientationRight.tolist()
+            trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
+            trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+            trajectoryPoint.pointTime = self.pointTime
+
+            gripperLeft.update(positionLeft, orientationLeft)
+            gripperRight.update(positionRight, orientationRight)
+
+        else: 
+            print('Error, mode not valid in subtask')
+            return []
+        
+        return [trajectoryPoint]
+    
+    def verification(self, input_):
+        return True
+
 
 class GoToHeightIndividual(object):
     # Works for both comined and individual control, preservs orientation
@@ -400,11 +461,11 @@ class CableReroutingOverIndividual(object): # only for individual control
             return []
         
         if self.individal.pickupRightValid == 0:
-            positionRight = np.array([0.2, -0.3, 0.1]) # gripperRight.getPosition()
+            positionRight = np.array([0.1, -0.35, 0.1]) # gripperRight.getPosition()
             quatRight = np.array([1,0,0,0])#gripperRight.getQuaternion()
 
         if self.individal.pickupLeftValid == 0:
-            positionLeft = np.array([0.2, 0.3, 0.1]) # gripperLeft.getPosition()
+            positionLeft = np.array([0.1, 0.35, 0.1]) # gripperLeft.getPosition()
             quatLeft = np.array([1,0,0,0])#gripperLeft.getQuaternion()
 
         self.currentTarget = [positionRight, quatRight, positionLeft, quatLeft]
@@ -487,14 +548,14 @@ class CableReroutingEndPosIndividual(object): # only for individual control
             positionRight = rightPos
             positionRight[2] = targertHeightBase[0]
         else:
-            positionRight = np.array([0.2, -0.3, 0.1]) # gripperRight.getPosition()
+            positionRight = np.array([0.1, -0.35, 0.1]) # gripperRight.getPosition()
             quatRight = np.array([1,0,0,0])#gripperRight.getQuaternion()
 
         if self.individual.pickupLeftValid == 1:
             positionLeft = leftPos
             positionLeft[2] = targertHeightBase[1]
         else:
-            positionLeft = np.array([0.2, 0.3, 0.1]) # gripperLeft.getPosition()
+            positionLeft = np.array([0.1, 0.35, 0.1]) # gripperLeft.getPosition()
             quatLeft = np.array([1,0,0,0])#gripperLeft.getQuaternion()
 
         # calc time

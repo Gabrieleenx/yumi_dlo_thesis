@@ -40,7 +40,7 @@ class InitContoller(object):
             self.firstDataPoint = 1
 
         if self.time > self.finalTime:
-            self.jointState.UpdateVelocity(np.zeros(18))
+            self.jointState.UpdateVelocity(np.zeros(14))
             self.publishVelocity()
             print('Init done')
             rospy.sleep(0.5)

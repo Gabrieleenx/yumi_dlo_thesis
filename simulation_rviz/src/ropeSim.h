@@ -18,7 +18,7 @@ struct Parameters
     double stiffnes = 1; // stiffnes fo rope 
     const double deltaTime = 0.01;
     const double gravVelAdd = grav*deltaTime*deltaTime;
-    const double holdFrictionSquared = 0.000029; // no idea whats a resonable value
+    const double holdFrictionSquared = 0.000049; // no idea whats a resonable value
 };
 
 struct Point

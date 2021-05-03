@@ -146,12 +146,13 @@ class GrabCable(Task):
             # be then the closest distance between the current and target fixture.  
         self.grippWidth = grippWidth
    
-    def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask):
+    def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask, jointPosition):
 
         self.map = map_ 
         self.DLO = DLO
         self.gripperLeft = gripperLeft
         self.gripperRight = gripperRight
+        self.jointPosition = jointPosition
         self.trackProgress(currentSubTask)
 
 
@@ -178,12 +179,13 @@ class ClippIntoFixture(Task):
         self.grippWidth = grippWidth
 
 
-    def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask):
+    def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask, jointPosition):
 
         self.map = map_ 
         self.DLO = DLO
         self.gripperLeft = gripperLeft
         self.gripperRight = gripperRight
+        self.jointPosition = jointPosition
         self.trackProgress(currentSubTask)
 
  
@@ -245,11 +247,12 @@ class Rerouting(Task):
 
        
 
-    def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask):
+    def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask, jointPosition):
         self.map = map_ 
         self.DLO = DLO
         self.gripperLeft = gripperLeft
         self.gripperRight = gripperRight
+        self.jointPosition = jointPosition
         self.trackProgress(currentSubTask)
 
 
@@ -270,11 +273,44 @@ class HoldPosition(Task):
             # should stick out from the fixture, and if previous it defines how much longer the cable should
             # be then the closest distance between the current and target fixture.  
         self.grippWidth = grippWidth
+        self.nextTaskStep = 0
+
    
-    def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask):
+    def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask, jointPosition):
 
         self.map = map_ 
         self.DLO = DLO
         self.gripperLeft = gripperLeft
         self.gripperRight = gripperRight
+        self.jointPosition = jointPosition
         self.trackProgress(currentSubTask)
+        
+class ResetOrientation(Task):
+    def __init__(self, targetFixture=0, previousFixture=-1, cableSlack=0.05, grippWidth=0.15):
+        super(ResetOrientation, self).__init__('individual')   
+        resetOrientaiton = subTasks.GoToHeightIndividualResetOrientatin(np.array([0.1,0.1]), np.array([20,20]))
+
+        self.subTasks = [resetOrientaiton, resetOrientaiton]
+        self.goToSubTask = [0, 0]
+        self.numSubTasks = len(self.subTasks)
+
+        self.targetFixture = targetFixture # int, starting from 0, which fixture is the target,
+            # will be matched with map elements.
+        self.previousFixture = previousFixture # # int, starting from -1 (-1 means no previous fixture),
+            # which fixture is the current fixture the cable is attached to.
+        self.cableSlack = cableSlack # float in meters, if no previous it defines how much the cable 
+            # should stick out from the fixture, and if previous it defines how much longer the cable should
+            # be then the closest distance between the current and target fixture.  
+        self.grippWidth = grippWidth
+        self.nextTaskStep = 0
+
+   
+    def updateAndTrackProgress(self, map_, DLO, gripperLeft, gripperRight, currentSubTask, jointPosition):
+
+        self.map = map_ 
+        self.DLO = DLO
+        self.gripperLeft = gripperLeft
+        self.gripperRight = gripperRight
+        self.jointPosition = jointPosition
+        self.trackProgress(currentSubTask)
+        

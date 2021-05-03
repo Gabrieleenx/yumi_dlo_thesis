@@ -30,6 +30,11 @@ def check(task):
             print('Crossing individual ')
             instruction = 1
 
+        overRotation = utilsSolve.checkOverRotation(task=task)
+        if not overRotation:
+            print('Overrotation individual ')
+            instruction = 3
+
     elif mode == 'combined':
 
         armNotCross = utilsSolve.checkIfNotLeftRightArmCross(task=task)

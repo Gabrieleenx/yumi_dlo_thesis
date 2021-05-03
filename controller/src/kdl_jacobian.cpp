@@ -137,7 +137,7 @@ class Calc_jacobian{
     
     std::string name_list[18] = {"yumi_robr_joint_1", "yumi_robr_joint_2", "yumi_robr_joint_3", "yumi_robr_joint_4",
          "yumi_robr_joint_5", "yumi_robr_joint_6", "yumi_robr_joint_7", "yumi_robl_joint_1", "yumi_robl_joint_2", "yumi_robl_joint_3",
-         "yumi_robl_joint_4", "yumi_robl_joint_5", "yumi_robl_joint_6", "yumi_robl_joint_7"}; // TODO grippers
+         "yumi_robl_joint_4", "yumi_robl_joint_5", "yumi_robl_joint_6", "yumi_robl_joint_7"};
 
     // egm active for both arms
     bool egm_active = false;

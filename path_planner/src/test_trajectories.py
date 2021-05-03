@@ -17,8 +17,7 @@ def main():
     msg = Trajectory_msg()
     msg.header.stamp = rospy.Time.now()
     msg.mode = 'individual'
-    msg.forceControl = 0
-    msg.maxForce = 4.0
+
 
     # ---------------
     trajectoryPoint = Trajectory_point()
@@ -44,7 +43,7 @@ def main():
     trajectoryPoint.pointTime = 8.0
 
     trajectory.append(trajectoryPoint)
-    '''
+    
     # ---------------
     trajectoryPoint = Trajectory_point()
     trajectoryPoint.positionRight = [0.35, -0.1, 0.03]
@@ -69,7 +68,7 @@ def main():
 
     trajectory.append(trajectoryPoint)
     # ---------------
-    '''
+    
     msg.trajectory = trajectory
     
     pub.publish(msg)
@@ -80,20 +79,19 @@ def main():
     rospy.sleep(31)
 
     # --------------------------------------------
-    '''
+    
     msg = Trajectory_msg()
     msg.header.stamp = rospy.Time.now()
     msg.mode = 'combined'
-    msg.forceControl = 0
-    msg.maxForce = 8.0
+
 
      # ---------------
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.35, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = [1,0,0,0]
+    trajectoryPoint.positionAbsolute = [0.35, 0.0, 0.2]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = [0,0,0,1]
+    trajectoryPoint.orientationAbsolute = [1,0,0,0]
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
@@ -103,10 +101,10 @@ def main():
     # ---------------
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.45, 0.1, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = [1,0,0,0]
+    trajectoryPoint.positionAbsolute = [0.45, 0.1, 0.2]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = [0,0,0,1]
+    trajectoryPoint.orientationAbsolute = [1,0,0,0]
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
@@ -116,10 +114,10 @@ def main():
 
     # ---------------
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.45, 0.1, 0.4]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = [1,0,0,0]
+    trajectoryPoint.positionAbsolute = [0.45, 0.1, 0.4]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = [0,0,0,1]
+    trajectoryPoint.orientationAbsolute = [1,0,0,0]
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
@@ -127,10 +125,10 @@ def main():
     trajectory.append(trajectoryPoint)
     # ---------------
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.35, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = [1,0,0,0]
+    trajectoryPoint.positionAbsolute = [0.35, 0.0, 0.2]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = [0,0,0,1]
+    trajectoryPoint.orientationAbsolute = [1,0,0,0]
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
@@ -151,17 +149,15 @@ def main():
     msg = Trajectory_msg()
     msg.header.stamp = rospy.Time.now()
     msg.mode = 'combined'
-    msg.forceControl = 0
-    msg.maxForce = 8.0
 
      # ---------------
     rot = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 210*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = rot
+    trajectoryPoint.positionAbsolute = [0.4, 0.0, 0.2]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = [0,0,0,1]
+    trajectoryPoint.orientationAbsolute = rot
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
@@ -172,10 +168,10 @@ def main():
     rot = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 150*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = rot
+    trajectoryPoint.positionAbsolute = [0.4, 0.0, 0.2]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = [0,0,0,1]
+    trajectoryPoint.orientationAbsolute = rot
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
@@ -186,10 +182,10 @@ def main():
     rot = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 180*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = rot
+    trajectoryPoint.positionAbsolute = [0.4, 0.0, 0.2]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = [0,0,0,1]
+    trajectoryPoint.orientationAbsolute = rot
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
@@ -199,10 +195,10 @@ def main():
     rot = tf.transformations.quaternion_from_euler(40*np.pi/180, 0, 180*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = rot
+    trajectoryPoint.positionAbsolute = [0.4, 0.0, 0.2]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = [0,0,0,1]
+    trajectoryPoint.orientationAbsolute = rot
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
@@ -213,10 +209,10 @@ def main():
     rot = tf.transformations.quaternion_from_euler(-40*np.pi/180, 0, 180*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = rot
+    trajectoryPoint.positionAbsolute = [0.4, 0.0, 0.2]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = [0,0,0,1]
+    trajectoryPoint.orientationAbsolute = rot
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
@@ -226,10 +222,10 @@ def main():
     rot = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 180*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = rot
+    trajectoryPoint.positionAbsolute = [0.4, 0.0, 0.2]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = [0,0,0,1]
+    trajectoryPoint.orientationAbsolute = rot
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
@@ -240,10 +236,10 @@ def main():
     rot = tf.transformations.quaternion_from_euler(0,40*np.pi/180,  180*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = rot
+    trajectoryPoint.positionAbsolute = [0.4, 0.0, 0.2]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = [0,0,0,1]
+    trajectoryPoint.orientationAbsolute = rot
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
@@ -254,10 +250,10 @@ def main():
     rot = tf.transformations.quaternion_from_euler( 0,-40*np.pi/180, 180*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = rot
+    trajectoryPoint.positionAbsolute = [0.4, 0.0, 0.2]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = [0,0,0,1]
+    trajectoryPoint.orientationAbsolute = rot
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 16.0
@@ -267,10 +263,10 @@ def main():
     rot = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 180*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = rot
+    trajectoryPoint.positionAbsolute = [0.4, 0.0, 0.2]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = [0,0,0,1]
+    trajectoryPoint.orientationAbsolute = rot
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
@@ -282,10 +278,10 @@ def main():
     rotrel = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 60*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = rotrel
-    trajectoryPoint.orientationRight = rot
+    trajectoryPoint.positionAbsolute = [0.4, 0.0, 0.2]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = rotrel
+    trajectoryPoint.orientationAbsolute = rot
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
@@ -297,10 +293,10 @@ def main():
     rotrel = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 0*np.pi/180, 'rzyx')
 
     trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = rotrel
-    trajectoryPoint.orientationRight = rot
+    trajectoryPoint.positionAbsolute = [0.4, 0.0, 0.2]
+    trajectoryPoint.positionRelative = [0, 0.25, 0]
+    trajectoryPoint.orientationRelative = rotrel
+    trajectoryPoint.orientationAbsolute = rot
     trajectoryPoint.gripperLeft = [0.0,0.0]
     trajectoryPoint.gripperRight = [0.0,0.0]
     trajectoryPoint.pointTime = 8.0
@@ -317,78 +313,7 @@ def main():
     rospy.sleep(30)
 
    
-    # --------------------------------------------
-
-
-    msg = Trajectory_msg()
-    msg.header.stamp = rospy.Time.now()
-    msg.mode = 'combined'
-    msg.forceControl = 0
-    msg.maxForce = 4.0
-
-     # ---------------
-    rot = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 180*np.pi/180, 'rzyx')
-
-    trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [1, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = rot
-    trajectoryPoint.gripperLeft = [0.0,0.0]
-    trajectoryPoint.gripperRight = [0.0,0.0]
-    trajectoryPoint.pointTime = 6.0
-
-    trajectory = [trajectoryPoint]
-
-    # ---------------
-    rot = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 180*np.pi/180, 'rzyx')
-
-    trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.3, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = rot
-    trajectoryPoint.gripperLeft = [0.0,0.0]
-    trajectoryPoint.gripperRight = [0.0,0.0]
-    trajectoryPoint.pointTime = 6.0
-
-    trajectory.append(trajectoryPoint)
-    # ---------------
-    rot = tf.transformations.quaternion_from_euler(110*np.pi/180, 0, 180*np.pi/180, 'rzyx')
-
-    trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.4, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = rot
-    trajectoryPoint.gripperLeft = [0.0,0.0]
-    trajectoryPoint.gripperRight = [0.0,0.0]
-    trajectoryPoint.pointTime = 6.0
-
-    trajectory.append(trajectoryPoint)
-    # ---------------
-    rot = tf.transformations.quaternion_from_euler(0*np.pi/180, 0, 180*np.pi/180, 'rzyx')
-
-    trajectoryPoint = Trajectory_point()
-    trajectoryPoint.positionRight = [0.3, 0.0, 0.2]
-    trajectoryPoint.positionLeft = [0, 0.25, 0]
-    trajectoryPoint.orientationLeft = [0,0,0,1]
-    trajectoryPoint.orientationRight = rot
-    trajectoryPoint.gripperLeft = [0.0,0.0]
-    trajectoryPoint.gripperRight = [0.0,0.0]
-    trajectoryPoint.pointTime = 6.0
-
-    trajectory.append(trajectoryPoint)
-    # ---------------
-    msg.trajectory = trajectory
-
-    pub.publish(msg)
-    print('sent msg 3, combined ')
-    rospy.sleep(14)
-
-
-   '''
-
+    
 
 
 
