@@ -125,7 +125,7 @@ class Solve(object):
 
             # update population
             population = tempPopulation.copy()
-
+ 
         return population[0] 
 
 

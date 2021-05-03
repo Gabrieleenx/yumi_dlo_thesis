@@ -571,6 +571,7 @@ def mutateIndividual(task, seedIndividual, leftPickupRange, rightPickupRange, in
             individual.parametersIndividual[3] = newAbsY
             individual.parametersIndividual[4] = newAbsAgnle
         elif task.mode == 'combined':
+            individual.grippWidth = task.grippWidth
             newAbsX = np.random.normal(seedIndividual.parametersCombined[0], combinedSTD[0])
             newAbsY = np.random.normal(seedIndividual.parametersCombined[1], combinedSTD[1])
             flippProbability = 0.5
@@ -601,6 +602,7 @@ def crossOver(task, parentOne, parentTwo):
         newParameters[crossOverPoint:numElements] = parentTwo.parametersIndividual[crossOverPoint:numElements]
         individual.parametersIndividual = newParameters
     else:
+        individual.grippWidth = task.grippWidth
         newParameters[0:crossOverPoint] = parentOne.parametersCombined[0:crossOverPoint]
         newParameters[crossOverPoint:numElements] = parentTwo.parametersCombined[crossOverPoint:numElements]
         individual.parametersCombined = newParameters
