@@ -138,6 +138,8 @@ class Calc_jacobian{
     std::string name_list[18] = {"yumi_robr_joint_1", "yumi_robr_joint_2", "yumi_robr_joint_3", "yumi_robr_joint_4",
          "yumi_robr_joint_5", "yumi_robr_joint_6", "yumi_robr_joint_7", "yumi_robl_joint_1", "yumi_robl_joint_2", "yumi_robl_joint_3",
          "yumi_robl_joint_4", "yumi_robl_joint_5", "yumi_robl_joint_6", "yumi_robl_joint_7"};
+    //
+    std::vector<double> joint_offset = {0,0,0,0,0,0,0, 0,0,0,0,0,0,0};
 
     // egm active for both arms
     bool egm_active = false;
@@ -205,7 +207,7 @@ void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_stat
     for (int i = 0; i < 14; i++){
         for (int j = 0; j < 14; j++){
             if (name_list[i].compare(joint_state_data->name[j]) == 0 ){
-                joint_state[i] = joint_state_data->position[j];
+                joint_state[i] = joint_state_data->position[j] + joint_offset[i];
                 break;
             }
         }
