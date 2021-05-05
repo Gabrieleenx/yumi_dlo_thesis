@@ -146,6 +146,77 @@ class GoToHeightIndividual(object):
     def verification(self, input_):
         return True
 
+
+class GoToHeightWithCableIndividual(object):
+    def __init__(self, targetHeight, grippers):
+        self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', 'self.mode', 'self.tfListener']
+
+        self.verificationArgs = ['self.DLO', 'self.gripperRight', 'self.gripperLeft']
+        self.targetHeight = targetHeight # height from world frame (i.e. table) and not yumi_base_link
+            # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
+        self.avgVelocity = 0.02
+        self.shortestTime = 1
+        self.gripper = grippers # in mm, [Right, left]
+        self.tol = 0.05 # if cable gripp position is off more then 4 cm then task faild and also
+                        # some margin for noise and delay
+        self.pointTime = 1
+
+    def getTrajectoryPoint(self, inputs):
+        gripperLeft = inputs[0]
+        gripperRight = inputs[1]
+        mode = inputs[2]
+        tfListener = inputs[3]
+
+        (worldToBase, _) = tfListener.lookupTransform('/world', '/yumi_base_link', rospy.Time(0))
+        targertHeightBase = self.targetHeight - worldToBase[2]
+        trajectoryPoint = Trajectory_point()
+
+        if mode == 'individual':
+            positionLeft = gripperLeft.getPosition()
+            positionRight = gripperRight.getPosition()
+            orientationLeft = gripperLeft.getQuaternion()
+            orientationRight = gripperRight.getQuaternion()
+
+            positionRight[2] = targertHeightBase[0]
+            positionLeft[2] = targertHeightBase[1]
+
+            self.pointTime = utils.getPointTime(gripperRight=gripperRight,\
+                                        gripperLeft=gripperLeft,\
+                                        posTargetRight=positionRight,\
+                                        posTargetLeft=positionLeft, \
+                                        rotTargetRight=orientationRight,\
+                                        rotTargetLeft=orientationLeft)
+            trajectoryPoint.positionRight = positionRight.tolist()
+            trajectoryPoint.positionLeft = positionLeft.tolist()
+            trajectoryPoint.orientationLeft = orientationLeft.tolist()
+            trajectoryPoint.orientationRight = orientationRight.tolist()
+            trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
+            trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+            trajectoryPoint.pointTime = self.pointTime
+
+            gripperLeft.update(positionLeft, orientationLeft)
+            gripperRight.update(positionRight, orientationRight)
+
+        else: 
+            print('Error, mode not valid in subtask')
+            return []
+        
+        return [trajectoryPoint]
+
+    def verification(self, input_):
+        DLO = input_[0]
+        gripperRight = input_[1]
+        gripperLeft = input_[2]
+
+        minDistRight, pointRight, minIndex = utils.closesPointDLO(DLO, gripperRight.getPosition())
+        minDistLeft, pointLeft, minIndex = utils.closesPointDLO(DLO, gripperLeft.getPosition())
+
+        if minDistLeft < self.tol and minDistRight < self.tol:
+            return True
+        else:
+            return False
+
+
 class GoToHeightCombined(object):
     # Works for both comined and individual control, preservs orientation
     def __init__(self, targetHeight, grippers):
@@ -204,7 +275,7 @@ class OverCableIndividual(object): # only for individual control
     def __init__(self, targetHeight, grippers, grippWidth):
         self.inputArgs = ['self.map', 'self.DLO', 'gripperLeftTemp', 'gripperRightTemp', 'self.targetFixture',\
              'self.previousFixture', 'self.cableSlack', 'self.tfListener']
-        self.verificationArgs = ['self.DLO']
+        self.verificationArgs = ['self.DLO', 'self.gripperRight', 'self.gripperLeft']
         self.gripper = grippers # in mm, [Right, left]
         self.targetHeight = targetHeight # height from cable
         self.grippWidth = grippWidth
@@ -232,6 +303,8 @@ class OverCableIndividual(object): # only for individual control
 
         positionRight, positionLeft,quatRight, quatLeft, inRange = utils.calcGrippPosRot(DLO,\
                         self.leftGrippPoint, self.rightGrippPoint, self.targetHeight[0], self.targetHeight[1])
+        positionRight[2] = np.maximum(positionRight[2], 0.009)
+        positionLeft[2] = np.maximum(positionLeft[2], 0.009)
 
         if inRange == False:
             print('Error, not in range')
@@ -262,6 +335,12 @@ class OverCableIndividual(object): # only for individual control
 
     def verification(self, input_):
         DLO = input_[0]
+        gripperRight = input_[1]
+        gripperLeft = input_[2]
+
+        if gripperLeft.getPosition()[2] < 0.08 or gripperRight.getPosition()[2] < 0.08:
+            return True
+
         positionRight, positionLeft,quatRight, quatLeft, inRange = utils.calcGrippPosRot(DLO,\
                         self.leftGrippPoint, self.rightGrippPoint, self.targetHeight[0], self.targetHeight[1])
         
@@ -269,10 +348,10 @@ class OverCableIndividual(object): # only for individual control
             print('Error, pickup points are outside the cable')
             return False
 
-        checkRight = utils.checkIfWithinTol(positionRight, self.currentTarget[0], 0.02,\
+        checkRight = utils.checkIfWithinTol(positionRight, self.currentTarget[0], 0.03,\
                     quatRight, self.currentTarget[1], 0.4)
 
-        checkLeft = utils.checkIfWithinTol(positionLeft, self.currentTarget[2], 0.02,\
+        checkLeft = utils.checkIfWithinTol(positionLeft, self.currentTarget[2], 0.03,\
                     quatLeft, self.currentTarget[3], 0.4)
 
         if checkRight == True and checkLeft == True:
@@ -432,7 +511,7 @@ class OverFixtureCombinded(object):
 class CableReroutingOverIndividual(object): # only for individual control 
     def __init__(self, individual, targetHeight, grippers):
         self.inputArgs = ['self.DLO', 'gripperLeftTemp', 'gripperRightTemp']
-        self.verificationArgs = ['self.DLO']
+        self.verificationArgs = ['self.DLO', 'self.gripperRight', 'self.gripperLeft']
         self.gripper = grippers # in mm, [Right, left]
         self.targetHeight = targetHeight # height from cable
         self.individal = individual
@@ -454,7 +533,8 @@ class CableReroutingOverIndividual(object): # only for individual control
         self.leftGrippPoint = pickupPoints[1]
         positionRight, positionLeft,quatRight, quatLeft, inRange = utils.calcGrippPosRot(DLO,\
                         self.leftGrippPoint, self.rightGrippPoint, self.targetHeight[0], self.targetHeight[1])
-
+        positionRight[2] = np.maximum(positionRight[2], 0.009)
+        positionLeft[2] = np.maximum(positionLeft[2], 0.009)
         if inRange == False:
             print('Error, not in range')
 
@@ -493,6 +573,12 @@ class CableReroutingOverIndividual(object): # only for individual control
 
     def verification(self, input_):
         DLO = input_[0]
+        gripperRight = input_[1]
+        gripperLeft = input_[2]
+
+        if gripperLeft.getPosition()[2] < 0.08 or gripperRight.getPosition()[2] < 0.08:
+            return True
+
         positionRight, positionLeft,quatRight, quatLeft, inRange = utils.calcGrippPosRot(DLO,\
                         self.leftGrippPoint, self.rightGrippPoint, self.targetHeight[0], self.targetHeight[1])
         

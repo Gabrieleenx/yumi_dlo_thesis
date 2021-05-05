@@ -227,12 +227,12 @@ class Solve(object):
         # penalty for end pickup out of reach 
         
         score_, valid_ = utilsSolve.outsideReachPenalty(position=rightEndPickupPoint,\
-                                quat=np.array([1,0,0,0]), reachCentrum=self.reachRightCentrum, reach=self.reach-0.02)
+                                quat=np.array([1,0,0,0]), reachCentrum=self.reachRightCentrum, reach=self.reach-0.04)
         score += score_
         individual.pickupRightValid = individual.pickupRightValid and valid_
 
         score_, valid_ = utilsSolve.outsideReachPenalty(position=leftEndPickupPoint, quat=quatLeft,\
-                                         reachCentrum=self.reachLeftCentrum, reach=self.reach-0.02)
+                                         reachCentrum=self.reachLeftCentrum, reach=self.reach-0.04)
         score += score_
         individual.pickupLeftValid = individual.pickupLeftValid and valid_
         

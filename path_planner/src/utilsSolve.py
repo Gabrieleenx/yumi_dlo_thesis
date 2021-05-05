@@ -268,6 +268,7 @@ def outsideReachPenalty(position, quat, reachCentrum, reach):
 
 
 def ropeConstraint(task, individual):
+    margin = 0.02
     valid = True
     score = 0 
     if task.previousFixture == -1:
@@ -297,13 +298,14 @@ def ropeConstraint(task, individual):
             lengthRope = 1        
 
         closestDist = np.linalg.norm(fixtureClippPosition - closesPoint)
-        if closestDist > lengthLeft:
+        if closestDist > lengthRope-margin:
             score -= 2 + (closestDist - lengthRope)
             valid = False
     return score, valid
 
 
 def ropeConstraintCombined(task, individual, rightGrippPoint, leftGrippPoint):
+    margin = 0.02
     valid = True
     score = 0
     if task.previousFixture == -1:
@@ -324,7 +326,7 @@ def ropeConstraintCombined(task, individual, rightGrippPoint, leftGrippPoint):
         
 
         closestDist = np.linalg.norm(fixtureClippPosition - closesPoint)
-        if closestDist > lengthLeft:
+        if closestDist > lengthRope-margin:
             score -= 2 + (closestDist - lengthRope)
             valid = False
             

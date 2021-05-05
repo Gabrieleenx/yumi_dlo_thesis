@@ -282,7 +282,7 @@ def main():
 
     # tasks -------------------
     # how much cable slack there should be between current and previous fixture
-    slackList = [0.11, 0.04, 0.04, 0.04]
+    slackList = [0.15, 0.04, 0.04, 0.04]
     listOfTasks  = []
     for i in range(len(listOfObjects)):
         grabCable = tasks.GrabCable(targetFixture=i, previousFixture=i-1, cableSlack=slackList[i])
