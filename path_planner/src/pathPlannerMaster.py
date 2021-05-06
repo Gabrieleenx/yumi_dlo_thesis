@@ -118,7 +118,7 @@ class PathPlanner(object):
                 # solve optim problem, evolution based stochastic solver. 
                 individual = self.solve.solve(populationSize=100, numGenerations=20)
                 self.logger.appendSolutionIndividual(data=individual)
-                if not (individual.pickupRightValid or individual.pickupLeftValid or individual.combinedValid):
+                if not ((individual.pickupRightValid or individual.pickupLeftValid) and individual.combinedValid):
                     print('Non valid solution')
                     self.logger.appendPathplannerState(data='Non valid solution, from evaluation')
                     continue

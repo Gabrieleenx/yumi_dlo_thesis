@@ -25,8 +25,8 @@ class Solve(object):
         self.combinedSTD = np.array([0.05, 0.05, 10 * np.pi/180])
         self.currentGrippPositionRight = np.zeros(3)
         self.currentGrippPositionLeft = np.zeros(3)
-        self.crossOverProbability = 0.4
-        self.mutationProbabiliy = 0.8
+        self.crossOverProbability = 0.9
+        self.mutationConstant = 1 # mutatoin probability c/n, c = mutationConstant, n = num genes
         self.flippProbability = 0.05
 
         self.initAbsPos = np.zeros(3)
@@ -110,13 +110,13 @@ class Solve(object):
 
                 randVal = np.random.random() 
 
-                if randVal < self.mutationProbabiliy:
-                    individual = utilsSolve.mutateIndividual(task=self.task,\
-                                                    seedIndividual=individual,\
-                                                    leftPickupRange=self.leftPickupRange,\
-                                                    rightPickupRange=self.rightPickupRange,\
-                                                    individualSTD=self.individualSTD,
-                                                    combinedSTD=self.combinedSTD)
+                individual = utilsSolve.mutateIndividual(task=self.task,\
+                                                seedIndividual=individual,\
+                                                leftPickupRange=self.leftPickupRange,\
+                                                rightPickupRange=self.rightPickupRange,\
+                                                individualSTD=self.individualSTD,
+                                                combinedSTD=self.combinedSTD,
+                                                mutationConstant=self.mutationConstant)
 
                 tempPopulation.append(individual)
 

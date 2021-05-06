@@ -550,41 +550,43 @@ def generateInitIndividual(task, leftPickupRange, rightPickupRange, individualST
 
         return individual
 
-def mutateIndividual(task, seedIndividual, leftPickupRange, rightPickupRange, individualSTD, combinedSTD):
+def mutateIndividual(task, seedIndividual, leftPickupRange, rightPickupRange, individualSTD, combinedSTD, mutationConstant):
         individual = Individual(task.mode)
         if task.mode == 'individual':
-
+            numGenes = np.size(seedIndividual.parametersIndividual, 0)
             pickupPoints = seedIndividual.getPickupPoints()
-            low = leftPickupRange[0]
-            high = leftPickupRange[1]
-            newLeftPickup = np.random.normal(pickupPoints[1] , individualSTD[1])
-            individual.parametersIndividual[1] = np.clip(newLeftPickup, low, high)
+            for i in range(numGenes):
+                if np.random.random() < mutationConstant/numGenes:
+                    if i == 0:
+                        low = rightPickupRange[0]
+                        high = rightPickupRange[1]
+                        newRightPickup =  np.random.normal(pickupPoints[0], individualSTD[0])
+                        individual.parametersIndividual[0] = np.clip(newRightPickup, low, high)
+                    elif i == 1:
+                        low = leftPickupRange[0]
+                        high = leftPickupRange[1]
+                        newLeftPickup = np.random.normal(pickupPoints[1] , individualSTD[1])
+                        individual.parametersIndividual[1] = np.clip(newLeftPickup, low, high)
+                    else:
+                        individual.parametersIndividual[i] = np.random.normal(seedIndividual.parametersIndividual[i], individualSTD[i])
+                else:
+                    individual.parametersIndividual[i] = seedIndividual.parametersIndividual[i]
 
-            low = rightPickupRange[0]
-            high = rightPickupRange[1]
-            newRightPickup =  np.random.normal(pickupPoints[0], individualSTD[0])
-            individual.parametersIndividual[0] = np.clip(newRightPickup, low, high)
-
-            newAbsX = np.random.normal(seedIndividual.parametersIndividual[2], individualSTD[2])
-            newAbsY = np.random.normal(seedIndividual.parametersIndividual[3], individualSTD[3])
-            newAbsAgnle = np.random.normal(seedIndividual.parametersIndividual[4], individualSTD[4])
-
-            individual.parametersIndividual[2] = newAbsX
-            individual.parametersIndividual[3] = newAbsY
-            individual.parametersIndividual[4] = newAbsAgnle
         elif task.mode == 'combined':
             individual.grippWidth = task.grippWidth
-            newAbsX = np.random.normal(seedIndividual.parametersCombined[0], combinedSTD[0])
-            newAbsY = np.random.normal(seedIndividual.parametersCombined[1], combinedSTD[1])
             flippProbability = 0.5
-            if np.random.random() < flippProbability:
-                newAbsAgnle = np.random.normal(-seedIndividual.parametersCombined[2], combinedSTD[2])
-            else:
-                newAbsAgnle = np.random.normal(seedIndividual.parametersCombined[2], combinedSTD[2])
-
-            individual.parametersCombined[0] = newAbsX
-            individual.parametersCombined[1] = newAbsY
-            individual.parametersCombined[2] = newAbsAgnle
+            numGenes = np.size(seedIndividual.parametersCombined, 0)
+            for i in range(numGenes):
+                if np.random.random() < mutationConstant/numGenes:
+                    if i < 2:
+                        individual.parametersCombined[i] = np.random.normal(seedIndividual.parametersCombined[i], combinedSTD[i])
+                    else:
+                        if np.random.random() < flippProbability:
+                            individual.parametersCombined[2] = np.random.normal(-seedIndividual.parametersCombined[2], combinedSTD[2])
+                        else:
+                            individual.parametersCombined[2] = np.random.normal(seedIndividual.parametersCombined[2], combinedSTD[2])
+                else:
+                    individual.parametersCombined[i] = seedIndividual.parametersCombined[i]
 
         return individual
     
