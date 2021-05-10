@@ -50,6 +50,9 @@ def check(task, logger):
             print('Crossing combined ')
             logger.appendPathplannerState(data='Problem detected, trajectories cross to far on y axis')
             instruction = 1
-        
+            
+    if instruction == 0:
+        logger.appendPathplannerState(data='Trajectory good' + mode)
+
     return instruction
 

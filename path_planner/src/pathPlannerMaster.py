@@ -217,6 +217,7 @@ class PathPlanner(object):
         # if a new trajectory is called for
         if task.getNewTrajectory() == 1:
             self.genetateNewTrajectory(task=task)
+
         # update task variables and call for veriication on subtasks
                 
         task.updateAndTrackProgress(map_=self.map,\
@@ -227,15 +228,23 @@ class PathPlanner(object):
                                     jointPosition=self.jointPosition)
         self.mtx_jointPos.release()
 
+        if task.getNewTrajectory() == 1:
+            self.logger.appendPathplannerState(data='Problem during execution detected')
+
         # if a task is finished 
         if task.getTaskDone() == 1:
             print('task done')
+            self.logger.appendPathplannerState(data='Task Done ')
+
             # if normal, then next task is choosen
             if self.instruction == 0:
                 # if at end of task list
                 if self.currentTask < self.numOfTasks-1:
                     self.currentTask += task.getNextTaskStep()
                     self.tasks[self.currentTask].resetTask() 
+                else:
+                    self.logger.appendPathplannerState(data='All tasks completed')
+
             # if problem task is solved then same or prevous task is selected
             elif self.instruction == 1 or self.instruction == 3:
                 # return to normal task

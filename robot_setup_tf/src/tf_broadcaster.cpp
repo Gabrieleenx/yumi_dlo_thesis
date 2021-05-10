@@ -1,5 +1,7 @@
 #include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
+
 #include <iostream>
 
 #include <apriltag_ros/AprilTagDetectionArray.h>
@@ -21,8 +23,10 @@ private:
     tf::Transform from_camera_to_tag = tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0.0, 0.0, 0.0));
     tf::Transform from_tag_to_camera = tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0.0, 0.0, 0.0));
     tf::Transform from_camera_to_fixture = tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0.0, 0.0, 0.0));
-    tf::Transform from_tag_to_fixture = tf::Transform(tf::Quaternion(0.0, 0.0, 0.0, 1.0), tf::Vector3(-0.04, 0.0, 0.0));
-
+    tf::Transform from_tag_to_fixture = tf::Transform(tf::Quaternion(0.0, 0.0, 0.0, 1.0), tf::Vector3(-0.034, 0.0, 0.0));
+    tf::TransformListener listener;
+    tf::StampedTransform camera_link_to_color_optical;
+    tf::Transform from_camera_color_optical_to_tag;
     Fixture fixture;
     ros::Subscriber apriltag_sub;
 public:
@@ -65,10 +69,22 @@ void Tf_camera_link::callback(const apriltag_ros::AprilTagDetectionArray::ConstP
             double qy = tf_array_data->detections[i].pose.pose.pose.orientation.y;
             double qz = tf_array_data->detections[i].pose.pose.pose.orientation.z;
             double qw = tf_array_data->detections[i].pose.pose.pose.orientation.w;
+             
+            try
+            {
+                listener.lookupTransform("/camera_link","/camera_color_optical_frame",   
+                                        ros::Time(0), camera_link_to_color_optical);
 
-            
+            }
+            catch(const std::exception& e)
+            {
+                std::cout << "camera_link_to_color_optial tf not found " << std::endl;
+                return;
+            }
+                    
             if (index == 0){
-                from_camera_to_tag = tf::Transform(tf::Quaternion(qx, qy, qz, qw), tf::Vector3(x, y, z));
+                from_camera_color_optical_to_tag = tf::Transform(tf::Quaternion(qx, qy, qz, qw), tf::Vector3(x, y, z));
+                from_camera_to_tag = camera_link_to_color_optical * from_camera_color_optical_to_tag;
                 from_tag_to_camera = from_camera_to_tag.inverse();
             } 
             else{
@@ -131,7 +147,7 @@ int main(int argc, char** argv){
                 broadcaster_fixtures.sendTransform(
                     tf::StampedTransform(
                         fixture.fixtureList[i],
-                        ros::Time::now(), "camera_link", fixture.fixtureName[i])
+                        ros::Time::now(), "camera_color_optical_frame", fixture.fixtureName[i])
                 );
             }
         }

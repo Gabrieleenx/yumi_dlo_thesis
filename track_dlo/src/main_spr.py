@@ -53,7 +53,7 @@ class ObjectTracking(object):
         self.num_calibration_itter = 0
 
         # filter table
-        self.height_off = -0.086 + 0.003 # m offest for which all points under get filtered away
+        self.height_off = -0.004 # m offest for which all points under get filtered away
 
     def callback(self, depth_data, rgb_data):
         time_start = time.time()
@@ -63,7 +63,6 @@ class ObjectTracking(object):
         except CvBridgeError as e:
             print(e)
         
-        # will change
         self.stamp = rgb_data.header.stamp
         self.frame_id = rgb_data.header.frame_id
         # keep the 16 bit information 
@@ -96,12 +95,14 @@ class ObjectTracking(object):
         #homogeneous coordinates 
         K_inv = np.linalg.pinv(self.camera_properties['color_K'])
         p_homogeneous = np.transpose(K_inv.dot(np.asarray(self.pcd.points).T))
-        p_homogeneous_offset = p_homogeneous + self.offset_xyz
+        p_homogeneous_offset = p_homogeneous# + self.offset_xyz
 
         #cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
         #cv2.imshow('RealSense', depth_img)
         #cv2.imshow('RealSense', mask)
         #cv2.waitKey(1)
+
+
         if np.shape(p_homogeneous)[0] > self.min_num_points: 
             # dynamic downsample
             down_samlpe = np.shape(p_homogeneous)[0] / self.target_num_points
@@ -129,7 +130,7 @@ class ObjectTracking(object):
             point_cloud = point_cloud[~np.all(point_cloud == 0, axis=1)]
             
             # get transformation matrix
-            (trans, rot) = self.tf_listener.lookupTransform('/yumi_base_link', '/camera_link', rospy.Time(0))
+            (trans, rot) = self.tf_listener.lookupTransform('/yumi_base_link', '/camera_color_optical_frame', rospy.Time(0))
             transformer_ = tf.TransformerROS(True, rospy.Duration(1.0))
             tf_matrix = transformer_.fromTranslationRotation(translation=trans, rotation=rot)
 
@@ -231,9 +232,11 @@ def main():
     objectTracking = ObjectTracking(SPR_opt, init_estimate)
 
     rospy.Subscriber('/camera/color/camera_info', CameraInfo, objectTracking.update_calibration_color)
-    rospy.Subscriber('/camera/depth/camera_info', CameraInfo, objectTracking.update_calibration_depth)
+    #rospy.Subscriber('/camera/depth/camera_info', CameraInfo, objectTracking.update_calibration_depth)
+    rospy.Subscriber('/camera/aligned_depth_to_color/camera_info', CameraInfo, objectTracking.update_calibration_depth)
 
-    depth_camera = message_filters.Subscriber("/camera/depth/image_rect_raw", Image)
+    #depth_camera = message_filters.Subscriber("/camera/depth/image_rect_raw", Image)
+    depth_camera = message_filters.Subscriber("/camera/aligned_depth_to_color/image_raw", Image)
     rgb_camera = message_filters.Subscriber("/camera/color/image_raw", Image)
 
     ts = message_filters.ApproximateTimeSynchronizer([depth_camera, rgb_camera], 5, 0.05, allow_headerless=False)

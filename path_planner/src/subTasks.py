@@ -157,7 +157,7 @@ class GoToHeightWithCableIndividual(object):
         self.avgVelocity = 0.02
         self.shortestTime = 1
         self.gripper = grippers # in mm, [Right, left]
-        self.tol = 0.05 # if cable gripp position is off more then 4 cm then task faild and also
+        self.tol = 0.07 # if cable gripp position is off more then 4 cm then task faild and also
                         # some margin for noise and delay
         self.pointTime = 1
 
@@ -338,7 +338,7 @@ class OverCableIndividual(object): # only for individual control
         gripperRight = input_[1]
         gripperLeft = input_[2]
 
-        if gripperLeft.getPosition()[2] < 0.08 or gripperRight.getPosition()[2] < 0.08:
+        if gripperLeft.getPosition()[2] < 0.09 or gripperRight.getPosition()[2] < 0.09:
             return True
 
         positionRight, positionLeft,quatRight, quatLeft, inRange = utils.calcGrippPosRot(DLO,\
@@ -348,10 +348,10 @@ class OverCableIndividual(object): # only for individual control
             print('Error, pickup points are outside the cable')
             return False
 
-        checkRight = utils.checkIfWithinTol(positionRight, self.currentTarget[0], 0.03,\
+        checkRight = utils.checkIfWithinTol(positionRight, self.currentTarget[0], 0.04,\
                     quatRight, self.currentTarget[1], 0.4)
 
-        checkLeft = utils.checkIfWithinTol(positionLeft, self.currentTarget[2], 0.03,\
+        checkLeft = utils.checkIfWithinTol(positionLeft, self.currentTarget[2], 0.04,\
                     quatLeft, self.currentTarget[3], 0.4)
 
         if checkRight == True and checkLeft == True:
@@ -576,7 +576,7 @@ class CableReroutingOverIndividual(object): # only for individual control
         gripperRight = input_[1]
         gripperLeft = input_[2]
 
-        if gripperLeft.getPosition()[2] < 0.08 or gripperRight.getPosition()[2] < 0.08:
+        if gripperLeft.getPosition()[2] < 0.09 or gripperRight.getPosition()[2] < 0.09:
             return True
 
         positionRight, positionLeft,quatRight, quatLeft, inRange = utils.calcGrippPosRot(DLO,\
@@ -587,13 +587,13 @@ class CableReroutingOverIndividual(object): # only for individual control
             return False
 
         if self.individal.pickupRightValid == 1:
-            checkRight = utils.checkIfWithinTol(positionRight, self.currentTarget[0], 0.02,\
+            checkRight = utils.checkIfWithinTol(positionRight, self.currentTarget[0], 0.04,\
                                                 quatRight, self.currentTarget[1], 0.4)
         else: 
             checkRight = True
 
         if self.individal.pickupLeftValid == 1:
-            checkLeft = utils.checkIfWithinTol(positionLeft, self.currentTarget[2], 0.02,\
+            checkLeft = utils.checkIfWithinTol(positionLeft, self.currentTarget[2], 0.04,\
                                                 quatLeft, self.currentTarget[3], 0.4)
         else: 
             checkLeft = True
