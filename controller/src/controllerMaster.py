@@ -108,6 +108,7 @@ class YmuiContoller(object):
         self.gripperLengthRight = np.asarray(gripperLengthRight)
         self.gripperLengthLeft = np.asarray(gripperLengthLeft)
         # calculated the combined geometric jacobian from base link to tip of gripper for both arms
+        # TODO change name of this function
         jacobianCombined = utils.CalcJacobianCombined(data=data.jacobian[0], \
                                                     gripperLengthRight=gripperLengthRight,\
                                                     gripperLengthLeft=gripperLengthLeft,\

@@ -213,7 +213,7 @@ class ControlInstructions(object): # generates target velocity in task space
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
         self.trajIndex = 0
 
-    def getIndividualTargetVelocity(self, k):
+    def getIndividualTargetVelocity(self, k_p, k_o):
 
         if len(self.trajectory.trajectory) < 2: 
             return np.zeros(12)
@@ -227,11 +227,12 @@ class ControlInstructions(object): # generates target velocity in task space
         self.error[9:12]= RotationError(self.rotationLeftArm, \
             self.targetOrientation[4:8], 0.2)
 
-        self.velocities = self.targetVelocity + k*self.error
+        K = np.array([k_p,k_p,k_p, k_o,k_o,k_o, k_p,k_p,k_p, k_o,k_o,k_o])
+        self.velocities = self.targetVelocity + K*self.error
 
         return self.velocities
 
-    def getAbsoluteTargetVelocity(self, k):
+    def getAbsoluteTargetVelocity(self, k_p, k_o):
 
         if len(self.trajectory.trajectory) < 2: 
             return np.zeros(12)
@@ -240,11 +241,12 @@ class ControlInstructions(object): # generates target velocity in task space
         self.error[3:6]= RotationError(self.absoluteOrientation, \
             self.targetOrientation[0:4], 0.2)
 
-        self.velocities[0:6] = self.targetVelocity[0:6] + k*self.error[0:6]
+        K = np.array([k_p,k_p,k_p, k_o,k_o,k_o])
+        self.velocities[0:6] = self.targetVelocity[0:6] + K*self.error[0:6]
 
         return self.velocities[0:6]
 
-    def getRelativeTargetVelocity(self, k):
+    def getRelativeTargetVelocity(self,  k_p, k_o):
         if len(self.trajectory.trajectory) < 2: 
             return np.zeros(12)
         
@@ -256,7 +258,8 @@ class ControlInstructions(object): # generates target velocity in task space
         self.error[9:12]= RotationError(self.rotationRelative, \
             self.targetOrientation[4:8], 0.2)
 
-        self.velocities[6:12] = self.targetVelocity[6:12]  + k*self.error[6:12]
+        K = np.array([k_p,k_p,k_p, k_o,k_o,k_o])
+        self.velocities[6:12] = self.targetVelocity[6:12]  + K*self.error[6:12]
 
         return self.velocities[6:12], self.translationRightArm, self.translationLeftArm, self.absoluteOrientation
 
@@ -301,7 +304,7 @@ class ControlInstructions(object): # generates target velocity in task space
         self.realativPosition = self.homogeneousAbsouluteRelative[0:3]
 
     def checkDevation(self):
-        devation = np.max(np.abs(self.error[0:3]) - self.maxDeviation[0:3])
+        devation = np.max(np.abs(self.error) - self.maxDeviation)
         if devation > 0:
             return False
         return True

@@ -82,7 +82,7 @@ def main():
     # initilize ros node
     rospy.init_node('savedData', anonymous=True) 
     script_dir = os.path.dirname(__file__)
-    rel_path = "SavedData/Test1/test5good3Frixtures.obj"
+    rel_path = "SavedData/test2/test4.obj"
     abs_file_path = os.path.join(script_dir, rel_path)
     print(abs_file_path)
         

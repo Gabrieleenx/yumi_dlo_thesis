@@ -325,7 +325,7 @@ void Calc_jacobian::update(){
     jac_msg.forwardKinematics.push_back(pose);
 
 
-    pose_data(frame_left_right, &pose);
+    pose_data(frame_left_right, &pose); // not in use ?
     jac_msg.forwardKinematics.push_back(pose);
 
     jacobian_pub.publish(jac_msg);
