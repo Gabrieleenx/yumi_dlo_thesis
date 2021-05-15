@@ -205,7 +205,7 @@ class ControlInstructions(object): # generates target velocity in task space
         self.trajectory = Trajectory(deltaTime)
         self.velocities = np.zeros(12)
         self.error = np.zeros(12)
-        self.maxDeviation = np.array([0.01,0.01,0.01, 0.05,0.05,0.05, 0.01,0.01,0.01, 0.05,0.05,0.05])
+        self.maxDeviation = np.array([0.01,0.01,0.01, 0.1,0.1,0.1, 0.01,0.01,0.01, 0.1,0.1,0.1])
         self.gripperLeft = np.array([0.01,0.01])
         self.gripperRight = np.array([0.01,0.01])
         self.lastGripperLeft = np.array([-1,-1])
@@ -284,11 +284,11 @@ class ControlInstructions(object): # generates target velocity in task space
 
         tfMatrixRight = self.transformer.fromTranslationRotation(translation=self.translationRightArm, rotation=self.rotationRightArm)
         tfMatrixLeft = self.transformer.fromTranslationRotation(translation=self.translationLeftArm, rotation=self.rotationLeftArm)
-        tfMatrixLeftInv = np.linalg.pinv(tfMatrixLeft)
+        #tfMatrixLeftInv = np.linalg.pinv(tfMatrixLeft)
 
-        self.translationRelativeLeftRight = tfMatrixLeftInv.dot(np.hstack([self.translationRightArm, 1]))[0:3]
-        rotLeftRight = tfMatrixLeftInv.dot(tfMatrixRight)
-        self.rotationRelative = tf.transformations.quaternion_from_matrix(rotLeftRight)
+        #self.translationRelativeLeftRight = tfMatrixLeftInv.dot(np.hstack([self.translationRightArm, 1]))[0:3]
+        #rotLeftRight = tfMatrixLeftInv.dot(tfMatrixRight)
+        #self.rotationRelative = tf.transformations.quaternion_from_matrix(rotLeftRight)
 
         avgQ = np.vstack([self.rotationRightArm, self.rotationLeftArm])
         self.absoluteOrientation = averageQuaternions(avgQ)  
@@ -297,11 +297,16 @@ class ControlInstructions(object): # generates target velocity in task space
         transformation1 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=self.absoluteOrientation)
         transformationInv1 = np.linalg.pinv(transformation1)
         transformation2 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=self.rotationLeftArm)
+        AbsoluteToLeftFrameRot = transformationInv1.dot(transformation2)
+        #homogeneousLeftRelative = np.hstack([self.translationRelativeLeftRight,1])
+        #self.homogeneousAbsouluteRelative = leftToAbsoluteFrameRot.dot(homogeneousLeftRelative)
+        tfMatrixLeftRight = np.linalg.pinv(tfMatrixLeft).dot(tfMatrixRight)
+        relativTransform = AbsoluteToLeftFrameRot.dot(tfMatrixLeftRight)
+        
+        self.rotationRelative = tf.transformations.quaternion_from_matrix(relativTransform)
+        self.realativPosition = tf.transformations.translation_from_matrix(relativTransform)
 
-        leftToAbsoluteFrameRot = transformationInv1.dot(transformation2)
-        homogeneousLeftRelative = np.hstack([self.translationRelativeLeftRight,1])
-        self.homogeneousAbsouluteRelative = leftToAbsoluteFrameRot.dot(homogeneousLeftRelative)
-        self.realativPosition = self.homogeneousAbsouluteRelative[0:3]
+        #self.realativPosition = self.homogeneousAbsouluteRelative[0:3]
 
     def checkDevation(self):
         devation = np.max(np.abs(self.error) - self.maxDeviation)
@@ -309,9 +314,10 @@ class ControlInstructions(object): # generates target velocity in task space
             return False
         return True
 
+# TODO remove maxVelocity and maxRotVel as they no longer serve a pupose
 # used to calculate error
 def PositionError(currentPositionXYZ, targetPositionXYZ, maxVelocity):
-    positionDiff = (targetPositionXYZ - currentPositionXYZ) # /10
+    positionDiff = (targetPositionXYZ - currentPositionXYZ) 
     norm = np.linalg.norm(positionDiff)
     positionDiffNormalized = normalize(positionDiff)        
     return positionDiffNormalized*min([maxVelocity, norm])
@@ -381,9 +387,10 @@ def normalize(v):
 # The result will be the average quaternion of the input. Note that the signs
 # of the output quaternion can be reversed, since q and -q describe the same orientation
 def averageQuaternions(Q):
-    # from (x,y,z,w) to (w,x,y,z)
     if Q[0].dot(Q[1]) < 0:
         Q[0] = -Q[0]
+        
+    # from (x,y,z,w) to (w,x,y,z)
 
     Q = np.roll(Q,1,axis=1)
     # Number of quaternions to average
