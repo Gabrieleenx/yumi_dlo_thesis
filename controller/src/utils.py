@@ -284,29 +284,23 @@ class ControlInstructions(object): # generates target velocity in task space
 
         tfMatrixRight = self.transformer.fromTranslationRotation(translation=self.translationRightArm, rotation=self.rotationRightArm)
         tfMatrixLeft = self.transformer.fromTranslationRotation(translation=self.translationLeftArm, rotation=self.rotationLeftArm)
-        #tfMatrixLeftInv = np.linalg.pinv(tfMatrixLeft)
-
-        #self.translationRelativeLeftRight = tfMatrixLeftInv.dot(np.hstack([self.translationRightArm, 1]))[0:3]
-        #rotLeftRight = tfMatrixLeftInv.dot(tfMatrixRight)
-        #self.rotationRelative = tf.transformations.quaternion_from_matrix(rotLeftRight)
 
         avgQ = np.vstack([self.rotationRightArm, self.rotationLeftArm])
         self.absoluteOrientation = averageQuaternions(avgQ)  
         self.absolutePosition = 0.5*(self.translationRightArm + self.translationLeftArm)
-
-        transformation1 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=self.absoluteOrientation)
-        transformationInv1 = np.linalg.pinv(transformation1)
-        transformation2 = self.transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=self.rotationLeftArm)
-        AbsoluteToLeftFrameRot = transformationInv1.dot(transformation2)
-        #homogeneousLeftRelative = np.hstack([self.translationRelativeLeftRight,1])
-        #self.homogeneousAbsouluteRelative = leftToAbsoluteFrameRot.dot(homogeneousLeftRelative)
-        tfMatrixLeftRight = np.linalg.pinv(tfMatrixLeft).dot(tfMatrixRight)
-        relativTransform = AbsoluteToLeftFrameRot.dot(tfMatrixLeftRight)
         
-        self.rotationRelative = tf.transformations.quaternion_from_matrix(relativTransform)
-        self.realativPosition = tf.transformations.translation_from_matrix(relativTransform)
+        transformationAbsolute = self.transformer.fromTranslationRotation(translation=self.absolutePosition, rotation=self.absoluteOrientation)
+        transformationAbsoluteInv = np.linalg.pinv(transformationAbsolute)
 
-        #self.realativPosition = self.homogeneousAbsouluteRelative[0:3]
+        transformationRightFromAbs = transformationAbsoluteInv.dot(tfMatrixRight)
+        transformationLeftFromAbs = transformationAbsoluteInv.dot(tfMatrixLeft)
+        quatRightAbs = tf.transformations.quaternion_from_matrix(transformationRightFromAbs)
+        posRightAbs = tf.transformations.translation_from_matrix(transformationRightFromAbs)
+        quatLeftAbs = tf.transformations.quaternion_from_matrix(transformationLeftFromAbs)
+        posLeftAbs = tf.transformations.translation_from_matrix(transformationLeftFromAbs)
+
+        self.rotationRelative = tf.transformations.quaternion_multiply(quatRightAbs, tf.transformations.quaternion_conjugate(quatLeftAbs))
+        self.realativPosition = posRightAbs - posLeftAbs
 
     def checkDevation(self):
         devation = np.max(np.abs(self.error) - self.maxDeviation)

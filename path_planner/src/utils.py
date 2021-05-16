@@ -89,24 +89,23 @@ def calcAbsoluteAndRelative(yumiGrippPoseR, yumiGrippPoseL, transformer):
 
     tfMatrixRight = transformer.fromTranslationRotation(translation=translationRightArm, rotation=rotationRightArm)
     tfMatrixLeft = transformer.fromTranslationRotation(translation=translationLeftArm, rotation=rotationLeftArm)
-    tfMatrixLeftInv = np.linalg.pinv(tfMatrixLeft)
-
-    translationRelativeLeftRight = tfMatrixLeftInv.dot(np.hstack([translationRightArm, 1]))[0:3]
-    rotLeftRight = tfMatrixLeftInv.dot(tfMatrixRight)
-    relativeOrientation = tf.transformations.quaternion_from_matrix(rotLeftRight)
 
     avgQ = np.vstack([rotationRightArm, rotationLeftArm])
     absoluteOrientation = averageQuaternions(avgQ)  
     absolutePosition = 0.5*(translationRightArm + translationLeftArm)
 
-    transformation1 = transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=absoluteOrientation)
-    transformationInv1 = np.linalg.pinv(transformation1)
-    transformation2 = transformer.fromTranslationRotation(translation=np.array([0,0,0]), rotation=rotationLeftArm)
+    transformationAbsolute = transformer.fromTranslationRotation(translation=absolutePosition, rotation=absoluteOrientation)
+    transformationAbsoluteInv = np.linalg.pinv(transformationAbsolute)
 
-    leftToAbsoluteFrameRot = transformationInv1.dot(transformation2)
-    homogeneousLeftRelative = np.hstack([translationRelativeLeftRight,1])
-    homogeneousAbsouluteRelative = leftToAbsoluteFrameRot.dot(homogeneousLeftRelative)
-    realativPosition = homogeneousAbsouluteRelative[0:3]
+    transformationRightFromAbs = transformationAbsoluteInv.dot(tfMatrixRight)
+    transformationLeftFromAbs = transformationAbsoluteInv.dot(tfMatrixLeft)
+    quatRightAbs = tf.transformations.quaternion_from_matrix(transformationRightFromAbs)
+    posRightAbs = tf.transformations.translation_from_matrix(transformationRightFromAbs)
+    quatLeftAbs = tf.transformations.quaternion_from_matrix(transformationLeftFromAbs)
+    posLeftAbs = tf.transformations.translation_from_matrix(transformationLeftFromAbs)
+
+    relativeOrientation = tf.transformations.quaternion_multiply(quatRightAbs, tf.transformations.quaternion_conjugate(quatLeftAbs))
+    realativPosition = posRightAbs - posLeftAbs
 
     return absolutePosition, absoluteOrientation, realativPosition, relativeOrientation
 
