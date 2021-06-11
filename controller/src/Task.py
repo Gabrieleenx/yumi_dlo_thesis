@@ -13,7 +13,7 @@ class Task(object):
         self.Dof = Dof
         self.constraintMatrix = np.array([])
         self.constraintVector = np.array([])
-        self.constraintType = None  # 0 for equality, 1 for Gx <= h, -1 for Gx >= h
+        self.constraintType = None  # 0 for equality, 1 for Gx <= h, -1 for -Gx >= -h
         self.slackRatio = slackRatio         # Between qdot and w cost
 
     def ndim(self):

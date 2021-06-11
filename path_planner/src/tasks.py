@@ -283,7 +283,7 @@ class HoldPosition(Task):
         self.gripperLeft = gripperLeft
         self.gripperRight = gripperRight
         self.jointPosition = jointPosition
-        self.trackProgress(currentSubTask)
+        #self.trackProgress(currentSubTask)
         
 class ResetOrientation(Task):
     def __init__(self, targetFixture=0, previousFixture=-1, cableSlack=0.05, grippWidth=0.15):

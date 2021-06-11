@@ -177,8 +177,8 @@ def checkOverRotation(task):
     traj = task.trajectory
     jointR = task.jointPosition[6]
     jointL = task.jointPosition[13]
-    jointMax = (229-5)*np.pi/180
-    jointMin = -(229-5)*np.pi/180
+    jointMax = (229-4)*np.pi/180
+    jointMin = -(229-4)*np.pi/180
 
 
     for i in range(len(traj)):
@@ -224,7 +224,7 @@ def minXposPenalty(position):
     score = 0
     if position[0] < 0.13:
         valid = False
-        score = -1 + position[0] - 0.1
+        score = -1 + position[0] 
     return score, valid
 
 def fixturePenalty(position, map_):
@@ -236,7 +236,7 @@ def fixturePenalty(position, map_):
         dist = np.linalg.norm(posFixture[0:2]-position[0:2]) # only distance in xy plane thats relevant
         if dist <= minDist:
             score += -2
-            score += dist - minDist
+            score += dist
             valid = 0
     return score, valid
 
@@ -263,7 +263,7 @@ def outsideReachPenalty(position, quat, reachCentrum, reach):
     valid = within
     score = 1
     if valid == False:
-        score = - 1/(dist+1)
+        score = - dist #- 1/(dist+1)
     return score, valid
 
 
@@ -497,8 +497,8 @@ def absPosAngleGrippPoints(task):
 def normalizeSumScores(scores):
     maxIndex = np.argmax(scores)
     scores = scores + abs(np.min(scores)) + 1e-3
-    medianValue = np.median(scores)
-    scores[scores < medianValue] = 0
+    #medianValue = np.median(scores)
+    #scores[scores < medianValue] = 0
     scores = scores/np.sum(scores)
     return scores, maxIndex
 

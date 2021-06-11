@@ -81,7 +81,7 @@ def quadprog_solve_qp(P, q=None, G=None, h=None, A=None, b=None):
         qp_b = -np.hstack([b, h])
         meq = A.shape[0]
 
-    elif A is not None and G is None:       # Only equality constraint (x = a reformed as -a <= x <= a) <- not sure about this comment
+    elif A is not None and G is None:       # Only equality constraint (x = a reformed as -a <= x <= a) 
         qp_C = -A.T
         qp_b = -b
         meq = A.shape[0]

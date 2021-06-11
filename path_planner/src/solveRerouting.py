@@ -196,11 +196,11 @@ class Solve(object):
         # penalty for crossing to far on y axis
         angle = individual.parametersIndividual[4]
         if angle < -(np.pi/2 + (20*np.pi/180)) or angle > (np.pi/2 + (20*np.pi/180)):
-            score += - 5 
+            score += - 2 
 
         # penalty for crossing pickup 
         if not utilsSolve.checkCrossing(pointR=tempPickupRight, pointL=tempPickupLeft):
-            score += - 3 
+            score += - 2 
 
 
         # penalty for outside side rope constraint 
@@ -262,7 +262,7 @@ class Solve(object):
         score += score_
         score_, valid_ = utilsSolve.distanceMovedPenalty(self.initLeftGrippPos, leftEndPickupPoint)
         score += score_
-
+        '''
         if not (individual.pickupRightValid or individual.pickupLeftValid):
             score_, valid_ = utilsSolve.penaltyForPathsToClose(rightStart= self.currentGrippPositionRight ,\
                                                 RightEnd=tempPickupRight,\
@@ -274,7 +274,7 @@ class Solve(object):
                                                 leftStart=tempPickupLeft,\
                                                 leftEnd=leftPos)
             score += score_
-
+        '''
         # if both not valid
         if not (individual.pickupRightValid or individual.pickupLeftValid):
             score += -5

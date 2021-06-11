@@ -78,6 +78,8 @@ def main():
 
     
     print('sent individual' )
+
+    '''
     rospy.sleep(31)
 
     # --------------------------------------------
@@ -311,7 +313,7 @@ def main():
     print('sent msg 2, combined ')
     
 
-
+    '''
 
 
 
