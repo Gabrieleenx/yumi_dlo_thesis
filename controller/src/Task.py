@@ -114,7 +114,7 @@ class IndividualControl(Task):
         self.constraintType = 0
 
     def compute(self, controlInstructions, jacobian):
-        effectorVelocities = controlInstructions.getIndividualTargetVelocity(k_p=1, k_o=1) # k is the gain for vel = vel + k*error
+        effectorVelocities = controlInstructions.getIndividualTargetVelocity(k_p=2, k_o=2) # k is the gain for vel = vel + k*error
         self.constraintMatrix = jacobian
         self.constraintVector = effectorVelocities
 

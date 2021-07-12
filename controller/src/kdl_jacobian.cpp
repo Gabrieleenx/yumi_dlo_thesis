@@ -139,8 +139,8 @@ class Calc_jacobian{
          "yumi_robr_joint_5", "yumi_robr_joint_6", "yumi_robr_joint_7", "yumi_robl_joint_1", "yumi_robl_joint_2", "yumi_robl_joint_3",
          "yumi_robl_joint_4", "yumi_robl_joint_5", "yumi_robl_joint_6", "yumi_robl_joint_7"};
     //0.006109, -0.01012, -0.00733, -0.02775, 0.01396, 0.003665, -0.018325
-    std::vector<double> joint_offset = {0.006109, -0.01012, -0.00733, -0.05175, 0.01396, 0.003665, -0.018325,
-                                         -0.00421, -0.001571, -0.005759, -0.017977, -0.003491, 0.006632, -0.02142};
+    std::vector<double> joint_offset = {0.0005, -0.0, -0.00, -0.033, 0.001, 0.02, -0.0,
+                                         0.0, -0.00, -0.0, 0.005, -0.0, 0.0, -0.0};
 
     // egm active for both arms
     bool egm_active = false;

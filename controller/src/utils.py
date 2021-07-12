@@ -180,9 +180,14 @@ class Trajectory(object):
         vk = (v2 - v1)/t2
         vkk = (v3 - v2)/t3
         for i in range(3):
+            # if velocity is close to zero for any part then the transition should have zeros veloicty
+            if np.abs(vk[i]) < 0.001 or np.abs(vkk[i]) < 0.001:  
+                vel[i] = 0
+                continue
+            # avg vel is both parts have same velocity direction
             if np.sign(vk[i]) == np.sign(vkk[i]):
                 vel[i] = 0.5*(vk[i] + vkk[i]) 
-            else:
+            else: # velocity direction change -> transition velocoty = 0 
                 vel[i] = 0
         return vel
 

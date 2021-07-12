@@ -92,9 +92,9 @@ rosrun robot_setup_tf tf_broadcaster
 ``` 
 rosrun simulation_rviz yumi_simulator.py
 ``` 
-* for robot or robotstudio (warning: this activates egm and joint controllers and also closes egm and rapid when set_yumi_settings_and_start.py is closed)
+* for robot or robotstudio (warning: this activates egm and joint controllers and also closes egm and rapid when set_yumi_settings_and_start.py is closed) (Ip: 192.168.125.1)
 ```
-roslaunch abb_robot_bringup_examples ex3_rws_and_egm_yumi_robot.launch robot_ip:=<robot controller's IP address>
+roslaunch abb_robot_bringup_examples ex3_rws_and_egm_yumi_robot.launch robot_ip:=<robot controller's IP address> 
 rosrun robot_setup_tf set_yumi_settings_and_start.py
 ```
 

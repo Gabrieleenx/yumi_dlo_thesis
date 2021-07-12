@@ -154,10 +154,10 @@ class GoToHeightWithCableIndividual(object):
         self.verificationArgs = ['self.DLO', 'self.gripperRight', 'self.gripperLeft']
         self.targetHeight = targetHeight # height from world frame (i.e. table) and not yumi_base_link
             # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
-        self.avgVelocity = 0.02
+        self.avgVelocity = 0.01
         self.shortestTime = 1
         self.gripper = grippers # in mm, [Right, left]
-        self.tol = 0.07 # if cable gripp position is off more then 4 cm then task faild and also
+        self.tol = 0.05 # if cable gripp position is off more then 4 cm then task faild and also
                         # some margin for noise and delay
         self.pointTime = 1
 
@@ -185,7 +185,8 @@ class GoToHeightWithCableIndividual(object):
                                         posTargetRight=positionRight,\
                                         posTargetLeft=positionLeft, \
                                         rotTargetRight=orientationRight,\
-                                        rotTargetLeft=orientationLeft)
+                                        rotTargetLeft=orientationLeft,\
+                                        avgSpeed=self.avgVelocity)
             trajectoryPoint.positionRight = positionRight.tolist()
             trajectoryPoint.positionLeft = positionLeft.tolist()
             trajectoryPoint.orientationLeft = orientationLeft.tolist()
@@ -303,8 +304,8 @@ class OverCableIndividual(object): # only for individual control
 
         positionRight, positionLeft,quatRight, quatLeft, inRange = utils.calcGrippPosRot(DLO,\
                         self.leftGrippPoint, self.rightGrippPoint, self.targetHeight[0], self.targetHeight[1])
-        positionRight[2] = np.maximum(positionRight[2], 0.009)
-        positionLeft[2] = np.maximum(positionLeft[2], 0.009)
+        positionRight[2] = np.maximum(positionRight[2], 0.001)
+        positionLeft[2] = np.maximum(positionLeft[2], 0.00)
 
         if inRange == False:
             print('Error, not in range')
@@ -533,8 +534,8 @@ class CableReroutingOverIndividual(object): # only for individual control
         self.leftGrippPoint = pickupPoints[1]
         positionRight, positionLeft,quatRight, quatLeft, inRange = utils.calcGrippPosRot(DLO,\
                         self.leftGrippPoint, self.rightGrippPoint, self.targetHeight[0], self.targetHeight[1])
-        positionRight[2] = np.maximum(positionRight[2], 0.009)
-        positionLeft[2] = np.maximum(positionLeft[2], 0.009)
+        positionRight[2] = np.maximum(positionRight[2], 0.00)
+        positionLeft[2] = np.maximum(positionLeft[2], 0.001)
         if inRange == False:
             print('Error, not in range')
 

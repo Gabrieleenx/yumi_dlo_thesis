@@ -128,7 +128,7 @@ class GrabCable(Task):
         super(GrabCable, self).__init__('individual')   
         goToHeight = subTasks.GoToHeightIndividual(np.array([0.10,0.10]), np.array([20,20])) 
         overCable = subTasks.OverCableIndividual(np.array([0.10,0.10]), np.array([20,20]), 0.15)
-        onCable = subTasks.OverCableIndividual(np.array([-0.01,-0.01]), np.array([20,20]), 0.15)
+        onCable = subTasks.OverCableIndividual(np.array([-0.005,-0.005]), np.array([20,20]), 0.15)
         grippCable = subTasks.HoldPositionIndividual(3, np.array([0,0]))
         goToHeightWithCable = subTasks.GoToHeightWithCableIndividual(np.array([0.1,0.1]), np.array([0,0])) 
         #goToHeightWithCable = subTasks.GoToHeightIndividual(np.array([0.1,0.1]), np.array([0,0])) 
@@ -201,7 +201,7 @@ class Rerouting(Task):
             self.nextTaskStep = 0
             goToHeight = subTasks.GoToHeightIndividual(np.array([0.10,0.10]), np.array([20,20])) 
             overCable = subTasks.CableReroutingOverIndividual(individual, np.array([0.10,0.10]), np.array([20,20]))
-            onCable = subTasks.CableReroutingOverIndividual(individual, np.array([-0.01,-0.01]), np.array([20,20]))
+            onCable = subTasks.CableReroutingOverIndividual(individual, np.array([-0.005,-0.005]), np.array([20,20]))
             gotToEndPosition = subTasks.CableReroutingEndPosIndividual(individual, np.array([0.10,0.10]), np.array([0,0]))
 
             if individual.pickupRightValid == 1 and individual.pickupLeftValid == 1:

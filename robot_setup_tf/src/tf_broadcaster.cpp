@@ -133,12 +133,12 @@ int main(int argc, char** argv){
 
         broadcaster_r_gripper.sendTransform(
             tf::StampedTransform(
-                tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0, 0, 0.136)),
+                tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0, 0, 0.146)),
                 ros::Time::now(), "yumi_link_7_r", "yumi_gripp_r"));
 
         broadcaster_l_gripper.sendTransform(
             tf::StampedTransform(
-                tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0, 0, 0.136)),
+                tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0, 0, 0.146)),
                 ros::Time::now(), "yumi_link_7_l", "yumi_gripp_l"));
 
         fixture = tf_camera_link.returnFixtures();
