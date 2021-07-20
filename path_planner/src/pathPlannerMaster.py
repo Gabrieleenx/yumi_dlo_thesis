@@ -85,6 +85,13 @@ class PathPlanner(object):
         msg = task.getMsg() 
         # Check for imposible solutions
         self.instruction = constraintsCheck.check(task=task, logger=self.logger)
+        
+        #self.instruction = 0
+
+        # skip solver for test, to be removed 
+        #if self.instruction == 1:
+        #    self.instruction = 2
+
         # if problem detected
         if self.instruction == 1:
             self.logger.appendPathplannerState(data='Hold position sent')
@@ -214,6 +221,7 @@ class PathPlanner(object):
         self.logger.appendJointPosition(data=np.copy(self.jointPosition))
         self.logger.appendControllerState(data=self.currentSubTask)
         self.logger.appendCurrentTask(data=self.currentTask)
+        
         # if a new trajectory is called for
         if task.getNewTrajectory() == 1:
             self.genetateNewTrajectory(task=task)

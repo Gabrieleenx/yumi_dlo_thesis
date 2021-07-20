@@ -26,7 +26,7 @@ class YmuiContoller(object):
 
         self.jointState = utils.JointState()
 
-        # Trajectory
+        # class for generating target velocities
         self.controlInstructions = utils.ControlInstructions(self.dT)
 
         # Forward kinematics and transformers 
@@ -35,21 +35,21 @@ class YmuiContoller(object):
         self.yumiGrippPoseL = utils.FramePose()
         self.yumiElbowPoseR = utils.FramePose()
         self.yumiElbowPoseL = utils.FramePose()
-        self.yumiElbowPoseL = utils.FramePose()
 
         self.tfListener = tf.TransformListener() # for non critical updates, no guarantee for synch
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
                 
-        #rosservice
+        #rosservice, for control over grippers
         self.SetSGCommand = rospy.ServiceProxy('/yumi/rws/sm_addin/set_sg_command', SetSGCommand)
         self.RunSGRoutine = rospy.ServiceProxy('/yumi/rws/sm_addin/run_sg_routine', TriggerWithResultCode)
         stopEGM = rospy.ServiceProxy('/yumi/rws/sm_addin/stop_egm', TriggerWithResultCode)
         
-        # solver 
+        # HQP solver 
         self.HQP = HQPSolver.HQPSolver(stopEGM)
 
-        # Task objects 
+        # Task objects -------------
         # ctype 0 = equality, 1 = upper, -1 = lower
+
         #values from https://search.abb.com/library/Download.aspx?DocumentID=3HAC052982-001&LanguageCode=en&DocumentPartId=&Action=Launch
         jointPoistionBoundUpper = np.array([168.5, 43.5, 168.5, 80, 290, 138, 229])*np.pi/(180) *0.99 # in radians 
         jointPoistionBoundUpper = np.hstack([jointPoistionBoundUpper, jointPoistionBoundUpper]) # two arms
@@ -61,8 +61,7 @@ class YmuiContoller(object):
         self.jointPositionBoundLower = Task.JointPositionBoundsTask(Dof=14,\
                      bounds=jointPoistionBoundLower, timestep=self.dT, ctype=-1)
 
-        #velocityDownScaling = 4
-        #jointVelocityBound = np.array([180, 180, 180, 180, 400, 400, 400])*np.pi/(180) / velocityDownScaling # in radians 
+        # joint velocity limit 
         jointVelocityBound = np.array([1, 1, 1, 1, 1, 1, 1])
         jointVelocityBound = np.hstack([jointVelocityBound, jointVelocityBound]) # two arms
 
@@ -74,17 +73,19 @@ class YmuiContoller(object):
                      bounds=-jointVelocityBound, ctype=-1)
         self.jointVelocityBoundLower.compute() # constant
 
+        # Control objective
+        
         self.indiviualControl = Task.IndividualControl(Dof=14)
 
         self.absoluteControl = Task.AbsoluteControl(Dof=14)
 
         self.relativeControl = Task.RelativeControl(Dof=14)
 
+        # elbow colision
         self.selfCollisionRightElbow = Task.ElbowCollision(Dof=14, arm='right', minDistance=0.2, timestep=self.dT)
         self.selfCollisionLeftElbow = Task.ElbowCollision(Dof=14, arm='left', minDistance=0.2, timestep=self.dT)
 
-        #defaultPose = np.array([0.0, 0.0, 0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0, 0.0, 0.0, 0.0, 0.0])
-        #defaultPose =np.array([1.0, -2.0, -0.8, 1.0, -2.2, 1.3, 0.0, -1.0, -2.0, 0.8, 1.0, 2.2, 1.3, 0.0])
+        # joint potential 
         defaultPose = np.array([0.7, -1.7, -0.8, 1.0, -2.2, 1.0, 0.0, -0.7, -1.7, 0.8, 1.0, 2.2, 1.0, 0.0])
         self.jointPositionPotential = Task.JointPositionPotential(Dof=14, defaultPose=defaultPose, timestep=self.dT)
         
@@ -101,14 +102,13 @@ class YmuiContoller(object):
     def callback(self, data):
         # update joint position
         self.jointState.UpdatePose(pose=np.asarray(data.jointPosition))
-        # distance from wrist to tip of grippers, ussually constant. changed on robot_setup_tf package
+        # distance from wrist to tip of grippers, ussually constant. changed in robot_setup_tf 
         (gripperLengthRight, _) = self.tfListener.lookupTransform('/yumi_link_7_r', '/yumi_gripp_r', rospy.Time(0))
         (gripperLengthLeft, _) = self.tfListener.lookupTransform('/yumi_link_7_l', '/yumi_gripp_l', rospy.Time(0))
 
         self.gripperLengthRight = np.asarray(gripperLengthRight)
         self.gripperLengthLeft = np.asarray(gripperLengthLeft)
         # calculated the combined geometric jacobian from base link to tip of gripper for both arms
-        # TODO change name of this function
         jacobianCombined = utils.CalcJacobianCombined(data=data.jacobian[0], \
                                                     gripperLengthRight=gripperLengthRight,\
                                                     gripperLengthLeft=gripperLengthLeft,\
@@ -118,7 +118,7 @@ class YmuiContoller(object):
         # forward kinematics information 
         self.yumiGrippPoseR.update(data.forwardKinematics[0], self.transformer, self.gripperLengthRight)
         self.yumiGrippPoseL.update(data.forwardKinematics[1], self.transformer, self.gripperLengthLeft)
-        self.yumiElbowPoseR.update(data.forwardKinematics[2],  self.transformer, np.zeros(3))
+        self.yumiElbowPoseR.update(data.forwardKinematics[2], self.transformer, np.zeros(3))
         self.yumiElbowPoseL.update(data.forwardKinematics[3], self.transformer, np.zeros(3))
         
         # stack of tasks, in decending hierarchy
@@ -138,7 +138,6 @@ class YmuiContoller(object):
         jacobianLeftElbow = np.zeros((6,4))
 
         dataNP = np.asarray(data.jacobian[1].data)
-
         jacobianRightElbow = dataNP[0::2].reshape((6,4))
         jacobianLeftElbow = dataNP[1::2].reshape((6,4))
         self.selfCollisionRightElbow.compute(jacobian=jacobianRightElbow,\

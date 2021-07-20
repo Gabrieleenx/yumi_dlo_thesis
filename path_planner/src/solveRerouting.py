@@ -27,7 +27,7 @@ class Solve(object):
         self.currentGrippPositionLeft = np.zeros(3)
         self.crossOverProbability = 0.9
         self.mutationConstant = 1 # mutatoin probability c/n, c = mutationConstant, n = num genes
-        self.flippProbability = 0.05
+        #self.flippProbability = 0.05
 
         self.initAbsPos = np.zeros(3)
 
@@ -42,7 +42,8 @@ class Solve(object):
                                             previousFixture=task.previousFixture,\
                                             map_=task.map,\
                                             cableSlack=task.cableSlack,\
-                                            DLO=task.DLO)
+                                            DLO=task.DLO,\
+                                            gripWidth=task.grippWidth)
                 
             self.leftGrippPoint, self.rightGrippPoint = utils.calcGrippPoints(targetFixture=task.targetFixture,\
                                                                             map_=task.map,\

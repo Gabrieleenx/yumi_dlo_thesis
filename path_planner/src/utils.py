@@ -168,19 +168,27 @@ class FixtureObject(object):
         return self.fixtureRadius
 
 
-def calcClipPoint(targetFixture, previousFixture, map_, cableSlack, DLO):
+def calcClipPoint(targetFixture, previousFixture, map_, cableSlack, DLO, gripWidth):
     # calculates the point on the rope (from right) that will be in target fixture
-    length = 0
+    clipPoint = 0
 
     if targetFixture >= 0 and previousFixture >= 0:
         fixture0 = map_[previousFixture]
-        fixture1 = map_[targetFixture]
-        length = np.linalg.norm(fixture1.getClippPosition() - fixture0.getClippPosition())
+        fixture1 = map_[targetFixture] 
+        diff = fixture1.getClippPosition() - fixture0.getClippPosition()
+        clipPoint = np.linalg.norm(diff)
         minDist, point, minIndex = closesPointDLO(DLO, fixture0.getClippPosition())
-        length += DLO.getPartLength(minIndex)
+        clipPoint += DLO.getPartLength(minIndex)
 
-    length += cableSlack
-    return length
+        # change clip point depending on orientation 
+        angleOne = np.arctan2(diff[1], diff[0]) # atan2(y,x)
+        fixtureEuler = tf.transformations.euler_from_quaternion(fixture1.getOrientation(), 'sxyz')
+        angleTwo = fixtureEuler[2] + np.pi/2 # euler orienation of y axis around z base. 
+        diffAngle = abs(calcAngleDiff(angle1=angleOne, angle2=angleTwo))
+        clipPoint += gripWidth/2 *(np.sin(diffAngle-np.pi/2) + 1)
+    
+    clipPoint += cableSlack
+    return clipPoint
 
 
 def getZRotationCable(length, DLO):
@@ -283,6 +291,9 @@ def rotateX180(q):
 def calcGrippPoints(targetFixture, map_, DLO, grippWidth, clipPoint):
 
     rotZClippPoint = getZRotationCable(clipPoint, DLO)
+    if clipPoint-grippWidth/2 < 0 or clipPoint+grippWidth/2 > DLO.getLength():
+        print('Error, pickup points are outside the cable')
+        return -1, -1
     point0 = DLO.getCoord(clipPoint-grippWidth/2)
     point1 = DLO.getCoord(clipPoint+grippWidth/2) 
     dy = point1[1] - point0[1]
@@ -312,13 +323,6 @@ def calcGrippPoints(targetFixture, map_, DLO, grippWidth, clipPoint):
     else:
         leftGrippPoint = clipPoint - grippWidth/2
         rightGrippPoint = clipPoint + grippWidth/2
-
-    if leftGrippPoint < 0 or leftGrippPoint > DLO.getLength():
-        print('Error, pickup points are outside the cable')
-        return -1, -1
-    if rightGrippPoint < 0 or rightGrippPoint > DLO.getLength():
-        print('Error, pickup points are outside the cable')
-        return -1, -1
 
     return leftGrippPoint, rightGrippPoint
 

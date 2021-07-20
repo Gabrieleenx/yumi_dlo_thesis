@@ -295,7 +295,7 @@ class OverCableIndividual(object): # only for individual control
         cableSlack = inputs[6]
         tfListener = inputs[7]
         
-        clipPoint = utils.calcClipPoint(targetFixture, previousFixture, map_, cableSlack, DLO)
+        clipPoint = utils.calcClipPoint(targetFixture, previousFixture, map_, cableSlack, DLO, self.grippWidth)
         self.leftGrippPoint, self.rightGrippPoint = utils.calcGrippPoints(targetFixture, map_, DLO, self.grippWidth, clipPoint)
 
         if self.leftGrippPoint == -1 or self.rightGrippPoint == -1:
@@ -447,6 +447,61 @@ class HoldPositionCombined(object):
     def verification(self, input_):
         return True
 
+
+class VerifyClippedFixture(object):
+    def __init__(self, time_, grippers, MaxDLODist):
+        self.inputArgs = ['relativeTemp', 'absoluteTemp', 'self.mode']
+        self.verificationArgs = ['self.setNextTaskStep', 'self.map', 'self.DLO', 'self.targetFixture']
+        self.pointTime = time_ # height from world frame (i.e. table) and not yumi_base_link
+            # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
+        self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
+        self.gripper = grippers # in mm, [Right, left]
+        self.MaxDLODist = MaxDLODist
+
+    def getTrajectoryPoint(self, inputs):
+        relative = inputs[0]
+        absolute = inputs[1]
+        mode = inputs[2]
+
+        trajectoryPoint = Trajectory_point()
+        
+        if mode == 'combined':
+            absPos = absolute.getPosition()
+            absRot = absolute.getQuaternion()
+            relPos = relative.getPosition()
+            relRot  = relative.getQuaternion()
+
+
+            trajectoryPoint.positionAbsolute = absPos.tolist()
+            trajectoryPoint.positionRelative = relPos.tolist()
+            trajectoryPoint.orientationRelative = relRot.tolist()
+            trajectoryPoint.orientationAbsolute = absRot.tolist()
+            trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
+            trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+            trajectoryPoint.pointTime = self.pointTime
+
+            relative.update(relPos, relRot)
+            absolute.update(absPos, absRot)
+
+        else: 
+            print('Error, mode not valid in subtask')
+            return []
+        
+        return [trajectoryPoint]
+    
+    def verification(self, input_):
+        setTaskStep = input_[0]
+        map_ = input_[1]
+        DLO = input_[2]
+        targetFixture = input_[3]
+        fixture = map_[targetFixture] 
+        fixturePosition = fixture.getClippPosition()
+        minDist, point, minIndex = utils.closesPointDLO(DLO, fixturePosition)
+        if minDist < self.MaxDLODist:
+            setTaskStep(1)
+        else:
+            setTaskStep(-1)
+        return True
 
 
 class OverFixtureCombinded(object):
