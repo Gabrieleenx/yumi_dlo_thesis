@@ -198,7 +198,7 @@ class YmuiContoller(object):
             return
      
         self.jointPositionPotential.compute(jointState=self.jointState)
-        #SoT.append(self.jointPositionPotential)
+        SoT.append(self.jointPositionPotential)
         
         # solve HQP
         # ----------------------

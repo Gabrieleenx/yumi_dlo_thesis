@@ -224,19 +224,8 @@ class EndEffectorProximity(Task):
         LinkVelDiff = np.array([[1,0, -1, 0],[0,1,0,-1]])
         self.constraintMatrix =  -self.timestep *10* diff.dot(LinkVelDiff.dot(jacobianNew)) / d
         self.constraintMatrix = np.expand_dims(self.constraintMatrix, axis=0)
-        #print('self.constraintMatrix ' ,self.constraintMatrix)
         self.constraintVector = -np.array([(self.minDistance - d)])
-        #print('self.constraintVector', -self.constraintVector)
-        
-        #constraintMatrix = np.zeros((2, self.Dof))
-        #LinkVelRight = np.array([[1,0, 0, 0],[0,1,0,0]])
-        #constraintMatrix[0,:] =  -self.timestep *50* diff.dot(LinkVelRight.dot(jacobianNew)) / d   
-        #LinkVelLeft = np.array([[0,0, 1, 0],[0,0,0,1]])
-        #constraintMatrix[1,:] =  self.timestep *50* diff.dot(LinkVelLeft.dot(jacobianNew)) / d   
-        #self.constraintMatrix = constraintMatrix
-        #self.constraintVector = -np.array([(self.minDistance - d), (self.minDistance - d)])
-
-
+       
 
 
 class JointPositionPotential(Task):

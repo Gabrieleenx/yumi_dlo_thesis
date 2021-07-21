@@ -79,7 +79,9 @@ def checkTaskWithinReach(task):
 
 
 def checkIfTrajectoriesPassToClose(task):
-    minGripperDistance = 0.04
+    minGripperDistance = 0.04 
+    minGripperDistanceEndState = 0.12 
+
     traj = task.trajectory
     for i in range(len(traj)):
         if i == 0:
@@ -95,6 +97,9 @@ def checkIfTrajectoriesPassToClose(task):
 
         closestDist = utils.closestDistLineToLineSegment(pointA0=pointA0,\
                             pointA1=pointA1, pointB0=pointB0, pointB1=pointB1)
+
+        if i >= len(traj) - 1 and closestDist <= minGripperDistanceEndState:
+            return False
 
         if closestDist <= minGripperDistance:
             return False
