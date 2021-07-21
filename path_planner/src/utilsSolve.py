@@ -79,7 +79,7 @@ def checkTaskWithinReach(task):
 
 
 def checkIfTrajectoriesPassToClose(task):
-    minGripperDistance = 0.12
+    minGripperDistance = 0.04
     traj = task.trajectory
     for i in range(len(traj)):
         if i == 0:

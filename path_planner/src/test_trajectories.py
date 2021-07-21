@@ -32,6 +32,18 @@ def main():
     trajectory = [trajectoryPoint]
     
     # ---------------
+    trajectoryPoint = Trajectory_point()
+    trajectoryPoint.positionRight = [0.32, -0.0, 0.1]
+    trajectoryPoint.positionLeft = [0.38, 0.0, 0.1]
+    trajectoryPoint.orientationLeft = [1,0,0,0]
+    trajectoryPoint.orientationRight = [1,0,0,0]
+    trajectoryPoint.gripperLeft = [20.0,20.0]
+    trajectoryPoint.gripperRight = [20.0,20.0]
+    trajectoryPoint.pointTime = 10.0
+
+    trajectory.append(trajectoryPoint)
+    '''
+    # ---------------
 
     trajectoryPoint = Trajectory_point()
     trajectoryPoint.positionRight = [0.35, -0.2, 0.002]
@@ -134,7 +146,7 @@ def main():
     trajectoryPoint.pointTime = 8.0
 
     trajectory.append(trajectoryPoint)
-
+    '''
     msg.trajectory = trajectory
     
     pub.publish(msg)

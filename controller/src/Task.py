@@ -64,16 +64,22 @@ class Task(object):
             b = self.constraintVector
             G = np.zeros((1, A.shape[1]))       # Trivial constraint. Makes adding previous stages easier, and solver needs it in the case of 1 task.
             h = np.zeros((1, ))                 # Does not do anything otherwise.
+            #G = None
+            #h = None
         elif self.constraintType == 1:
             G = np.hstack((self.constraintMatrix, -np.eye(m)))
             h = self.constraintVector
             A = np.zeros((1, G.shape[1]))       # Trivial constraint. Makes adding previous stages easier, and solver needs it in the case of 1 task.
             b = np.zeros((1, ))                 # Does not do anything otherwise.
+            #A = None
+            #b = None
         elif self.constraintType == -1:
             G = np.hstack((self.constraintMatrix, np.eye(m)))
             h = self.constraintVector
             A = np.zeros((1, G.shape[1]))       # Trivial constraint. Makes adding previous stages easier, and solver needs it in the case of 1 task.
             b = np.zeros((1, ))                 # Does not do anything otherwise.
+            #A = None
+            #b = None
         return A, b, G, h
     
 
@@ -197,9 +203,45 @@ class ElbowCollision(Task):
             self.constraintVector = -np.array([(boundPoint - translationLeftElbow[1])])
 
 
+class EndEffectorProximity(Task):
+    def __init__(self, Dof, minDistance, timestep):
+        super(EndEffectorProximity, self).__init__(Dof, 1e3)
+        
+        self.constraintType = -1
+        self.timestep = timestep
+        self.minDistance = minDistance
+
+    def compute(self, jacobian, yumiPoseR, yumiPoseL):
+       
+        translationRight = yumiPoseR.getPosition()
+        translationLeft = yumiPoseL.getPosition()
+
+        diff = translationRight[0:2] - translationLeft[0:2]
+        d = np.linalg.norm(diff)
+        jacobianNew = np.zeros((4, self.Dof))
+        jacobianNew[0:2, 0:7] = jacobian[0:2,0:7]
+        jacobianNew[2:4, 7:14] = jacobian[6:8,7:14]
+        LinkVelDiff = np.array([[1,0, -1, 0],[0,1,0,-1]])
+        self.constraintMatrix =  -self.timestep *10* diff.dot(LinkVelDiff.dot(jacobianNew)) / d
+        self.constraintMatrix = np.expand_dims(self.constraintMatrix, axis=0)
+        #print('self.constraintMatrix ' ,self.constraintMatrix)
+        self.constraintVector = -np.array([(self.minDistance - d)])
+        #print('self.constraintVector', -self.constraintVector)
+        
+        #constraintMatrix = np.zeros((2, self.Dof))
+        #LinkVelRight = np.array([[1,0, 0, 0],[0,1,0,0]])
+        #constraintMatrix[0,:] =  -self.timestep *50* diff.dot(LinkVelRight.dot(jacobianNew)) / d   
+        #LinkVelLeft = np.array([[0,0, 1, 0],[0,0,0,1]])
+        #constraintMatrix[1,:] =  self.timestep *50* diff.dot(LinkVelLeft.dot(jacobianNew)) / d   
+        #self.constraintMatrix = constraintMatrix
+        #self.constraintVector = -np.array([(self.minDistance - d), (self.minDistance - d)])
+
+
+
+
 class JointPositionPotential(Task):
     def __init__(self, Dof, defaultPose, timestep):
-        super(JointPositionPotential, self).__init__(Dof, 2e5)
+        super(JointPositionPotential, self).__init__(Dof, 2e3)
         self.timestep = timestep
         self.defaultPose = defaultPose
         self.constraintType = 0

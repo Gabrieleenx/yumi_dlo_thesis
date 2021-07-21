@@ -233,6 +233,7 @@ class ControlInstructions(object): # generates target velocity in task space
             self.targetOrientation[4:8], 0.2)
 
         K = np.array([k_p,k_p,k_p, k_o,k_o,k_o, k_p,k_p,k_p, k_o,k_o,k_o])
+        
         self.velocities = self.targetVelocity + K*self.error
 
         return self.velocities
@@ -309,8 +310,8 @@ class ControlInstructions(object): # generates target velocity in task space
 
     def checkDevation(self):
         devation = np.max(np.abs(self.error) - self.maxDeviation)
-        if devation > 0:
-            return False
+        #if devation > 0:
+            #return False
         return True
 
 # TODO remove maxVelocity and maxRotVel as they no longer serve a pupose

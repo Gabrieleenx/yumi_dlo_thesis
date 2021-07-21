@@ -73,6 +73,9 @@ class YmuiContoller(object):
                      bounds=-jointVelocityBound, ctype=-1)
         self.jointVelocityBoundLower.compute() # constant
 
+        # end effector collision avoidance
+        self.endeEffectorCollision = Task.EndEffectorProximity(Dof=14, minDistance=0.125, timestep=self.dT)
+
         # Control objective
         
         self.indiviualControl = Task.IndividualControl(Dof=14)
@@ -157,6 +160,11 @@ class YmuiContoller(object):
         self.controlInstructions.updateTarget()
 
         if self.controlInstructions.mode == 'individual':
+            self.endeEffectorCollision.compute(jacobian=jacobianCombined,\
+                                                yumiPoseR=self.yumiGrippPoseR,\
+                                                yumiPoseL=self.yumiGrippPoseL)
+            SoT.append(self.endeEffectorCollision)
+
             # indvidual task update 
             self.indiviualControl.compute(controlInstructions=self.controlInstructions, jacobian=jacobianCombined)
             SoT.append(self.indiviualControl)
@@ -190,7 +198,7 @@ class YmuiContoller(object):
             return
      
         self.jointPositionPotential.compute(jointState=self.jointState)
-        SoT.append(self.jointPositionPotential)
+        #SoT.append(self.jointPositionPotential)
         
         # solve HQP
         # ----------------------
