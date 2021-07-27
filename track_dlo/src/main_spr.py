@@ -77,7 +77,7 @@ class ObjectTracking(object):
         black_lower = (0, 0, 0)
         black_upper = (180, 255, 25)
 
-        blue_lower = (100, 235, 100)
+        blue_lower = (100, 235, 50)
         blue_upper = (120, 255, 255)
 
         hsv_image = cv2.cvtColor(color_img, cv2.COLOR_RGB2HSV)

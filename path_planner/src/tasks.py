@@ -167,7 +167,7 @@ class ClippIntoFixture(Task):
         #clippIntoFixture = subTasks.ClipIntoFixture()
         openGrippers = subTasks.HoldPositionCombined(3, np.array([20,20]))
         goToHeight = subTasks.GoToHeightCombined(np.array([0.10,0.10]), np.array([20,20])) 
-        openGrippers = subTasks.VerifyClippedFixture(time_=1, grippers=np.array([20,20]), MaxDLODist=0.03)
+        openGrippers = subTasks.VerifyClippedFixture(time_=1, grippers=np.array([20,20]), MaxDLODist=0.04)
 
         self.subTasks = [overFixture, lowerOverFixture, openGrippers, goToHeight]
         self.goToSubTask = [0,0,0,0]

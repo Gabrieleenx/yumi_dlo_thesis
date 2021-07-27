@@ -86,7 +86,7 @@ class PathPlanner(object):
         # Check for imposible solutions
         self.instruction = constraintsCheck.check(task=task, logger=self.logger)
         
-        #self.instruction = 0
+        self.instruction = 0
 
         # skip solver for test, to be removed 
         #if self.instruction == 1:
@@ -289,7 +289,7 @@ def main():
             obj = utils.FixtureObject(position=pos,\
                                         orientation=rot,\
                                         fixtureHeight=0.06,\
-                                        fixtureRadius=0.06)
+                                        fixtureRadius=0.065)
             listOfObjects.extend([obj])
             logger.appendPathplannerState(data='Adding Fixture ' + str(i))
             logger.appendFixturesObj(data=obj)
@@ -299,7 +299,7 @@ def main():
 
     # tasks -------------------
     # how much cable slack there should be between current and previous fixture
-    slackList = [0.15, 0.04, 0.04, 0.04]
+    slackList = [0.11, 0.04, 0.04, 0.04]
     listOfTasks  = []
     for i in range(len(listOfObjects)):
         grabCable = tasks.GrabCable(targetFixture=i, previousFixture=i-1, cableSlack=slackList[i])

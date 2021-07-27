@@ -195,7 +195,7 @@ def getZRotationCable(length, DLO):
     length0 = length-0.01
     length1 = length+0.01
     if length0 < 0 or length1 > DLO.getLength():
-        print('error in getZRotationCable, length outside domain, length0 = ', length0, ' length1 = ', length1)
+        print('error in getZRotationCable, length outside domain, length0 = ', length0, ' length1 = ', length1, ' DLO Length = ', DLO.getLength())
         return 0
 
     point0 = DLO.getCoord(length0)

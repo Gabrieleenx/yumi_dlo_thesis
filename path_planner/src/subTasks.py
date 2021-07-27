@@ -304,7 +304,7 @@ class OverCableIndividual(object): # only for individual control
 
         positionRight, positionLeft,quatRight, quatLeft, inRange = utils.calcGrippPosRot(DLO,\
                         self.leftGrippPoint, self.rightGrippPoint, self.targetHeight[0], self.targetHeight[1])
-        positionRight[2] = np.maximum(positionRight[2], 0.001)
+        positionRight[2] = np.maximum(positionRight[2], 0.0015)
         positionLeft[2] = np.maximum(positionLeft[2], 0.00)
 
         if inRange == False:
@@ -500,6 +500,7 @@ class VerifyClippedFixture(object):
         if minDist < self.MaxDLODist:
             setTaskStep(1)
         else:
+            print('DLO not in Fixture, distance = ', minDist)
             setTaskStep(-1)
         return True
 
@@ -589,8 +590,8 @@ class CableReroutingOverIndividual(object): # only for individual control
         self.leftGrippPoint = pickupPoints[1]
         positionRight, positionLeft,quatRight, quatLeft, inRange = utils.calcGrippPosRot(DLO,\
                         self.leftGrippPoint, self.rightGrippPoint, self.targetHeight[0], self.targetHeight[1])
-        positionRight[2] = np.maximum(positionRight[2], 0.00)
-        positionLeft[2] = np.maximum(positionLeft[2], 0.001)
+        positionRight[2] = np.maximum(positionRight[2], 0.0015)
+        positionLeft[2] = np.maximum(positionLeft[2], 0.00)
         if inRange == False:
             print('Error, not in range')
 
