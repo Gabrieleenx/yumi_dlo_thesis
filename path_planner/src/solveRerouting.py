@@ -263,22 +263,10 @@ class Solve(object):
         score += score_
         score_, valid_ = utilsSolve.distanceMovedPenalty(self.initLeftGrippPos, leftEndPickupPoint)
         score += score_
-        '''
-        if not (individual.pickupRightValid or individual.pickupLeftValid):
-            score_, valid_ = utilsSolve.penaltyForPathsToClose(rightStart= self.currentGrippPositionRight ,\
-                                                RightEnd=tempPickupRight,\
-                                                leftStart=self.currentGrippPositionLeft,\
-                                                leftEnd=tempPickupLeft)
-            score += score_
-            score_, valid_ = utilsSolve.penaltyForPathsToClose(rightStart=tempPickupRight,\
-                                                RightEnd=rightPos,\
-                                                leftStart=tempPickupLeft,\
-                                                leftEnd=leftPos)
-            score += score_
-        '''
+
         # if both not valid
-        if not (individual.pickupRightValid or individual.pickupLeftValid):
-            score += -5
+        #if not (individual.pickupRightValid or individual.pickupLeftValid):
+        #    score += -5
         
         return score
     
