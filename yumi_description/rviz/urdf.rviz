@@ -1,6 +1,6 @@
 Panels:
   - Class: rviz/Displays
-    Help Height: 426
+    Help Height: 186
     Name: Displays
     Property Tree Widget:
       Expanded:
@@ -11,8 +11,9 @@ Panels:
         - /TF1/Frames1
         - /SPRCable1
         - /Camera1
+        - /Marker1
       Splitter Ratio: 0.5
-    Tree Height: 372
+    Tree Height: 612
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -31,7 +32,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: Camera
+    SyncSource: SPRCable
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -193,16 +194,8 @@ Visualization Manager:
           Value: true
         Fixture3:
           Value: true
-        camera_aligned_depth_to_color_frame:
-          Value: false
-        camera_color_frame:
-          Value: false
-        camera_color_optical_frame:
-          Value: false
-        camera_depth_frame:
-          Value: false
-        camera_depth_optical_frame:
-          Value: false
+        Fixture4:
+          Value: true
         camera_link:
           Value: false
         gripper_l_base:
@@ -216,14 +209,6 @@ Visualization Manager:
         gripper_r_finger_l:
           Value: false
         gripper_r_finger_r:
-          Value: false
-        tag_0:
-          Value: false
-        tag_1:
-          Value: false
-        tag_2:
-          Value: false
-        tag_3:
           Value: false
         world:
           Value: true
@@ -270,29 +255,17 @@ Visualization Manager:
       Show Names: true
       Tree:
         yumi_base_link:
+          Fixture1:
+            {}
+          Fixture2:
+            {}
+          Fixture3:
+            {}
+          Fixture4:
+            {}
           world:
             camera_link:
-              camera_aligned_depth_to_color_frame:
-                camera_color_optical_frame:
-                  Fixture1:
-                    {}
-                  Fixture2:
-                    {}
-                  Fixture3:
-                    {}
-                  tag_0:
-                    {}
-                  tag_1:
-                    {}
-                  tag_2:
-                    {}
-                  tag_3:
-                    {}
-              camera_color_frame:
-                {}
-              camera_depth_frame:
-                camera_depth_optical_frame:
-                  {}
+              {}
           yumi_body:
             yumi_link_1_l:
               yumi_link_2_l:
@@ -366,11 +339,20 @@ Visualization Manager:
       Value: true
       Visibility:
         Grid: true
+        Marker: true
         RobotModel: true
         SPRCable: true
         TF: true
         Value: true
       Zoom Factor: 1
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /lineViz
+      Name: Marker
+      Namespaces:
+        "": true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -399,7 +381,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.292142629623413
+      Distance: 1.848963737487793
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -414,10 +396,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.4103993773460388
+      Pitch: 0.3703994154930115
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 6.266781330108643
+      Yaw: 6.2117719650268555
     Saved: ~
 Window Geometry:
   Camera:
@@ -438,4 +420,4 @@ Window Geometry:
     collapsed: true
   Width: 960
   X: 960
-  Y: 27
+  Y: 0

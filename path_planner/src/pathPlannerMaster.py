@@ -8,6 +8,7 @@ import tf
 import numpy as np
 import utils, constraintsCheck, solveRerouting, dataLogger
 import tasks
+import collisionCheck
 import threading
 
 class PathPlanner(object):
@@ -17,6 +18,10 @@ class PathPlanner(object):
         self.map = listOfObjects
         self.tasks = listOfTasks
         self.numOfTasks = len(self.tasks)
+        self.collisionCheck = collisionCheck.CollisionCheck()
+        staticCollisionObjects = collisionCheck.setupStaticObjects(listOfObjects=self.map)
+        self.collisionCheck.updateStaticObjects(staticCollisionObjects)
+        self.evaluate = constraintsCheck.Evaluate(self.collisionCheck)
         # keep track of robot 
         self.tfListener = tf.TransformListener()        
         self.gripperRight = utils.FramePose()
@@ -84,9 +89,9 @@ class PathPlanner(object):
         # generates message
         msg = task.getMsg() 
         # Check for imposible solutions
-        self.instruction = constraintsCheck.check(task=task, logger=self.logger)
+        self.instruction = self.evaluate.check(task=task, logger=self.logger)
         
-        self.instruction = 0
+        #self.instruction = 0
 
         # skip solver for test, to be removed 
         #if self.instruction == 1:
@@ -148,7 +153,7 @@ class PathPlanner(object):
                 # replace message from new task with solution
                 msg = task_.getMsg()
                 # Check for imposible solutions
-                nonValidSolution = constraintsCheck.check(task=task_, logger=self.logger)
+                nonValidSolution = self.evaluate.check(task=task_, logger=self.logger)
                 if nonValidSolution == 3:
                     self.instruction = 3
             task = task_
@@ -196,7 +201,8 @@ class PathPlanner(object):
         self.gripperRight.update(position=posRight, orientation=orientationRight)
         self.gripperLeft.update(position=posLeft, orientation=orientationLeft)
         
-        
+        self.collisionCheck.plotPolygons()
+
         # threadsafe for DLO and subtasks
         self.mtx_spr.acquire()
         self.mtx_subTask.acquire()

@@ -2,7 +2,7 @@ import numpy as np
 import rospy
 from controller.msg import Trajectory_point
 import tf
-import utils, utilsSolve
+import utils, utilsSolve, collisionCheck
 
 class Solve(object):
     def __init__(self):
@@ -136,13 +136,14 @@ class Solve(object):
         individual.pickupLeftValid = True
         individual.pickupRightValid = True
         # final positions
-        rightPos, leftPos, quatRight, quatLeft = individual.getRightLeftPosQuat(np.array([0.00, 0.00]))
+        rightPos, leftPos, quatRight, quatLeft = individual.getRightLeftPosQuat(np.array([0.03, 0.03]))
         pickupPoints = individual.getPickupPoints()
         
         # pickup points 
-        tempPickupRight = self.DLO.getCoord(pickupPoints[0])
-        tempPickupLeft = self.DLO.getCoord(pickupPoints[1])
-
+        tempRightPos, tempLeftPos, tempRightQuat, tempLeftQuat, valid_ = utils.calcGrippPosRot(self.DLO, leftGrippPoint=pickupPoints[1], rightGrippPoint=pickupPoints[0],\
+                                 targetHeightRight=0, targetHeightLeft=0)
+       
+        
         # To close to fixture, for end points, penalty 
         
         scoreFixtureRight, validFixtureRight = utilsSolve.fixturePenalty(position=rightPos, map_=self.map)
@@ -153,23 +154,24 @@ class Solve(object):
         individual.pickupRightValid = individual.pickupRightValid and validFixtureRight
         individual.pickupLeftValid = individual.pickupLeftValid and validFixtureLeft
         
+
         # To close to fixture, pickup, penalty 
         
-        scoreFixtureRight, validFixtureRight = utilsSolve.fixturePenalty(position=tempPickupRight, map_=self.map)
-        scoreFixtureLeft, validFixtureLeft = utilsSolve.fixturePenalty(position=tempPickupLeft, map_=self.map)
+        scoreFixtureRight, validFixtureRight = utilsSolve.fixturePenalty(position=tempRightPos, map_=self.map)
+        scoreFixtureLeft, validFixtureLeft = utilsSolve.fixturePenalty(position=tempLeftPos, map_=self.map)
 
         score += scoreFixtureRight
         score += scoreFixtureLeft
         individual.pickupRightValid = individual.pickupRightValid and validFixtureRight
         individual.pickupLeftValid = individual.pickupLeftValid and validFixtureLeft
-
+        
         # check if pickup point is in reach
-        score_, valid_ = utilsSolve.outsideReachPenalty(position=tempPickupRight,\
+        score_, valid_ = utilsSolve.outsideReachPenalty(position=tempRightPos,\
                                 quat=np.array([1,0,0,0]), reachCentrum=self.reachRightCentrum, reach=self.reach)
         score += score_
         individual.pickupRightValid = individual.pickupRightValid and valid_
 
-        score_, valid_ = utilsSolve.outsideReachPenalty(position=tempPickupLeft,\
+        score_, valid_ = utilsSolve.outsideReachPenalty(position=tempLeftPos,\
                                 quat=np.array([1,0,0,0]), reachCentrum=self.reachLeftCentrum, reach=self.reach)
         score += score_
         individual.pickupLeftValid = individual.pickupLeftValid and valid_
@@ -200,7 +202,7 @@ class Solve(object):
             score += - 2 
 
         # penalty for crossing pickup 
-        if not utilsSolve.checkCrossing(pointR=tempPickupRight, pointL=tempPickupLeft):
+        if not utilsSolve.checkCrossing(pointR=tempRightPos, pointL=tempLeftPos):
             score += - 2 
 
 
@@ -214,7 +216,7 @@ class Solve(object):
         
         rightEndPickupPoint, leftEndPickupPoint = utilsSolve.predictRope(task=self.task, individual=individual,\
                                     leftGrippPoint=self.leftGrippPoint, rightGrippPoint=self.rightGrippPoint)
-
+        
         # new pickup points to close to fixture
         
         scoreFixtureRight, validFixtureRight = utilsSolve.fixturePenalty(position=rightEndPickupPoint, map_=self.map)
@@ -224,7 +226,7 @@ class Solve(object):
         score += scoreFixtureLeft
         individual.pickupRightValid = individual.pickupRightValid and validFixtureRight
         individual.pickupLeftValid = individual.pickupLeftValid and validFixtureLeft
-        
+
         # penalty for end pickup out of reach 
         
         score_, valid_ = utilsSolve.outsideReachPenalty(position=rightEndPickupPoint,\
@@ -242,7 +244,7 @@ class Solve(object):
         if np.linalg.norm(rightEndPickupPoint - leftEndPickupPoint) < 0.12:
             score += -2
         
-        if np.linalg.norm(tempPickupRight - tempPickupLeft) < 0.12:
+        if np.linalg.norm(tempRightPos - tempLeftPos) < 0.12:
             score += -2
             if individual.pickupRightValid and individual.pickupLeftValid:
                 individual.pickupRightValid = False
@@ -340,3 +342,4 @@ class Solve(object):
         individual.combinedValid = individual.combinedValid and valid_
 
         return score
+
