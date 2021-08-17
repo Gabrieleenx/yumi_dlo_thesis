@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
+import rospy
 import tf
 import utilsSolve
 
@@ -150,9 +151,15 @@ class FixtureObject(object):
         self.orientation = orientation
         self.fixtureHeight = fixtureHeight
         self.fixtureRadius = fixtureRadius
+        transformer = tf.TransformerROS(True, rospy.Duration(0.1)) 
+        tfMatrix1 = transformer.fromTranslationRotation(translation=position, rotation=orientation)
+        self.position2 = tfMatrix1.dot(np.array([0.025,0,0,1]))[0:3]
 
     def getBasePosition(self):
         return np.copy(self.position)
+
+    def getBasePosition2(self):
+        return np.copy(self.position2)
 
     def getClippPosition(self):
         clippPosition = np.array([self.position[0], self.position[1], self.position[2]+ self.fixtureHeight])

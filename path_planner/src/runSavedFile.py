@@ -8,8 +8,12 @@ import pickle
 from sensor_msgs.msg import JointState, PointCloud
 from geometry_msgs.msg import Point32
 import matplotlib.pyplot as plt
+from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage,
+                                  AnnotationBbox)
+import os
+plt.rcParams["font.family"] = "Times New Roman"
 
-
+plt.style.use('ggplot')
 
 import os
 transformer = tf.TransformerROS(True, rospy.Duration(0.1)) 
@@ -354,7 +358,9 @@ class Replay(object):
         self.errorRelrot = []
         self.tttCombined = []
         self.plotCombined = 0
-
+        
+        self.plotX = []
+        self.plotY = []
 
     def step(self):
 
@@ -363,262 +369,7 @@ class Replay(object):
             self.gripperPoseIndex += 1
         gripperPose = self.savedData.gripperPose[self.gripperPoseIndex].data
         #gripperPose[posRight, orientationRight, posLeft, orientationLeft]
-
-        while self.savedData.msgSent[self.msgSentIndex].time < self.time:
-            msgSent = self.savedData.msgSent[self.msgSentIndex].data
-            self.mode = msgSent.mode
-            trajectory, velLeftInit, velRightInit = callbackTrajectory(data=msgSent, gripperPose=gripperPose)
-            self.trajectory.updatePoints(trajectory, velLeftInit, velRightInit)
-            self.timeTrajOffset = self.savedData.msgSent[self.msgSentIndex].time# self.savedData.gripperPose[self.gripperPoseIndex].time
-            if not self.msgSentIndex == len(self.savedData.msgSent) -1: 
-                self.msgSentIndex += 1
-            else:
-                break
-            if self.msgSentIndex == 2:
-                self.plotIndividual = 1
-            if self.msgSentIndex == 3:
-                self.plotCombined = 1
-
-        if self.msgSentIndex > 0:
-            targetPosition, targetOrientation, _, _, _ = self.trajectory.getTarget(self.savedData.gripperPose[self.gripperPoseIndex].time-self.timeTrajOffset)
-        
-        if self.mode == 'individual' and self.msgSentIndex == 1:
-            self.positionSaveRLxyzIndividualTarget.append(np.copy(targetPosition))
-            #print(self.positionSaveRLxyzIndividualTarget[-1])
-            gripperPosePos = [gripperPose[0], gripperPose[2]]
-            flat_list = [item for sublist in gripperPosePos for item in sublist]
-            flat_list = np.asarray(flat_list)
-            self.positionSaveRLxyzIndividualactual.append(flat_list)
-            error_ = flat_list - targetPosition
-            self.errorInividualPosRLxyz.append(error_)
-            self.ttt.append(self.savedData.gripperPose[self.gripperPoseIndex].time - self.timeTrajOffset)
-            QrightG = np.asarray(gripperPose[1])
-            QleftG = np.asarray(gripperPose[3])
-            rotError = RotationError(currentQ=QrightG, targetQ=targetOrientation[0:4])
-            self.errorInividualRotR.append(np.copy(rotError))
-
-            rotError =RotationError(currentQ=QleftG, targetQ=targetOrientation[4:8])
-            self.errorInividualRotL.append(np.copy(rotError))
-
-        '''
-        if self.mode == 'combined' and self.msgSentIndex == 2:
-            self.positionSaveRLxyzCombinedTarget.append(np.copy(targetPosition))
-            #print(self.positionSaveRLxyzIndividualTarget[-1])
-
-            positionRight = np.asarray(gripperPose[0])
-            positionLeft  = np.asarray(gripperPose[2])
-            orientationRight = np.asarray(gripperPose[1])
-            orientationLeft = np.asarray(gripperPose[3])
-            positionRight, orientationRight,positionLeft,orientationLeft = \
-                 calcAbsoluteAndRelative(positionRight, positionLeft, orientationRight, orientationLeft)
-
-            gripperPosePos = [positionRight, positionLeft]
-
-            flat_list = [item for sublist in gripperPosePos for item in sublist]
-            flat_list = np.asarray(flat_list)
-            self.positionSaveRLxyzCombinedactual.append(flat_list)
-            error_ = flat_list - targetPosition
-            self.errorCombinedPosRLxyz.append(error_)
-            self.tttCombined.append(self.savedData.gripperPose[self.gripperPoseIndex].time - self.timeTrajOffset)
-
-
-            rotError = RotationError(currentQ=orientationRight, targetQ=targetOrientation[0:4])
-            self.errorAbsrot.append(np.copy(rotError))
-
-            rotError =RotationError(currentQ=orientationLeft, targetQ=targetOrientation[4:8])
-            self.errorRelrot.append(np.copy(rotError))
-
-            #print(error_)
-        
-        if self.plotCombined == 1:
-            self.plotCombined = 0
-            print('hhhheeeellllooo')
-            ttt = np.asarray(self.tttCombined)
-            
-            posAc = np.asarray(self.positionSaveRLxyzCombinedactual)
-            postr = np.asarray(self.positionSaveRLxyzCombinedTarget)
-            error_ = np.asarray(self.errorCombinedPosRLxyz)
-
-            error_Rotabs = np.asarray(self.errorAbsrot)
-            error_Rotrel = np.asarray(self.errorRelrot)
-
-            plt.figure(1, figsize=(7,5))
-            plt.subplot(211)
-            #print(postr)
-            l1 = plt.plot(ttt, posAc[:,0], 'r--', label='Position x-axis')
-            l2 = plt.plot(ttt, postr[:,0], 'r-', label='Trajectory x-axis')
-            l3 = plt.plot(ttt, posAc[:,1], 'g--' , label='Position y-axis')
-            l4 = plt.plot(ttt, postr[:,1], 'g-', label='Trajectory y-axis')
-            l5 = plt.plot(ttt, posAc[:,2], 'b--', label='Position z-axis')
-            l6 = plt.plot(ttt, postr[:,2], 'b-', label='Trajectory z-axis')
-            plt.legend(loc='upper right')
-            plt.xlim(0, 21)
-            plt.title('Absolute and relative position and trajectory')
-            plt.xlabel('Time [s]')
-            plt.ylabel('Position absolute [m]')
-            plt.subplot(212)
-            l1 = plt.plot(ttt, posAc[:,3], 'r--', label='Position x-axis')
-            l2 = plt.plot(ttt, postr[:,3], 'r-', label='Trajectory x-axis')
-            l3 = plt.plot(ttt, posAc[:,4], 'g--' , label='Position y-axis')
-            l4 = plt.plot(ttt, postr[:,4], 'g-', label='Trajectory y-axis')
-            l5 = plt.plot(ttt, posAc[:,5], 'b--', label='Position z-axis')
-            l6 = plt.plot(ttt, postr[:,5], 'b-', label='Trajectory z-axis')
-            plt.legend(loc='upper right')
-            plt.xlabel('Time [s]')
-            plt.xlim(0, 21)
-            plt.ylabel('Position relative [m]')
-            plt.tight_layout()
-
-            plt.figure(2, figsize=(7,5))
-            plt.subplot(211)
-            #print(postr)
-            l1 = plt.plot(ttt, error_[:,0], 'r-', label='Error x-axis')
-            l4 = plt.plot(ttt, error_[:,1], 'g-', label='Error y-axis')
-            l6 = plt.plot(ttt, error_[:,2], 'b-', label='Error z-axis')
-            plt.legend(loc='upper right')
-            plt.title('Error position')
-            plt.xlim(0, 21)
-            plt.xlabel('Time [s]')
-            plt.ylabel('Error absolute [m]')
-            plt.subplot(212)
-            l1 = plt.plot(ttt, error_[:,3], 'r-', label='Error x-axis')
-            l4 = plt.plot(ttt, error_[:,4], 'g-', label='Error y-axis')
-            l6 = plt.plot(ttt, error_[:,5], 'b-', label='Error z-axis')
-            plt.legend(loc='upper right')
-            plt.xlabel('Time [s]')
-            plt.xlim(0, 21)
-            plt.ylabel('Error relative  [m]')
-            plt.tight_layout()            
-
-            print('mean pos', error_.mean())
-            print('std pos', error_.std())
-            print('rmse pos', np.sqrt((error_**2).mean()))
-
-
-            plt.figure(3, figsize=(7,5))
-            plt.subplot(211)
-            #print(postr)
-            plt.title('Error angular')
-
-            l1 = plt.plot(ttt, error_Rotabs[:,0], 'r-', label='Error x-axis')
-            l4 = plt.plot(ttt, error_Rotabs[:,1], 'g-', label='Error y-axis')
-            l6 = plt.plot(ttt, error_Rotabs[:,2], 'b-', label='Error z-axis')
-            plt.legend(loc='upper right')
-            plt.xlabel('Time [s]')
-            plt.xlim(0, 21)
-            plt.ylabel('Angular error absolute [rad]')
-            plt.subplot(212)
-            l1 = plt.plot(ttt, error_Rotrel[:,0], 'r-', label='Error x-axis')
-            l4 = plt.plot(ttt, error_Rotrel[:,1], 'g-', label='Error y-axis')
-            l6 = plt.plot(ttt, error_Rotrel[:,2], 'b-', label='Error z-axis')
-            plt.legend(loc='upper right')
-            plt.xlabel('Time [s]')
-            plt.xlim(0, 21)
-
-            plt.ylabel('Angular error relative [rad]')
-            plt.tight_layout()
-            error_ = np.hstack([error_Rotabs, error_Rotrel])
-            print('mean ang', error_.mean())
-            print('std ang', error_.std())
-            print('rmse ang', np.sqrt((error_**2).mean()))
-            plt.show()
-    
-
-            plt.show()
-            
-
-        if self.plotIndividual == 1:
-            self.plotIndividual = 0
-            print('hhhheeeellllooo')
-            ttt = np.asarray(self.ttt)
-            
-            posAc = np.asarray(self.positionSaveRLxyzIndividualactual)
-            postr = np.asarray(self.positionSaveRLxyzIndividualTarget)
-            error_ = np.asarray(self.errorInividualPosRLxyz)
-            error_RotR = np.asarray(self.errorInividualRotR)
-            error_RotL = np.asarray(self.errorInividualRotL)
-            plt.figure(1, figsize=(7,5))
-            plt.subplot(211)
-            #print(postr)
-            l1 = plt.plot(ttt, posAc[:,0], 'r--', label='Position x-axis')
-            l2 = plt.plot(ttt, postr[:,0], 'r-', label='Trajectory x-axis')
-            l3 = plt.plot(ttt, posAc[:,1], 'g--' , label='Position y-axis')
-            l4 = plt.plot(ttt, postr[:,1], 'g-', label='Trajectory y-axis')
-            l5 = plt.plot(ttt, posAc[:,2], 'b--', label='Position z-axis')
-            l6 = plt.plot(ttt, postr[:,2], 'b-', label='Trajectory z-axis')
-            plt.legend(loc='upper right')
-            plt.xlim(0, 36)
-            plt.title('Gripper position and trajectory')
-            plt.xlabel('Time [s]')
-            plt.ylabel('Position right gripper [m]')
-            plt.subplot(212)
-            l1 = plt.plot(ttt, posAc[:,3], 'r--', label='Position x-axis')
-            l2 = plt.plot(ttt, postr[:,3], 'r-', label='Trajectory x-axis')
-            l3 = plt.plot(ttt, posAc[:,4], 'g--' , label='Position y-axis')
-            l4 = plt.plot(ttt, postr[:,4], 'g-', label='Trajectory y-axis')
-            l5 = plt.plot(ttt, posAc[:,5], 'b--', label='Position z-axis')
-            l6 = plt.plot(ttt, postr[:,5], 'b-', label='Trajectory z-axis')
-            plt.legend(loc='upper right')
-            plt.xlabel('Time [s]')
-            plt.xlim(0, 36)
-            plt.ylabel('Position left gripper  [m]')
-            plt.tight_layout()
-            plt.figure(2, figsize=(7,5))
-            plt.subplot(211)
-            #print(postr)
-            l1 = plt.plot(ttt, error_[:,0], 'r-', label='Error x-axis')
-            l4 = plt.plot(ttt, error_[:,1], 'g-', label='Error y-axis')
-            l6 = plt.plot(ttt, error_[:,2], 'b-', label='Error z-axis')
-            plt.legend(loc='upper right')
-            plt.xlim(0, 36)
-            plt.title('Error position')
-            plt.xlabel('Time [s]')
-            plt.ylabel('Error right gripper [m]')
-            plt.subplot(212)
-            l1 = plt.plot(ttt, error_[:,3], 'r-', label='Error x-axis')
-            l4 = plt.plot(ttt, error_[:,4], 'g-', label='Error y-axis')
-            l6 = plt.plot(ttt, error_[:,5], 'b-', label='Error z-axis')
-            plt.legend(loc='upper right')
-            plt.xlabel('Time [s]')
-            plt.xlim(0, 36)
-            plt.ylabel('Error left gripper  [m]')
-            plt.tight_layout()
-            print('mean pos', error_.mean())
-            print('std pos', error_.std())
-            print('rmse pos', np.sqrt((error_**2).mean()))
-
-            plt.figure(3, figsize=(7,5))
-            plt.subplot(211)
-            #print(postr)
-            plt.title('Error angular')
-
-            l1 = plt.plot(ttt, error_RotR[:,0], 'r-', label='Error x-axis')
-            l4 = plt.plot(ttt, error_RotR[:,1], 'g-', label='Error y-axis')
-            l6 = plt.plot(ttt, error_RotR[:,2], 'b-', label='Error z-axis')
-            plt.legend(loc='upper right')
-            plt.xlabel('Time [s]')
-            plt.xlim(0, 36)
-
-            plt.ylabel('Angular error right gripper [rad]')
-            plt.subplot(212)
-            l1 = plt.plot(ttt, error_RotL[:,0], 'r-', label='Error x-axis')
-            l4 = plt.plot(ttt, error_RotL[:,1], 'g-', label='Error y-axis')
-            l6 = plt.plot(ttt, error_RotL[:,2], 'b-', label='Error z-axis')
-            plt.legend(loc='upper right')
-            plt.xlabel('Time [s]')
-            plt.xlim(0, 36)
-
-            plt.ylabel('Angular error left gripper [rad]')
-            plt.tight_layout()
-            error_ = np.hstack([error_RotR, error_RotL])
-            print('mean ang', error_.mean())
-            print('std ang', error_.std())
-            print('rmse ang', np.sqrt((error_**2).mean()))
-            print('DLO Hz', self.DLOPointsIndex/ttt[-1])
-            plt.show()
-        '''  
-
-
+   
         while self.savedData.jointPosition[self.jointPositionIndex].time < self.time:
             self.jointPositionIndex += 1
 
@@ -656,6 +407,57 @@ class Replay(object):
 
         while self.savedData.pathplannerState[self.pathplannerStateIndex].time < self.time:
             print(self.savedData.pathplannerState[self.pathplannerStateIndex].data, ' time, ', self.savedData.pathplannerState[self.pathplannerStateIndex].time-self.savedData.fixturesObj[0].time)
+            time_ =  self.savedData.pathplannerState[self.pathplannerStateIndex].time-self.savedData.fixturesObj[0].time
+   
+
+            if self.savedData.pathplannerState[self.pathplannerStateIndex].data[0:len('Generate new trajectory')] == 'Generate new trajectory' and \
+                 self.savedData.pathplannerState[self.pathplannerStateIndex+2].data[0:len('Trajectory goodindividual')] == 'Trajectory goodindividual':
+                if len(self.plotY) > 0:
+                    self.plotY.append(self.plotY[-1])
+                    self.plotX.append(time_)
+
+                self.plotY.append(1)
+                self.plotX.append(time_)
+                print('Individual start')
+            
+            if self.savedData.pathplannerState[self.pathplannerStateIndex].data[0:len('Generate new trajectory')] == 'Generate new trajectory' and \
+                 self.savedData.pathplannerState[self.pathplannerStateIndex+2].data[0:len('Trajectory goodcombined')] == 'Trajectory goodcombined':
+                if len(self.plotY) > 0:
+                    self.plotY.append(self.plotY[-1])
+                    self.plotX.append(time_)
+
+                self.plotY.append(2)
+                self.plotX.append(time_)
+                print('Combined start')
+
+            if self.savedData.pathplannerState[self.pathplannerStateIndex].data[0:len('Searching for solution')] == 'Searching for solution':
+                if len(self.plotY) > 0:
+                    self.plotY.append(self.plotY[-1])
+                    self.plotX.append(time_)
+
+                self.plotY.append(3)
+                self.plotX.append(time_)
+                print('GA Searching for solution')  
+
+            if self.savedData.pathplannerState[self.pathplannerStateIndex-2].data[0:len('Searching for solution')] == 'Searching for solution' and \
+                 self.savedData.pathplannerState[self.pathplannerStateIndex].data[0:len('Trajectory goodindividual')] == 'Trajectory goodindividual':
+                if len(self.plotY) > 0:
+                    self.plotY.append(self.plotY[-1])
+                    self.plotX.append(time_)
+
+                self.plotY.append(4)
+                self.plotX.append(time_)
+                print('execute GA start')
+
+            if self.savedData.pathplannerState[self.pathplannerStateIndex].data[0:len('All tasks completed')] == 'All tasks completed':
+                if len(self.plotY) > 0:
+                    self.plotY.append(self.plotY[-1])
+                    self.plotX.append(time_)
+
+                self.plotY.append(0)
+                self.plotX.append(time_)
+                print('End State')  
+
             self.pathplannerStateIndex += 1
 
 
@@ -689,7 +491,7 @@ def main():
 
     replay = Replay(savedData=savedObj, timeStep=1/10)
 
-    rate = rospy.Rate(10) 
+    rate = rospy.Rate(1000) 
     print('hi')
     while not rospy.is_shutdown():
         #replay.step()
@@ -698,6 +500,36 @@ def main():
             replay.step()
         except:
             print('done')
+            fig, ax = plt.subplots(figsize =(18, 6))
+            ax.plot(replay.plotX, replay.plotY, '-ob')
+            plt.yticks([0, 1, 2, 3, 4, 5, 6], ['End state', 'GrabDLO', 'ClipIntoFixture', 'GA search', 'GA execute', '', ''],rotation=0)  # Set text labels and properties.
+            plt.subplots_adjust(top = 0.95, bottom = 0.1, right = 0.95, left = 0.1, hspace = 0, wspace = 0)
+
+            #n = get_sample_data(, asfileobj=False)
+            path = "/home/gabriel/catkin/src/yumi_dlo_thesis/path_planner/src/20210722_114545.jpg"
+            #if we need find it first
+  
+            print(path)
+            arr_img = plt.imread(path, format='jpg')
+
+            imagebox = OffsetImage(arr_img, zoom=0.04)
+            imagebox.image.axes = ax
+            xy = (40, 5)
+
+            ab = AnnotationBbox(imagebox, xy,
+                                xybox=(1., 1.),
+                                xycoords='data',
+                                boxcoords="offset points",
+                                pad=0.,
+                                arrowprops=dict(
+                                    arrowstyle="->",
+                                    connectionstyle="angle,angleA=0,angleB=90,rad=3")
+                                )
+
+            ax.add_artist(ab)
+
+
+            plt.show()
             break
         
         rate.sleep()

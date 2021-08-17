@@ -251,7 +251,7 @@ def setupStaticObjects(listOfObjects):
     # yumi stand
     verticesYuMiStand = np.array([[-0.0675, 0.05],[0.0675, 0.05],[0.0675, -0.05],[-0.0675, -0.05]])
     linesYuMiStand = np.array([[0,1],[1,2],[2,3],[3,0]])
-    heightYuMiStand = np.array([0,0.07])
+    heightYuMiStand = np.array([0,0.05])
     
     objYumi = CollisionObject(verticesYuMiStand, linesYuMiStand, heightYuMiStand)
     objYumi.updatePose(position=np.array([0.0675, 0.14, 0]), orientation=np.array([0,0,0,1]))

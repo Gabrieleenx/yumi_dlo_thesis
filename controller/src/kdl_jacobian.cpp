@@ -141,7 +141,9 @@ class Calc_jacobian{
     //0.006109, -0.01012, -0.00733, -0.02775, 0.01396, 0.003665, -0.018325
     std::vector<double> joint_offset = {0.0005, -0.0, -0.00, -0.033, 0.001, 0.02, -0.0,
                                          0.0, -0.00, -0.0, 0.005, -0.0, 0.0, -0.0};
-
+    std::vector<double> joint_offset2 = {-0.01604795573, -0.005990767556, -0.006814363439, 0.01228171227, -0.001571185148, -0.003031243242, 0.0007526933801,
+                                        -0.0009038635582, -0.005224536163, -0.0009453090026, 0.001259396396, 0.003126351383, 0.001636206226, -0.0004466520622};
+    
     // egm active for both arms
     bool egm_active = false;
 
@@ -208,7 +210,7 @@ void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_stat
     for (int i = 0; i < 14; i++){
         for (int j = 0; j < 14; j++){
             if (name_list[i].compare(joint_state_data->name[j]) == 0 ){
-                joint_state[i] = joint_state_data->position[j] + joint_offset[i];
+                joint_state[i] = joint_state_data->position[j] + joint_offset[i] + joint_offset2[i];
                 break;
             }
         }

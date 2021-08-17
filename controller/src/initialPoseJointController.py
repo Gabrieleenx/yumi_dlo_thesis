@@ -22,7 +22,7 @@ class InitContoller(object):
         #self.finalJointPosition = self.calibrationJointPosition
         #self.finalJointPosition = self.calTeast
         self.startJointPosition = np.zeros(14) 
-        self.k = 0 # positon error gain  
+        self.k = 1 # positon error gain  
         self.firstDataPoint = 0
         self.finalTime = 10 # updates later
         self.minTime = 2

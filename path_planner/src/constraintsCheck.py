@@ -91,7 +91,8 @@ class Evaluate(object):
                 rightPos, leftPos = utilsSolve.calcAbsolutToIndividualPos(posAbsolut=absolutePos,\
                                             quatAbsolute=absoluteQuat, posRelative=relativePos)
                 leftQuat = absoluteQuat
-                rightQuat = relativeQuat
+                rightQuat = leftQuat
+
             self.updateGrippers(leftPos, leftQuat, rightPos, rightQuat)
 
             if self.collisionCheckObj.checkCollision():

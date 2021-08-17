@@ -208,9 +208,11 @@ class GoToHeightWithCableIndividual(object):
         DLO = input_[0]
         gripperRight = input_[1]
         gripperLeft = input_[2]
-
-        minDistRight, pointRight, minIndex = utils.closesPointDLO(DLO, gripperRight.getPosition())
-        minDistLeft, pointLeft, minIndex = utils.closesPointDLO(DLO, gripperLeft.getPosition())
+        minDistLeft = 0
+        minDistRight = 0
+        if gripperRight.getPosition()[2] >= 0.08 and gripperLeft.getPosition()[2] >= 0.08:
+            minDistRight, pointRight, minIndex = utils.closesPointDLO(DLO, gripperRight.getPosition())
+            minDistLeft, pointLeft, minIndex = utils.closesPointDLO(DLO, gripperLeft.getPosition())
 
         if minDistLeft < self.tol and minDistRight < self.tol:
             return True
@@ -304,8 +306,8 @@ class OverCableIndividual(object): # only for individual control
 
         positionRight, positionLeft,quatRight, quatLeft, inRange = utils.calcGrippPosRot(DLO,\
                         self.leftGrippPoint, self.rightGrippPoint, self.targetHeight[0], self.targetHeight[1])
-        positionRight[2] = np.maximum(positionRight[2], 0.0015)
-        positionLeft[2] = np.maximum(positionLeft[2], 0.00)
+        positionRight[2] = np.maximum(positionRight[2], 0.0023)
+        positionLeft[2] = np.maximum(positionLeft[2], 0.002)
 
         if inRange == False:
             print('Error, not in range')
@@ -590,8 +592,8 @@ class CableReroutingOverIndividual(object): # only for individual control
         self.leftGrippPoint = pickupPoints[1]
         positionRight, positionLeft,quatRight, quatLeft, inRange = utils.calcGrippPosRot(DLO,\
                         self.leftGrippPoint, self.rightGrippPoint, self.targetHeight[0], self.targetHeight[1])
-        positionRight[2] = np.maximum(positionRight[2], 0.0015)
-        positionLeft[2] = np.maximum(positionLeft[2], 0.00)
+        positionRight[2] = np.maximum(positionRight[2], 0.0023)
+        positionLeft[2] = np.maximum(positionLeft[2], 0.002)
         if inRange == False:
             print('Error, not in range')
 

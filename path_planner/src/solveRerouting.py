@@ -188,14 +188,22 @@ class Solve(object):
         individual.pickupLeftValid = individual.pickupLeftValid and valid_
         
         # penalty for crossing to far on x axis
-        score_, valid_ = utilsSolve. minXposPenalty(position=rightPos)
+        score_, valid_ = utilsSolve.baseCollisionPenalty(position=rightPos)
         score += score_
         individual.pickupRightValid = individual.pickupRightValid and valid_
 
-        score_, valid_ = utilsSolve. minXposPenalty(position=leftPos)
+        score_, valid_ = utilsSolve.baseCollisionPenalty(position=leftPos)
         score += score_
         individual.pickupLeftValid = individual.pickupLeftValid and valid_
         
+        score_, valid_ = utilsSolve.baseCollisionPenalty(position=tempRightPos)
+        score += score_
+        individual.pickupRightValid = individual.pickupRightValid and valid_
+
+        score_, valid_ = utilsSolve.baseCollisionPenalty(position=tempLeftPos)
+        score += score_
+        individual.pickupLeftValid = individual.pickupLeftValid and valid_
+
         # penalty for crossing to far on y axis
         angle = individual.parametersIndividual[4]
         if angle < -(np.pi/2 + (20*np.pi/180)) or angle > (np.pi/2 + (20*np.pi/180)):
@@ -226,6 +234,15 @@ class Solve(object):
         score += scoreFixtureLeft
         individual.pickupRightValid = individual.pickupRightValid and validFixtureRight
         individual.pickupLeftValid = individual.pickupLeftValid and validFixtureLeft
+
+        # penalty for crossing to far on x axis
+        score_, valid_ = utilsSolve.baseCollisionPenalty(position=rightEndPickupPoint)
+        score += score_
+        individual.pickupRightValid = individual.pickupRightValid and valid_
+
+        score_, valid_ = utilsSolve.baseCollisionPenalty(position=leftEndPickupPoint)
+        score += score_
+        individual.pickupLeftValid = individual.pickupLeftValid and valid_
 
         # penalty for end pickup out of reach 
         
@@ -306,6 +323,15 @@ class Solve(object):
 
         score_, valid_ = utilsSolve.outsideReachPenalty(position=leftPos, quat=quatLeft,\
                                          reachCentrum=self.reachRightCentrum, reach=self.reach-0.03)
+        score += score_
+        individual.combinedValid = individual.combinedValid and valid_
+
+        # penalty for crossing to far on x axis
+        score_, valid_ = utilsSolve.baseCollisionPenalty(position=rightPos)
+        score += score_
+        individual.combinedValid = individual.combinedValid and valid_
+
+        score_, valid_ = utilsSolve.baseCollisionPenalty(position=leftPos)
         score += score_
         individual.combinedValid = individual.combinedValid and valid_
 

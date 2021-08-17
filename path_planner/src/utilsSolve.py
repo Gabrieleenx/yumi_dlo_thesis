@@ -53,7 +53,7 @@ def calcAbsolutToIndividualPos(posAbsolut, quatAbsolute, posRelative):
 def checkTaskWithinReach(task):
     # checks if all trajectory point in a task is within the arms reach, returns True or False 
     within = True
-    reach = 0.53 # max 0.559
+    reach = 0.54 # max 0.559
     reachLeftCentrum = np.array([0.138, 0.106, 0.462])
     reachRightCentrum = np.array([0.138, -0.106, 0.462])
     mode = task.mode
@@ -224,20 +224,29 @@ def checkOverRotation(task):
 
 # Evaluation functions ---------------------------------
 
-def minXposPenalty(position):
+def baseCollisionPenalty(position):
     valid = True
     score = 0
-    if position[0] < 0.13:
-        valid = False
-        score = -1 + position[0] 
+    if (position[1] < 0.20 and position[1] > 0.07) or (position[1] > -0.20 and position[1] < -0.07):
+        if position[0] < 0.17:
+            score = -1
+            valid = False
+    elif position[1] < 0.07 and position[1] > -0.07:
+        if position[0] < 0.135:
+            score = -1
+            valid = False
+    else:     
+        if position[0] < 0.05:
+            valid = False
+            score = -1
     return score, valid
 
 def fixturePenalty(position, map_):
     valid = 1
     score = 0
     for i in range(len(map_)):
-        posFixture = map_[i].getBasePosition()
-        minDist = map_[i].getFixtureRadius()+0.01
+        posFixture = map_[i].getBasePosition2()
+        minDist = map_[i].getFixtureRadius()+0.02
         dist = np.linalg.norm(posFixture[0:2]-position[0:2]) # only distance in xy plane thats relevant
         if dist <= minDist:
             score += -2
