@@ -1,0 +1,3 @@
+[submodule "yumi"]
+	path = yumi
+	url = https://github.com/CRIS-Chalmers/yumi.git
