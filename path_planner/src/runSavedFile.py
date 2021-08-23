@@ -450,13 +450,16 @@ class Replay(object):
                 print('execute GA start')
 
             if self.savedData.pathplannerState[self.pathplannerStateIndex].data[0:len('All tasks completed')] == 'All tasks completed':
-                if len(self.plotY) > 0:
-                    self.plotY.append(self.plotY[-1])
-                    self.plotX.append(time_)
+                if self.plotY[-1] == 0:
+                    pass
+                else:
+                    if len(self.plotY) > 0:
+                        self.plotY.append(self.plotY[-1])
+                        self.plotX.append(time_)
 
-                self.plotY.append(0)
-                self.plotX.append(time_)
-                print('End State')  
+                    self.plotY.append(0)
+                    self.plotX.append(time_)
+                    print('End State')  
 
             self.pathplannerStateIndex += 1
 
@@ -475,6 +478,14 @@ class Replay(object):
             # Change to camera frame
         self.DLOPub.publish(cloud_msg)
 
+def plot_img(plt, ax, x, y, scale_img, path, x_, y_, strr):
+    arr_img = plt.imread(path, format='jpg')
+    axin = ax.inset_axes([x, y, scale_img * 16, scale_img * 1],transform=ax.transData)    # create new inset axes in data coordinates
+    axin.imshow(arr_img)
+    axin.axis('off')
+    axin.text(50, 800, strr, fontsize = 18)
+
+    ax.plot([x+(scale_img * 16)/2,x_], [y+scale_img/2,y_], '--k')
 
     
 def main():
@@ -483,6 +494,7 @@ def main():
     script_dir = os.path.dirname(__file__)
     rel_path = "SavedData/test2/test4.obj"
     abs_file_path = os.path.join(script_dir, rel_path)
+    abs_file_path = "/home/gabriel/zNewTestGA/Run8.obj"
     print(abs_file_path)
         
     file_load = open(abs_file_path, 'rb')
@@ -500,35 +512,54 @@ def main():
             replay.step()
         except:
             print('done')
-            fig, ax = plt.subplots(figsize =(18, 6))
-            ax.plot(replay.plotX, replay.plotY, '-ob')
-            plt.yticks([0, 1, 2, 3, 4, 5, 6], ['End state', 'GrabDLO', 'ClipIntoFixture', 'GA search', 'GA execute', '', ''],rotation=0)  # Set text labels and properties.
-            plt.subplots_adjust(top = 0.95, bottom = 0.1, right = 0.95, left = 0.1, hspace = 0, wspace = 0)
+            fig, ax = plt.subplots(figsize =(12, 6))
+            ax.plot(replay.plotX, replay.plotY, '-ob', linewidth=3, alpha=0.8)
+
+            plt.yticks([-3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7], ['', '', '','End state', 'GrabDLO', 'ClipIntoFixture', 'GA search', 'GA execute', '', '', ''],rotation=0)  # Set text labels and properties.
+            plt.subplots_adjust(top = 0.95, bottom = 0.1, right = 1, left = 0.08, hspace = 0, wspace = 0)
 
             #n = get_sample_data(, asfileobj=False)
-            path = "/home/gabriel/catkin/src/yumi_dlo_thesis/path_planner/src/20210722_114545.jpg"
+            path = "/home/gabriel/Downloads/Vid/1.jpg" #"/home/gabriel/catkin/src/yumi_dlo_thesis/path_planner/src/20210722_114545.jpg"
             #if we need find it first
   
             print(path)
-            arr_img = plt.imread(path, format='jpg')
+            scale_img = 3.3
+            offset = 60
+            # Draw image
+            x = replay.plotX[0]
+            y = replay.plotY[0]
+            plot_img(plt, ax, 0, 4.5, scale_img, path, x, y, '1')
+            path = "/home/gabriel/Downloads/Vid/2.jpg"
+            x = (replay.plotX[1]+ replay.plotX[2])/2
+            y = (replay.plotY[1]+ replay.plotY[2])/2  
+            plot_img(plt, ax, 0, -3, scale_img, path, x, y, '2')
+            path = "/home/gabriel/Downloads/Vid/3.jpg"
+            x = (replay.plotX[3]+ replay.plotX[4])/2
+            y = (replay.plotY[3]+ replay.plotY[4])/2  
+            plot_img(plt, ax, offset, 4.5, scale_img, path, x, y, '3')
+            path = "/home/gabriel/Downloads/Vid/4.jpg"
+            x = (replay.plotX[7]+ replay.plotX[8])/2
+            y = (replay.plotY[7]+ replay.plotY[8])/2  
+            plot_img(plt, ax, offset, -3, scale_img, path, x, y, '4')
+            path = "/home/gabriel/Downloads/Vid/5.jpg"
+            x = (replay.plotX[9]+ replay.plotX[10])/2
+            y = (replay.plotY[9]+ replay.plotY[10])/2  
+            plot_img(plt, ax, 2*offset, 4.5, scale_img, path, x, y, '5')
+            path = "/home/gabriel/Downloads/Vid/6.jpg"
+            x = (replay.plotX[11]+ replay.plotX[12])/2
+            y = (replay.plotY[11]+ replay.plotY[12])/2  
+            plot_img(plt, ax, 2*offset, -3, scale_img, path, x, y, '6')
+            path = "/home/gabriel/Downloads/Vid/7.jpg"
+            x = (replay.plotX[13]+ replay.plotX[14])/2
+            y = (replay.plotY[13]+ replay.plotY[14])/2  
+            plot_img(plt, ax, 3*offset, 4.5, scale_img, path, x, y, '7')
+            path = "/home/gabriel/Downloads/Vid/8.jpg"
+            x = (replay.plotX[15]+ replay.plotX[16])/2
+            y = (replay.plotY[15]+ replay.plotY[16])/2  
+            plot_img(plt, ax, 3*offset, -3, scale_img, path, x, y, '8')
 
-            imagebox = OffsetImage(arr_img, zoom=0.04)
-            imagebox.image.axes = ax
-            xy = (40, 5)
-
-            ab = AnnotationBbox(imagebox, xy,
-                                xybox=(1., 1.),
-                                xycoords='data',
-                                boxcoords="offset points",
-                                pad=0.,
-                                arrowprops=dict(
-                                    arrowstyle="->",
-                                    connectionstyle="angle,angleA=0,angleB=90,rad=3")
-                                )
-
-            ax.add_artist(ab)
-
-
+            plt.ylim([-3, 7.82])
+            plt.xlabel('Time [s]')
             plt.show()
             break
         

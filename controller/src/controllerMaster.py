@@ -74,7 +74,7 @@ class YmuiContoller(object):
         self.jointVelocityBoundLower.compute() # constant
 
         # end effector collision avoidance
-        self.endeEffectorCollision = Task.EndEffectorProximity(Dof=14, minDistance=0.125, timestep=self.dT)
+        self.endeEffectorCollision = Task.EndEffectorProximity(Dof=14, minDistance=0.120, timestep=self.dT)
 
         # Control objective
         
@@ -218,7 +218,6 @@ class YmuiContoller(object):
                         self.SetSGCommand(task="T_ROB_L", command=5, target_position=self.controlInstructions.gripperLeft[0])
 
                     self.controlInstructions.lastGripperLeft[0] = self.controlInstructions.gripperLeft[0]
-
                 if abs(self.controlInstructions.lastGripperRight[0] - self.controlInstructions.gripperRight[0]) >= tol:
                     if self.controlInstructions.gripperRight[0] <= 0.1:
                         self.SetSGCommand(task="T_ROB_R", command=6)

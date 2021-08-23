@@ -91,7 +91,7 @@ class PathPlanner(object):
         # Check for imposible solutions
         self.instruction = self.evaluate.check(task=task, logger=self.logger)
         
-        #self.instruction = 0
+        self.instruction = 0
 
         # skip solver for test, to be removed 
         #if self.instruction == 1:

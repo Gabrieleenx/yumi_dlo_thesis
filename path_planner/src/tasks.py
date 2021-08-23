@@ -162,8 +162,8 @@ class GrabCable(Task):
 class ClippIntoFixture(Task):
     def __init__(self, targetFixture, previousFixture, cableSlack, grippWidth=0.15):
         super(ClippIntoFixture, self).__init__('combined')    
-        overFixture = subTasks.OverFixtureCombinded(np.array([0,0]), grippWidth+0.001, 0.05)
-        lowerOverFixture = subTasks.OverFixtureCombinded(np.array([0,0]), grippWidth+0.001, -0.0355)
+        overFixture = subTasks.OverFixtureCombinded(np.array([0,0]), grippWidth+0.003, 0.05)
+        lowerOverFixture = subTasks.OverFixtureCombinded(np.array([0,0]), grippWidth+0.003, -0.033)
         #clippIntoFixture = subTasks.ClipIntoFixture()
         openGrippers = subTasks.HoldPositionCombined(3, np.array([20,20]))
         goToHeight = subTasks.GoToHeightCombined(np.array([0.10,0.10]), np.array([20,20])) 
