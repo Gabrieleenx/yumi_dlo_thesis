@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  apriltag_ros
 )
 
 ## System dependencies are found with CMake's conventions
@@ -204,3 +205,8 @@ catkin_install_python(PROGRAMS
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+
+add_executable(tf_camera src/tf_camera.cpp)
+
+target_link_libraries(tf_camera ${catkin_LIBRARIES})

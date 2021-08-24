@@ -187,7 +187,7 @@ class Solve(object):
         score += score_
         individual.pickupLeftValid = individual.pickupLeftValid and valid_
         
-        # penalty for crossing to far on x axis
+        # penalty for collision with base
         score_, valid_ = utilsSolve.baseCollisionPenalty(position=rightPos)
         score += score_
         individual.pickupRightValid = individual.pickupRightValid and valid_
@@ -235,7 +235,7 @@ class Solve(object):
         individual.pickupRightValid = individual.pickupRightValid and validFixtureRight
         individual.pickupLeftValid = individual.pickupLeftValid and validFixtureLeft
 
-        # penalty for crossing to far on x axis
+        # penalty for collision with base
         score_, valid_ = utilsSolve.baseCollisionPenalty(position=rightEndPickupPoint)
         score += score_
         individual.pickupRightValid = individual.pickupRightValid and valid_
@@ -281,10 +281,6 @@ class Solve(object):
         score += score_
         score_, valid_ = utilsSolve.distanceMovedPenalty(self.initLeftGrippPos, leftEndPickupPoint)
         score += score_
-
-        # if both not valid
-        #if not (individual.pickupRightValid or individual.pickupLeftValid):
-        #    score += -5
         
         return score
     
@@ -325,7 +321,7 @@ class Solve(object):
         score += score_
         individual.combinedValid = individual.combinedValid and valid_
 
-        # penalty for crossing to far on x axis
+        # penalty for collision with base
         score_, valid_ = utilsSolve.baseCollisionPenalty(position=rightPos)
         score += score_
         individual.combinedValid = individual.combinedValid and valid_

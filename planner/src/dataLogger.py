@@ -6,6 +6,8 @@ import utils
 import rospy
 import pickle
 
+# This file is used to collect sates of the planner and then save to a .obj file 
+
 class DataWrapper(object):
     def __init__(self, time, data):
         self.time = time

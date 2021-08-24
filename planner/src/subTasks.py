@@ -6,6 +6,8 @@ from controller.msg import Trajectory_point
 import tf
 import utils
 
+# this file contains different motion primitives that can be combined to create a trajectory. 
+
 '''
 Subtask needs to contain the following
 
@@ -694,15 +696,15 @@ class CableReroutingEndPosIndividual(object): # only for individual control
             positionRight = rightPos
             positionRight[2] = targertHeightBase[0]
         else:
-            positionRight = np.array([0.1, -0.35, 0.1]) # gripperRight.getPosition()
-            quatRight = np.array([1,0,0,0])#gripperRight.getQuaternion()
+            positionRight = np.array([0.1, -0.35, 0.1]) 
+            quatRight = np.array([1,0,0,0])
 
         if self.individual.pickupLeftValid == 1:
             positionLeft = leftPos
             positionLeft[2] = targertHeightBase[1]
         else:
-            positionLeft = np.array([0.1, 0.35, 0.1]) # gripperLeft.getPosition()
-            quatLeft = np.array([1,0,0,0])#gripperLeft.getQuaternion()
+            positionLeft = np.array([0.1, 0.35, 0.1])
+            quatLeft = np.array([1,0,0,0])
 
         # calc time
         self.pointTime = utils.getPointTime(gripperRight=gripperRight,\

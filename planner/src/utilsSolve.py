@@ -5,11 +5,11 @@ import tf
 import utils
 import rospy
 # ------------- Checks -------------------------------------
-# these are put global for significant performance gain, only used in checkPositionWithinReach() function 
-transformer = tf.TransformerROS(True, rospy.Duration(0.1)) # also used in trajectoryPointToNpArray()    
-positionG = np.array([0,0,0.135]) # gripper offset
+# these are put global for performance gain
+transformer = tf.TransformerROS(True, rospy.Duration(0.1))  
+positionG = np.array([0,0,0.135]) # gripper offset, only used in checkPositionWithinReach function
 tfMatrixG = transformer.fromTranslationRotation(translation=positionG, rotation=np.array([0,0,0,1]))
-invTfMAtrixG = np.linalg.pinv(tfMatrixG)
+invTfMAtrixG = np.linalg.pinv(tfMatrixG) 
 
 def checkPositionWithinReach(position, quat, reachCentrum, reach):
     # checks if a position is within reach and returns bool and distance
