@@ -5,7 +5,6 @@ import cv2
 import open3d as o3d
 import time
 
-import SPR_local_gpu
 import rospy
 from sensor_msgs.msg import Image, PointCloud, CameraInfo
 from geometry_msgs.msg import Point32
@@ -15,7 +14,16 @@ import message_filters
 from cv_bridge import CvBridge, CvBridgeError
 import tf
 
-spr_local = SPR_local_gpu.SPR()
+try:
+    print('GPU mode')
+    import cupy as cp
+    import SPR_local_gpu
+    spr_local = SPR_local_gpu.SPR()
+except:
+    print('CPU mode')
+    import SPR_local
+    spr_local = SPR_local.SPR()
+
 
 class ObjectTracking(object):
     def __init__(self, SPR_opt, init_estimate):

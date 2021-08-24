@@ -152,7 +152,7 @@ def checkIfNotLeftRightArmCross(task):
             if not checkCrossing(pointR=pointA1, pointL=pointB1):
                 return False
             if not checkCrossing(pointR=pointA0, pointL=pointB0):
-                print('loop hole crossing')
+                #print('loop hole crossing')
                 return False
 
     return True

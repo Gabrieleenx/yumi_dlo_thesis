@@ -492,12 +492,12 @@ int main(int argc, char** argv){
 
     RopeData ropeData;
     ropeData.points.resize(70);
-    double wa = 0.5;
+    double wa = -0.35;
     for(int i = 0; i<70; i++){
         ropeData.points[i].x = 0.4;
         ropeData.points[i].y = wa;
         ropeData.points[i].z = 0;
-        wa -= 0.014285;
+        wa += 0.014285;
     }
 
     ropeData.fixedIndices.resize(0);
@@ -510,16 +510,12 @@ int main(int argc, char** argv){
     fixture.fixtureActive[0] = 1;
 
     quaternion.setEulerZYX(-45.0/180*M_PI, 0.0, 0.0);
-    fixture.fixtureList[1] = tf::Transform(quaternion, tf::Vector3(0.3, -0.0, 0.0));
+    fixture.fixtureList[1] = tf::Transform(quaternion, tf::Vector3(0.25, -0.0, 0.0));
     fixture.fixtureActive[1] = 1;
 
-    quaternion.setEulerZYX(-135.0/180*M_PI, 0.0, 0.0);
-    fixture.fixtureList[2] = tf::Transform(quaternion, tf::Vector3(0.50, -0.0, 0.0));
+    quaternion.setEulerZYX(0.0/180*M_PI, 0.0, 0.0);
+    fixture.fixtureList[2] = tf::Transform(quaternion, tf::Vector3(0.3, 0.2, 0.0));
     fixture.fixtureActive[2] = 1;
-
-    quaternion.setEulerZYX(-180.0/180*M_PI, 0.0, 0.0);
-    fixture.fixtureList[3] = tf::Transform(quaternion, tf::Vector3(0.5, -0.2, 0.0));
-    fixture.fixtureActive[3] = 1;
 
     ropeSim.updateInitial(&ropeData, &fixture);
     ropeSim.resetToInitial();
