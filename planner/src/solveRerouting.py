@@ -257,13 +257,12 @@ class Solve(object):
         individual.pickupLeftValid = individual.pickupLeftValid and valid_
         
         # penalty for pickup points too close 
-        
-        if np.linalg.norm(rightEndPickupPoint - leftEndPickupPoint) < 0.12:
-            score += -2
-        
-        if np.linalg.norm(tempRightPos - tempLeftPos) < 0.12:
-            score += -2
-            if individual.pickupRightValid and individual.pickupLeftValid:
+        if individual.pickupRightValid and individual.pickupLeftValid:
+            if np.linalg.norm(rightEndPickupPoint - leftEndPickupPoint) < 0.12:
+                score += -2
+            
+            if np.linalg.norm(tempRightPos - tempLeftPos) < 0.12:
+                score += -2
                 individual.pickupRightValid = False
                 individual.pickupLeftValid = False
 

@@ -548,7 +548,7 @@ def generateInitIndividual(task, leftPickupRange, rightPickupRange, individualST
             individual.parametersIndividual[3] = newAbsY
             individual.parametersIndividual[4] = newAbsAgnle
 
-        elif task.mode == 'combined':
+        elif task.mode == 'coordinated':
 
             individual.grippWidth = task.grippWidth
             if np.random.random() < 0.5:
@@ -586,7 +586,7 @@ def mutateIndividual(task, seedIndividual, leftPickupRange, rightPickupRange, in
                 else:
                     individual.parametersIndividual[i] = seedIndividual.parametersIndividual[i]
 
-        elif task.mode == 'combined':
+        elif task.mode == 'coordinated':
             individual.grippWidth = task.grippWidth
             flippProbability = 0.5
             numGenes = np.size(seedIndividual.parametersCombined, 0)

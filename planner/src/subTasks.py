@@ -29,13 +29,14 @@ class subTask(object):
     def verification(self, input_):
         return bool 
 '''
+
 class GoToHeightIndividualResetOrientatin(object):
     # Works for both comined and individual control, preservs orientation
     def __init__(self, targetHeight, grippers):
         self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', 'self.mode', 'self.tfListener', 'self.jointPosition']
         self.verificationArgs = ['self.taskDone']
         self.targetHeight = targetHeight # height from world frame (i.e. table) and not yumi_base_link
-            # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
+            # Otherise the frame is yumi_base_link, [Right, Left], for coordinated only right is used
         self.gripper = grippers # in mm, [Right, left]
         self.pointTime = 1
 
@@ -74,8 +75,8 @@ class GoToHeightIndividualResetOrientatin(object):
             trajectoryPoint.positionLeft = positionLeft.tolist()
             trajectoryPoint.orientationLeft = orientationLeft.tolist()
             trajectoryPoint.orientationRight = orientationRight.tolist()
-            trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
-            trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+            trajectoryPoint.gripperLeft = self.gripper[1]
+            trajectoryPoint.gripperRight = self.gripper[0]
             trajectoryPoint.pointTime = self.pointTime
 
             gripperLeft.update(positionLeft, orientationLeft)
@@ -97,7 +98,7 @@ class GoToHeightIndividual(object):
         self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', 'self.mode', 'self.tfListener']
         self.verificationArgs = ['self.taskDone']
         self.targetHeight = targetHeight # height from world frame (i.e. table) and not yumi_base_link
-            # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
+            # Otherise the frame is yumi_base_link, [Right, Left], for coordinated only right is used
         self.gripper = grippers # in mm, [Right, left]
         self.pointTime = 1
 
@@ -130,8 +131,8 @@ class GoToHeightIndividual(object):
             trajectoryPoint.positionLeft = positionLeft.tolist()
             trajectoryPoint.orientationLeft = orientationLeft.tolist()
             trajectoryPoint.orientationRight = orientationRight.tolist()
-            trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
-            trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+            trajectoryPoint.gripperLeft = self.gripper[1]
+            trajectoryPoint.gripperRight = self.gripper[0]
             trajectoryPoint.pointTime = self.pointTime
 
             gripperLeft.update(positionLeft, orientationLeft)
@@ -153,7 +154,7 @@ class GoToHeightWithCableIndividual(object):
 
         self.verificationArgs = ['self.DLO', 'self.gripperRight', 'self.gripperLeft']
         self.targetHeight = targetHeight # height from world frame (i.e. table) and not yumi_base_link
-            # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
+            # Otherise the frame is yumi_base_link, [Right, Left], for coordinated only right is used
         self.avgVelocity = 0.01
         self.shortestTime = 1
         self.gripper = grippers # in mm, [Right, left]
@@ -191,8 +192,8 @@ class GoToHeightWithCableIndividual(object):
             trajectoryPoint.positionLeft = positionLeft.tolist()
             trajectoryPoint.orientationLeft = orientationLeft.tolist()
             trajectoryPoint.orientationRight = orientationRight.tolist()
-            trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
-            trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+            trajectoryPoint.gripperLeft = self.gripper[1]
+            trajectoryPoint.gripperRight = self.gripper[0]
             trajectoryPoint.pointTime = self.pointTime
 
             gripperLeft.update(positionLeft, orientationLeft)
@@ -226,7 +227,7 @@ class GoToHeightCombined(object):
         self.inputArgs = ['absoluteTemp', 'relativeTemp', 'self.mode', 'self.tfListener']
         self.verificationArgs = ['self.taskDone']
         self.targetHeight = targetHeight # height from world frame (i.e. table) and not yumi_base_link
-            # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
+            # Otherise the frame is yumi_base_link, [Right, Left], for coordinated only right is used
         self.gripper = grippers # in mm, [Right, left]
         self.pointTime = 1
 
@@ -240,7 +241,7 @@ class GoToHeightCombined(object):
         targertHeightBase = self.targetHeight - worldToBase[2]
         trajectoryPoint = Trajectory_point()
         
-        if mode == 'combined':
+        if mode == 'coordinated':
             absPos = absolute.getPosition()
             absRot = absolute.getQuaternion()
             relPos = relative.getPosition()
@@ -258,8 +259,8 @@ class GoToHeightCombined(object):
             trajectoryPoint.positionRelative = relPos.tolist()
             trajectoryPoint.orientationRelative = relRot.tolist()
             trajectoryPoint.orientationAbsolute = absRot.tolist()
-            trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
-            trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+            trajectoryPoint.gripperLeft = self.gripper[1]
+            trajectoryPoint.gripperRight = self.gripper[0]
             trajectoryPoint.pointTime = self.pointTime 
 
             relative.update(relPos, relRot)
@@ -327,8 +328,8 @@ class OverCableIndividual(object): # only for individual control
         trajectoryPoint.positionLeft = positionLeft.tolist()
         trajectoryPoint.orientationLeft = quatLeft.tolist()
         trajectoryPoint.orientationRight = quatRight.tolist()
-        trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
-        trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+        trajectoryPoint.gripperLeft = self.gripper[1]
+        trajectoryPoint.gripperRight = self.gripper[0]
         trajectoryPoint.pointTime = self.pointTime
 
         gripperRight.update(positionRight, quatRight)
@@ -368,7 +369,7 @@ class HoldPositionIndividual(object):
         self.inputArgs = ['gripperLeftTemp', 'gripperRightTemp', 'self.mode']
         self.verificationArgs = ['self.taskDone']
         self.pointTime = time_ # height from world frame (i.e. table) and not yumi_base_link
-            # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
+            # Otherise the frame is yumi_base_link, [Right, Left], for coordinated only right is used
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
         self.gripper = grippers # in mm, [Right, left]
 
@@ -389,8 +390,8 @@ class HoldPositionIndividual(object):
             trajectoryPoint.positionLeft = positionLeft.tolist()
             trajectoryPoint.orientationLeft = orientationLeft.tolist()
             trajectoryPoint.orientationRight = orientationRight.tolist()
-            trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
-            trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+            trajectoryPoint.gripperLeft = self.gripper[1]
+            trajectoryPoint.gripperRight = self.gripper[0]
             trajectoryPoint.pointTime = self.pointTime
 
             gripperLeft.update(positionLeft, orientationLeft)
@@ -411,7 +412,7 @@ class HoldPositionCombined(object):
         self.inputArgs = ['relativeTemp', 'absoluteTemp', 'self.mode']
         self.verificationArgs = ['self.taskDone']
         self.pointTime = time_ # height from world frame (i.e. table) and not yumi_base_link
-            # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
+            # Otherise the frame is yumi_base_link, [Right, Left], for coordinated only right is used
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
         self.gripper = grippers # in mm, [Right, left]
 
@@ -422,7 +423,7 @@ class HoldPositionCombined(object):
 
         trajectoryPoint = Trajectory_point()
         
-        if mode == 'combined':
+        if mode == 'coordinated':
             absPos = absolute.getPosition()
             absRot = absolute.getQuaternion()
             relPos = relative.getPosition()
@@ -433,8 +434,8 @@ class HoldPositionCombined(object):
             trajectoryPoint.positionRelative = relPos.tolist()
             trajectoryPoint.orientationRelative = relRot.tolist()
             trajectoryPoint.orientationAbsolute = absRot.tolist()
-            trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
-            trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+            trajectoryPoint.gripperLeft = self.gripper[1]
+            trajectoryPoint.gripperRight = self.gripper[0]
             trajectoryPoint.pointTime = self.pointTime
 
             relative.update(relPos, relRot)
@@ -455,7 +456,7 @@ class VerifyClippedFixture(object):
         self.inputArgs = ['relativeTemp', 'absoluteTemp', 'self.mode']
         self.verificationArgs = ['self.setNextTaskStep', 'self.map', 'self.DLO', 'self.targetFixture']
         self.pointTime = time_ # height from world frame (i.e. table) and not yumi_base_link
-            # Otherise the frame is yumi_base_link, [Right, Left], for combined only right is used
+            # Otherise the frame is yumi_base_link, [Right, Left], for coordinated only right is used
         self.transformer = tf.TransformerROS(True, rospy.Duration(1.0))
         self.gripper = grippers # in mm, [Right, left]
         self.MaxDLODist = MaxDLODist
@@ -467,7 +468,7 @@ class VerifyClippedFixture(object):
 
         trajectoryPoint = Trajectory_point()
         
-        if mode == 'combined':
+        if mode == 'coordinated':
             absPos = absolute.getPosition()
             absRot = absolute.getQuaternion()
             relPos = relative.getPosition()
@@ -478,8 +479,8 @@ class VerifyClippedFixture(object):
             trajectoryPoint.positionRelative = relPos.tolist()
             trajectoryPoint.orientationRelative = relRot.tolist()
             trajectoryPoint.orientationAbsolute = absRot.tolist()
-            trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
-            trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+            trajectoryPoint.gripperLeft = self.gripper[1]
+            trajectoryPoint.gripperRight = self.gripper[0]
             trajectoryPoint.pointTime = self.pointTime
 
             relative.update(relPos, relRot)
@@ -555,8 +556,8 @@ class OverFixtureCombinded(object):
         trajectoryPoint.positionRelative = relPos.tolist()
         trajectoryPoint.orientationRelative = relRot.tolist()
         trajectoryPoint.orientationAbsolute = absRot.tolist()
-        trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
-        trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+        trajectoryPoint.gripperLeft = self.gripper[1]
+        trajectoryPoint.gripperRight = self.gripper[0]
         trajectoryPoint.pointTime = self.pointTime
 
         relative.update(relPos, relRot)
@@ -621,8 +622,8 @@ class CableReroutingOverIndividual(object): # only for individual control
         trajectoryPoint.positionLeft = positionLeft.tolist()
         trajectoryPoint.orientationLeft = quatLeft.tolist()
         trajectoryPoint.orientationRight = quatRight.tolist()
-        trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
-        trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+        trajectoryPoint.gripperLeft = self.gripper[1]
+        trajectoryPoint.gripperRight = self.gripper[0]
         trajectoryPoint.pointTime = self.pointTime
 
         gripperRight.update(positionRight, quatRight)
@@ -715,8 +716,8 @@ class CableReroutingEndPosIndividual(object): # only for individual control
         trajectoryPoint.positionLeft = positionLeft.tolist()
         trajectoryPoint.orientationLeft = quatLeft.tolist()
         trajectoryPoint.orientationRight = quatRight.tolist()
-        trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
-        trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+        trajectoryPoint.gripperLeft = self.gripper[1]
+        trajectoryPoint.gripperRight = self.gripper[0]
         trajectoryPoint.pointTime = self.pointTime
 
         gripperRight.update(positionRight, quatRight)
@@ -769,8 +770,8 @@ class ReroutingCombined(object):
         trajectoryPoint.positionRelative = relPos.tolist()
         trajectoryPoint.orientationRelative = relRot.tolist()
         trajectoryPoint.orientationAbsolute = absRot.tolist()
-        trajectoryPoint.gripperLeft = [self.gripper[1],self.gripper[1]]
-        trajectoryPoint.gripperRight = [self.gripper[0],self.gripper[0]]
+        trajectoryPoint.gripperLeft = self.gripper[1]
+        trajectoryPoint.gripperRight = self.gripper[0]
         trajectoryPoint.pointTime = self.pointTime
 
         relative.update(relPos, relRot)

@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>simulation_rviz</name>
+  <name>simulation_rope</name>
   <version>0.0.0</version>
-  <description>The simulation_rviz package</description>
+  <description>The simulation_rope package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->

@@ -79,7 +79,7 @@ def callbackTrajectory(data, gripperPose):
         #gripperPose[posRight, orientationRight, posLeft, orientationLeft]
         gripperLeft = np.array([0,0])
         gripperRight = gripperLeft
-        if data.mode == 'combined':
+        if data.mode == 'coordinated':
 
             positionRight = np.asarray(gripperPose[0])
             positionLeft  = np.asarray(gripperPose[2])
@@ -107,7 +107,7 @@ def callbackTrajectory(data, gripperPose):
         trajectory = [currentPoint]
         # append trajectory points
         for i in range(len(data.trajectory)):
-            if data.mode == 'combined':
+            if data.mode == 'coordinated':
                 positionRight = np.asarray(data.trajectory[i].positionAbsolute)
                 positionLeft  = np.asarray(data.trajectory[i].positionRelative)
                 orientationRight = np.asarray(data.trajectory[i].orientationAbsolute)
@@ -139,7 +139,7 @@ def callbackTrajectory(data, gripperPose):
             velLeftInit = np.zeros(3)
             velRightInit = 0.5*(np.copy(self.controlInstructions.velocities[0:3]) +\
                                      np.copy(self.controlInstructions.velocities[6:9]))
-        elif self.controlInstructions.mode == 'combined':
+        elif self.controlInstructions.mode == 'coordinated':
             # simple solution, not fully accurate trasition 
             velLeftInit = np.copy(self.controlInstructions.velocities[0:3])
             velRightInit = np.copy(self.controlInstructions.velocities[0:3])
@@ -492,15 +492,15 @@ def main():
     # initilize ros node
     rospy.init_node('savedData', anonymous=True) 
     script_dir = os.path.dirname(__file__)
-    rel_path = "SavedData/test2/test4.obj"
+    rel_path = "SavedData/test2/test3.obj"
     abs_file_path = os.path.join(script_dir, rel_path)
-    abs_file_path = "/home/gabriel/zNewTestGA/Run8.obj"
+    abs_file_path = "/home/gabriel/test1.obj"
     print(abs_file_path)
         
     file_load = open(abs_file_path, 'rb')
     savedObj = pickle.load(file_load)
     file_load.close()
-
+    print(savedObj.solutionIndividual[4].data.pickupRightValid, savedObj.solutionIndividual[4].data.pickupLeftValid)
     replay = Replay(savedData=savedObj, timeStep=1/10)
 
     rate = rospy.Rate(1000) 

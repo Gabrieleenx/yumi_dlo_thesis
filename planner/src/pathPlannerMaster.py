@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
-from controller.msg import Trajectory_point, Trajectory_msg, Jacobian_msg
+from controller.msg import Trajectory_point, Trajectory_msg, Kinematics_msg
 from sensor_msgs.msg import PointCloud
 from std_msgs.msg import Int64
 import tf
@@ -11,7 +11,7 @@ import tasks
 import collisionCheck
 import threading
 
-class PathPlanner(object):
+class Planner(object):
     def __init__(self, listOfObjects, listOfTasks, logger):
 
         # initial enviorment and planned tasks
@@ -35,7 +35,7 @@ class PathPlanner(object):
         self.instruction = 0 # 0 = normal, 1 = problem detected, but solvable, 2 = non recoverable problem
         # detect and solve problems
         self.solve = solveRerouting.Solve()
-        self.rerouting = tasks.Rerouting()
+        self.reRouting = tasks.Rerouting()
         self.holdPosition = tasks.HoldPosition()
         self.resetOrientation = tasks.ResetOrientation()
         # mutex
@@ -90,12 +90,7 @@ class PathPlanner(object):
         msg = task.getMsg() 
         # Check for imposible solutions
         self.instruction = self.evaluate.check(task=task, logger=self.logger)
-        
-        self.instruction = 0
-
-        # skip solver for test, to be removed 
-        #if self.instruction == 1:
-        #    self.instruction = 2
+    
 
         # if problem detected
         if self.instruction == 1:
@@ -127,7 +122,7 @@ class PathPlanner(object):
                 self.logger.appendPathplannerState(data='Searching for solution, attempt = '+ str(numAttempts))
                 # setup solver
                 self.solve.updateInit(task=task)
-                # solve optim problem, evolution based stochastic solver. 
+                # solve optim problem, evolution based genetic solver. 
                 individual = self.solve.solve(populationSize=100, numGenerations=20)
                 self.logger.appendSolutionIndividual(data=individual)
                 if not ((individual.pickupRightValid or individual.pickupLeftValid) and individual.combinedValid):
@@ -136,13 +131,13 @@ class PathPlanner(object):
                     continue
 
                 # setup new task 
-                self.rerouting.resetTask()
-                self.rerouting.initilize(targetFixture=task.targetFixture,\
+                self.reRouting.resetTask()
+                self.reRouting.initilize(targetFixture=task.targetFixture,\
                                         previousFixture=task.previousFixture,\
                                         mode=task.mode,\
                                         individual=individual,\
                                         grippWidth=task.grippWidth)
-                task_ = self.rerouting
+                task_ = self.reRouting
                 task_.updateAndTrackProgress(map_=self.map,\
                                             DLO=self.DLO,\
                                             gripperLeft=self.gripperLeft,\
@@ -201,6 +196,7 @@ class PathPlanner(object):
         self.gripperRight.update(position=posRight, orientation=orientationRight)
         self.gripperLeft.update(position=posLeft, orientation=orientationLeft)
         
+        # plot the latest collission check. 
         self.collisionCheck.plotPolygons()
 
         # threadsafe for DLO and subtasks
@@ -211,7 +207,7 @@ class PathPlanner(object):
         if self.instruction == 0:
             task = self.tasks[self.currentTask]
         elif self.instruction == 1:
-            task = self.rerouting
+            task = self.reRouting
         elif self.instruction == 3:
             task = self.resetOrientation
         else:
@@ -276,7 +272,7 @@ class PathPlanner(object):
     
 def main():
     # initilize ros node
-    rospy.init_node('pathPlanner', anonymous=True) 
+    rospy.init_node('planner', anonymous=True) 
     tfListener = tf.TransformListener()
     # sleep for listener to have time to pick up the transformes 
     rospy.sleep(0.5)
@@ -287,6 +283,7 @@ def main():
     # add existing fixtures in list
     fixtureList = ['/Fixture1','/Fixture2','/Fixture3','/Fixture4']
     listOfObjects = []
+
     for i in range(len(fixtureList)):
         try:
             (pos, rot) = tfListener.lookupTransform('/yumi_base_link', fixtureList[i], rospy.Time(0))
@@ -314,12 +311,12 @@ def main():
         logger.appendPathplannerState(data='Adding tasks, grabCable')
         logger.appendPathplannerState(data='Adding tasks, clippIntoFixture')
 
-    pathPlanner = PathPlanner(listOfObjects=listOfObjects, listOfTasks=listOfTasks, logger=logger)
+    planner = Planner(listOfObjects=listOfObjects, listOfTasks=listOfTasks, logger=logger)
 
     # Ros subscribers 
-    rospy.Subscriber("/spr/dlo_estimation", PointCloud, pathPlanner.callback, queue_size=2)
-    rospy.Subscriber("/controller/sub_task", Int64, pathPlanner.callbackCurrentSubTask, queue_size=2)
-    rospy.Subscriber("/Jacobian_R_L", Jacobian_msg, pathPlanner.callbackJointPosition, queue_size=2)
+    rospy.Subscriber("/spr/dlo_estimation", PointCloud, planner.callback, queue_size=2)
+    rospy.Subscriber("/controller/sub_task", Int64, planner.callbackCurrentSubTask, queue_size=2)
+    rospy.Subscriber("/Jacobian_R_L", Kinematics_msg, planner.callbackJointPosition, queue_size=2)
 
     # sleep for everthing to initilize
     rospy.sleep(0.45)
@@ -330,13 +327,15 @@ def main():
     # main loop
     while not rospy.is_shutdown():
             
-        pathPlanner.update()
+        planner.update()
 
         rate.sleep()
 
-    print('Shuting down')
-    # save data
+    print('Shuting down and saving data... ')
+
+    # save data, the location of the file depends on where the script is started from.
     dataLogger.saveObjectPickle(fileName='test1.obj', object_=logger)
+
     print('Done!')
 
 if __name__ == '__main__':
